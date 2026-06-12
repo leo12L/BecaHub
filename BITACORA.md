@@ -7,7 +7,7 @@
 - **Proyecto:** BecaHub — plataforma de agregación y búsqueda de becas
 - **Ubicación:** `C:\opbecaas` (la carpeta raíz NO se ha renombrado todavía; pendiente manual del usuario)
 - **Stack confirmado:** Next.js 16.2.9 · TypeScript · Tailwind · Prisma 7 · PostgreSQL · Redis (Upstash) · NextAuth · Zod
-- **Última actualización:** Fase 1 cerrada (sin commit aún)
+- **Última actualización:** Fase 2 cerrada (pendiente commit)
 
 ---
 
@@ -84,32 +84,74 @@ Cambios **sin commit** (esperando confirmación para Fase 2). `git status` muest
 
 ---
 
-## Fase 2 — Base de datos + API core ⏳ PENDIENTE
+## Fase 2 — Base de datos + API core ✅ COMPLETADA
 
 **Objetivo:** esquema Prisma completo, seed con datos reales, y los Route Handlers de `/api/becas` con filtros, paginación, caché y rate limiting.
 
-### Tareas pendientes
+**Resultado:** schema migrado y aplicado en Supabase (Postgres), seed con 15 becas / 6 categorías / 2 fuentes, 3 endpoints REST funcionando con filtros, paginación, caché (Redis con degradación) y rate limiting. `npm run build` OK. **Falta hacer el commit.**
 
-- [ ] Hacer primero el **commit de la Fase 1** (`chore: configurar fundación del proyecto BecaHub`)
-- [ ] Definir todos los modelos en `schema.prisma` según el ERD: `User`, `Scholarship`, `Source`, `Category`, `Favorite`, `Application`, `Notification` + tabla intermedia `scholarship_categories`
-- [ ] Correr `npx prisma migrate dev --name init` y verificar tablas
-- [ ] Correr `npx prisma generate` (recordar: cliente sale en `src/generated/prisma`)
-- [ ] Crear `prisma/seed.ts` con ~15 becas de ejemplo en categorías distintas, 3 categorías, 2 fuentes
-- [ ] Implementar validators Zod en `src/validators/`
-- [ ] Implementar Route Handlers de `/api/becas` (GET con filtros + paginación)
-- [ ] Crear `src/lib/cache.ts` (wrappers Redis get/set/invalidate)
-- [ ] Crear `src/lib/rate-limit.ts` y aplicarlo a rutas públicas
-- [ ] Probar endpoints con Bruno/Postman
+### Completado
 
-### Decisiones a tomar antes de empezar
+- [x] Commit de los restos de la Fase 1 (`chore: configurar fundación del proyecto BecaHub`)
+- [x] `schema.prisma` completo: enums (`Role`, `AcademicLevel`, `ScholarshipStatus`, `CoverageType`, `SourceType`, `CategoryAxis`, `ApplicationStatus`) + modelos `User`, `Account`, `Session`, `VerificationToken` (compatibles con `@auth/prisma-adapter`, sirven para NextAuth v4 o Auth.js v5), `Source`, `Category`, `Scholarship`, `ScholarshipCategory` (tabla intermedia), `Favorite`, `Application`, `Notification`. Índices en `Scholarship`: `deadline`, `[status, deadline]`, `[countryDestination, academicLevel]`, `createdAt`.
+- [x] **Conexión a Supabase con Prisma 7 + driver adapters** (`@prisma/adapter-pg` + `pg`): `DATABASE_URL` (pooled, Supavisor puerto 6543, `pgbouncer=true`) para runtime; `DIRECT_URL` (puerto 5432) para el CLI de migraciones, configurada en `prisma.config.ts` → `datasource.url`.
+- [x] `npx prisma migrate dev --name init` ejecutado contra Supabase → migración `20260612193704_init` aplicada. **No se ejecutó SQL manual**: las 11 tablas + `_prisma_migrations` fueron creadas íntegramente por Prisma.
+- [x] `npx prisma generate` → cliente en `src/generated/prisma` (gitignored)
+- [x] `src/lib/db.ts`: singleton de `PrismaClient` con `PrismaPg` adapter sobre `DATABASE_URL`, patrón `globalThis` para evitar múltiples instancias en dev
+- [x] `src/validators/becas.validator.ts`: `becasQuerySchema` (Zod v4) con `page`, `limit`, `status`, `type`, `area`, `country`, `level`, `deadlineBefore`, `search`
+- [x] `src/lib/cache.ts`: wrappers `getCached`/`setCached`/`invalidateCache` sobre Upstash Redis, con degradación a no-op si `REDIS_URL`/`REDIS_TOKEN` no están configurados
+- [x] `src/lib/rate-limit.ts`: `checkRateLimit` con Upstash Ratelimit (30 req/min por IP), también degrada a "siempre permitido" sin Redis
+- [x] `prisma/seed.ts`: 2 `Source` (gob.mx GOVERNMENT, Chevening EDUCATIONAL), 6 `Category` (3 eje TYPE: monetaria/viaje/deportiva; 3 eje AREA: stem/humanidades/artes), 15 `Scholarship` variadas (10 ACTIVE, 4 CLOSED, 1 DRAFT) conectadas a fuentes y categorías. Seed ejecutado y verificado contra Supabase (conteos: 2/6/15/23 filas).
+- [x] Route Handlers:
+  - `GET /api/becas` — filtros dinámicos + paginación, caché Redis (TTL 5 min, clave por filtros), header `Cache-Control: public, s-maxage=300, stale-while-revalidate=60`, rate limiting por IP
+  - `GET /api/becas/[slug]` — detalle con `source` y `categories`, `await params` (Next 16), 404 si no existe, caché 1h
+  - `GET /api/becas/destacadas` — `isFeatured: true AND status: ACTIVE`, caché 30 min
+  - Formato de error uniforme: `{ error, details? }`
+- [x] Probado manualmente con `curl` (ver ejemplos abajo) y `npm run build` exitoso
 
-- [!] **Versión de NextAuth:** está instalada la **v4** por defecto. Decidir si se mantiene v4 o se migra a **Auth.js v5** (afecta toda la config de auth de Fase 2/3). La v5 tiene mejor integración con App Router y con la nueva convención `proxy.ts`.
-- [!] Al integrar auth, recordar usar **`proxy.ts`** (no `middleware.ts`) por el cambio de Next 16.
+### Desviaciones respecto al plan original
+
+- [~] **Pivote a Supabase a mitad de fase**: el plan original no especificaba proveedor de base de datos. El usuario decidió usar Supabase Postgres con Prisma 7 + driver adapters (`@prisma/adapter-pg`, `pg`). Esto cambió `prisma.config.ts` (datasource ahora apunta a `DIRECT_URL`) y `src/lib/db.ts` (usa `PrismaPg` con `DATABASE_URL`).
+- [~] **Dependencia extra no planeada: `tsx`** (devDependency). El cliente generado por Prisma 7 (`src/generated/prisma/client.ts`) usa imports relativos sin extensión (`./enums`, `./internal/class`, etc.), lo cual **no es resoluble por el ESM nativo de Node** aunque Node 24 soporte type-stripping de `.ts`. Se confirmó empíricamente: `node prisma/seed.ts` falla con `ERR_MODULE_NOT_FOUND`. `tsx` (basado en esbuild) resuelve extensiones de TS automáticamente. Se configuró `prisma.config.ts` → `migrations.seed: "tsx prisma/seed.ts"`.
+- [~] **Default de `status` en `GET /api/becas`**: si no se especifica `status` en la query, se filtra por `ACTIVE` (no se muestran becas `DRAFT`/`PENDING_REVIEW`/`CLOSED` por defecto). Esto no estaba explícito en el plan, pero es el comportamiento esperable de un buscador público; `CLOSED` y otros estados siguen siendo accesibles pasando `status` explícitamente.
+- [~] **Filtros `type`/`area`**: se implementaron como slugs de `Category` filtrando por `axis` (`TYPE` / `AREA` respectivamente) vía `categories.some`.
+- [~] **Conexión Supabase**: el host correcto del pooler resultó ser `aws-1-us-west-2.pooler.supabase.com` (no `aws-0-`), dato que solo se pudo confirmar pegando el diálogo "Connect" real de Supabase. Documentado por si se reconecta el proyecto o se crea uno nuevo.
+
+### 🔑 Hallazgos técnicos para fases futuras
+
+- [!] El TODO de índice `tsvector` para búsqueda de texto completo en `Scholarship` sigue pendiente (comentado en `schema.prisma`); el filtro `search` actual usa `contains`/`insensitive` de Prisma, suficiente para el volumen actual.
+- [!] Pendiente decidir versión de NextAuth (v4 instalada vs Auth.js v5) antes de implementar login — el schema ya es compatible con ambas.
+- [!] Recordar **`proxy.ts`** (no `middleware.ts`) si se protege `/api/becas/*` u otras rutas con auth en fases futuras.
+
+### Ejemplos de uso (curl)
+
+```bash
+# Listado con paginación
+curl "http://localhost:3000/api/becas?limit=2"
+# → { "data": [...], "pagination": { "page": 1, "limit": 2, "total": 10, "totalPages": 5 } }
+
+# Filtro por área (categoría eje AREA) + país
+curl "http://localhost:3000/api/becas?area=stem&country=M%C3%A9xico"
+
+# Becas cerradas
+curl "http://localhost:3000/api/becas?status=CLOSED"
+
+# Detalle por slug
+curl "http://localhost:3000/api/becas/chevening-uk-masters"
+# → 404 { "error": "Beca no encontrada" } si no existe
+
+# Destacadas
+curl "http://localhost:3000/api/becas/destacadas"
+
+# Validación de query inválida
+curl "http://localhost:3000/api/becas?level=INVALID"
+# → 400 { "error": "Parámetros de búsqueda inválidos", "details": [...] }
+```
 
 ### Recordatorios técnicos heredados de Fase 1
 
-- Escribir el código pensando en las **APIs de request asíncronas** de Next 15/16 (params, searchParams, cookies, headers son `await`).
-- Auditar el comportamiento de caché por defecto (cambió en Next 15+); usar directivas explícitas donde se dependa de caché.
+- Escribir el código pensando en las **APIs de request asíncronas** de Next 15/16 (params, searchParams, cookies, headers son `await`). ✅ aplicado en `/api/becas/[slug]`.
+- Auditar el comportamiento de caché por defecto (cambió en Next 15+); usar directivas explícitas donde se dependa de caché. ✅ `Cache-Control` explícito en los 3 endpoints.
 
 ---
 
@@ -148,3 +190,4 @@ Cambios **sin commit** (esperando confirmación para Fase 2). `git status` muest
 | Fecha | Cambio |
 |-------|--------|
 | Fase 1 | Documento creado. Registrada Fase 1 completa con desviaciones y hallazgos de Next 16 / Prisma 7. |
+| Fase 2 | Schema Prisma completo + conexión a Supabase (Prisma 7 + adapter-pg), migración `init` aplicada, seed (2 fuentes/6 categorías/15 becas), validators Zod, caché/rate-limit con degradación, Route Handlers `/api/becas`, `/api/becas/[slug]` y `/api/becas/destacadas` probados. Dependencia extra: `tsx` (para correr el seed). |
