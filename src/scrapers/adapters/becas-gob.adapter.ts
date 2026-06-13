@@ -2,12 +2,7 @@ import * as cheerio from "cheerio";
 import { BaseAdapter } from "../base.adapter";
 import type { RawScholarship } from "../types";
 import { validateUrlIsLive } from "../url-liveness";
-import { MEXICO_PATTERN } from "@/lib/geo";
-import {
-  parseScholarshipText,
-  AiUnavailableError,
-  AiParseError,
-} from "@/lib/ai/parse-scholarship";
+import { buildRawScholarship } from "../discovery/heuristics";
 
 const BASE_URL = "https://www.gob.mx";
 const LISTING_URL = `${BASE_URL}/becasbenitojuarez`;
@@ -19,15 +14,16 @@ const MAX_TEXT_LENGTH = 20_000;
  * estructurados (montos, fechas límite, nivel académico): cada programa de
  * beca vive en un artículo individual con texto libre.
  *
- * Pipeline por convocatoria (mismo patrón que `TavilyDiscoveryAdapter`):
+ * Pipeline por convocatoria (mismo patrón que `TavilyDiscoveryAdapter`,
+ * **sin LLM**):
  * 1. `validateUrlIsLive()` sobre el enlace de la convocatoria.
  * 2. Descarga la página (vía `fetchPage()`, con robots.txt y throttle) y
  *    extrae el texto plano del contenido principal (`<main>`).
- * 3. `parseScholarshipText()` (Groq) extrae los campos estructurados.
- * 4. Filtro México y filtro vigente (igual que el adapter de Tavily).
+ * 3. `buildRawScholarship()` (heurísticas, `src/scrapers/discovery/heuristics.ts`)
+ *    infiere los campos ricos y aplica los filtros México/vigente.
  *
  * `applyUrl` siempre es la URL de la convocatoria que se descargó y validó
- * como viva — el modelo nunca aporta ni rellena URLs.
+ * como viva — ningún modelo aporta ni rellena URLs.
  */
 export class BecasGobAdapter extends BaseAdapter {
   readonly name = "Becas Benito Juárez (gob.mx)";
@@ -110,10 +106,10 @@ export class BecasGobAdapter extends BaseAdapter {
 
   /**
    * Pipeline completo para una convocatoria: valida que el link esté vivo,
-   * descarga su texto, lo estructura con Groq y aplica los filtros
-   * México/vigente. Devuelve `null` si la convocatoria debe descartarse en
-   * cualquier paso. `url` (la URL fetcheada y validada) es siempre el
-   * `applyUrl` resultante.
+   * descarga su texto y aplica heurísticas + filtros México/vigente
+   * (`buildRawScholarship`). Devuelve `null` si la convocatoria debe
+   * descartarse en cualquier paso. `url` (la URL fetcheada y validada) es
+   * siempre el `applyUrl` resultante.
    */
   async processDetail(url: string): Promise<RawScholarship | null> {
     const isLive = await validateUrlIsLive(url);
@@ -122,64 +118,26 @@ export class BecasGobAdapter extends BaseAdapter {
       return null;
     }
 
-    const text = await this.fetchDetailText(url);
+    const html = await this.fetchPage(url);
+    const text = extractMainText(html);
     if (!text || text.trim().length < 50) {
       this.log("info", "Contenido insuficiente, se omite", { url });
       return null;
     }
 
-    let parsed;
-    try {
-      parsed = await parseScholarshipText(text.slice(0, MAX_TEXT_LENGTH));
-    } catch (error) {
-      if (
-        error instanceof AiUnavailableError ||
-        error instanceof AiParseError
-      ) {
-        this.log("warn", "IA no disponible o respuesta inválida, se omite", {
-          url,
-          error: error.message,
-        });
-        return null;
-      }
-      throw error;
-    }
-
-    if (!parsed.title) {
-      this.log("info", "La IA no extrajo título, se omite", { url });
-      return null;
-    }
-
-    const countryText = `${parsed.country ?? ""} ${text}`;
-    if (!MEXICO_PATTERN.test(countryText)) {
-      this.log("info", "Descartado por filtro México", { url });
-      return null;
-    }
-
-    if (parsed.deadline) {
-      const deadline = new Date(parsed.deadline);
-      if (
-        !Number.isNaN(deadline.getTime()) &&
-        deadline.getTime() < Date.now()
-      ) {
-        this.log("info", "Descartado por convocatoria vencida", {
-          url,
-          deadline: parsed.deadline,
-        });
-        return null;
-      }
-    }
-
-    return {
-      title: parsed.title,
-      descriptionRaw: parsed.description ?? undefined,
+    const title = extractTitle(html);
+    const raw = buildRawScholarship({
+      title,
       url,
-      deadlineRaw: parsed.deadline ?? undefined,
-      countryRaw: parsed.country ?? "México",
-      levelRaw: parsed.level ?? undefined,
-      coverageRaw: parsed.coverageType ?? undefined,
-      languageRaw: "es",
-    };
+      text: text.slice(0, MAX_TEXT_LENGTH),
+    });
+
+    if (!raw) {
+      this.log("info", "Descartado por filtro título/México/vigente", { url });
+      return null;
+    }
+
+    return raw;
   }
 }
 
@@ -188,4 +146,12 @@ function extractMainText(html: string): string {
   const $ = cheerio.load(html);
   $("script, style, noscript").remove();
   return $("main").first().text().replace(/\s+/g, " ").trim();
+}
+
+/** Extrae el título de la convocatoria desde el `<h1>` (o `<title>` como respaldo). */
+function extractTitle(html: string): string {
+  const $ = cheerio.load(html);
+  const h1 =
+    $("main h1").first().text().trim() || $("h1").first().text().trim();
+  return h1 || $("title").text().trim();
 }

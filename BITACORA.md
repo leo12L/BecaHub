@@ -7,7 +7,7 @@
 - **Proyecto:** BecaHub — plataforma de agregación y búsqueda de becas
 - **Ubicación:** `C:\opbecaas` (la carpeta raíz NO se ha renombrado todavía; pendiente manual del usuario)
 - **Stack confirmado:** Next.js 16.2.9 · TypeScript · Tailwind · Prisma 7 · PostgreSQL · Redis (Upstash) · NextAuth · Zod
-- **Última actualización:** Fase 3 cerrada y commiteada (`d9ea29d`); Fase 4A cerrada (pendiente commit); Fase 3B (descubrimiento Tavily) cerrada y commiteada (`9d6aecd`); Fase 4B (UI de admin) en curso, parte sustancial completada (pendiente commit); Fase 3C (invariante `applyUrl` + primer scraper real con Groq) cerrada y commiteada (`c098818`, `9d6aecd`); Fase 4D (purga de datos falsos + 8 becas reales verificadas) cerrada (pendiente commit)
+- **Última actualización:** Fase 3 cerrada y commiteada (`d9ea29d`); Fase 4A cerrada (pendiente commit); Fase 3B (descubrimiento Tavily) cerrada y commiteada (`9d6aecd`); Fase 4B (UI de admin) en curso, parte sustancial completada (pendiente commit); Fase 3C (invariante `applyUrl` + primer scraper real con Groq) cerrada y commiteada (`c098818`, `9d6aecd`); Fase 4D (purga de datos falsos + 8 becas reales verificadas) cerrada (pendiente commit); Fase 6 (Tavily descubre becas sin LLM, Groq se vuelve asistente de perfil) cerrada
 
 ---
 
@@ -430,6 +430,117 @@ Por ahora, correr `npm run scrape` manualmente (o vía un cron externo simple) e
 
 ---
 
+## Fase 6 — Tavily descubre becas sin LLM; Groq se vuelve asistente de perfil ✅ COMPLETADA
+
+**Objetivo:** sacar a Groq del pipeline de becas (para que `applyUrl` y los
+datos extraídos no dependan de un LLM) y reubicarlo como asistente
+conversacional que ayuda al estudiante a construir su perfil, base para
+recomendaciones futuras.
+
+### Parte A — Tavily descubre becas sin LLM
+
+- [x] Nuevo módulo compartido `src/scrapers/discovery/heuristics.ts`:
+  `buildRawScholarship({title, url, text, descriptionFallback?})` construye
+  `RawScholarship | null` con **regex/heurísticas**, sin LLM:
+  - `extractDeadlineRaw(text)`: busca oraciones con `DEADLINE_KEYWORDS`
+    ("fecha límite", "cierre", "vence", "hasta el", "plazo"...) y luego
+    `DATE_PATTERNS` (español `dd de mes de yyyy`, ISO, numérico); si no
+    encuentra nada, cae al primer patrón de fecha del texto.
+  - `extractAmountRaw(text)`: regex `AMOUNT_PATTERN` (`$1,000`, `MXN`, `pesos`).
+  - Descarta (`null`) si falta `title`, si `MEXICO_PATTERN` no matchea
+    `${title} ${text}`, o si el deadline detectado ya pasó.
+- [x] `TavilyDiscoveryAdapter` reescrito sin Groq: `tavilySearch()` sobre
+  `SEARCH_QUERIES` (3 queries en español) e `INCLUDE_DOMAINS` (gob.mx,
+  secihti.mx, .edu.mx...), dedupe contra `applyUrl` existentes en DB,
+  `checkUrlHealth()` para descartar links muertos/soft-404, y
+  `buildRawScholarship()` para producir el `RawScholarship` final
+  (`applyUrl` = `health.finalUrl ?? url` de Tavily, siempre validado).
+- [x] `BecasGobAdapter` reescrito con el mismo patrón (sin Groq):
+  `validateUrlIsLive()` → `fetchPage()` → `extractMainText`/`extractTitle`
+  (cheerio) → `buildRawScholarship()`.
+- [x] `runAutoDiscovery()` (`src/scrapers/discovery/auto-discovery.ts`):
+  envuelve `runScraper(DISCOVERY_SOURCE_ID)` y agrega `queries`,
+  `includeDomains`, `creditsUsed` (= `SEARCH_QUERIES.length`, ya que
+  `search_depth: "basic"` = 1 crédito/query). Expuesto vía `npm run discover`
+  (`scripts/discover.ts`) y `POST /api/admin/scraper/descubrir` (gated por
+  `isAdminScraperRequest`).
+- [x] **Eliminado por completo**: `src/lib/ai/parse-scholarship.ts`,
+  `src/validators/ai.validator.ts`, `src/app/api/admin/ai/` (endpoint
+  `/api/admin/ai/parse-beca`), y el paso "Analizar con IA" del formulario
+  `beca-form.tsx` (renumerado a 2 pasos: "1. Datos de la beca" / "2. Link
+  oficial de la convocatoria").
+
+### Parte B — Groq como asistente de perfil
+
+- [x] Nuevo modelo `Profile` en `prisma/schema.prisma` (1:1 con `User`):
+  `academicLevel`, `fieldOfInterest`, `countryOrigin`, `countryInterest`,
+  `scholarshipTypes: CoverageType[]`, `language`, `situation`, `goals`.
+  Migración `20260613190942_add_profile` aplicada contra Supabase + `prisma
+  generate`.
+- [x] `src/lib/ai/profile-assistant.ts` (reemplaza `parse-scholarship.ts`):
+  `chatWithAssistant(messages)` llama a Groq (`GROQ_API_KEY`/`GROQ_MODEL`,
+  `response_format: json_schema` con fallback a `json_object`, mismo patrón
+  de degradación 401/503 que Fase 3). El prompt hace **una pregunta a la
+  vez** en español, asesora brevemente, y cuando ya tiene suficiente info
+  responde `profileReady: true` + `profile` (validado con
+  `assistantTurnSchema`/`profileDraftSchema`, Zod).
+- [x] `POST /api/perfil/asistente`: recibe historial de chat
+  (`profileAssistantRequestSchema`), devuelve `{reply, profileReady,
+  profile}`. 503 si Groq no está disponible, 422 si la respuesta no
+  valida.
+- [x] `POST /api/perfil`: guarda/actualiza el `Profile` del usuario
+  (`savePerfilSchema`, upsert por `userId`). **Interino sin auth real**:
+  `userId` viene en el body con `TODO` explícito de migrar a sesión cuando
+  exista NextAuth.
+- [x] Página `(auth)/perfil/asistente`: chat simple (Card + Textarea +
+  Button), muestra el `ProfileDraft` propuesto al final y permite
+  "Guardar perfil" — interino en `localStorage` (`becahub_profile_draft`),
+  con `TODO` para llamar a `POST /api/perfil` una vez haya sesión.
+- [x] `src/lib/becas/recommend.ts`: `recomendarBecas(profile, limit?)` —
+  filtro de becas `ACTIVE` por `academicLevel`, `scholarshipTypes` (→
+  `coverageType`) y `countryInterest` (→ `countryDestination`), ordenado por
+  `deadline`. Base simple, documentada como mejora futura para scoring más
+  fino.
+
+### Pruebas reales ejecutadas
+
+- `npx tsc --noEmit` → **0 errores** (tras `rm -rf .next` para limpiar tipos
+  de ruta obsoletos de `/api/admin/ai/parse-beca`).
+- `npm run build` → OK; confirma que la ruta vieja `/api/admin/ai/parse-beca`
+  ya no existe y las nuevas (`/api/perfil/asistente`, `/api/perfil`,
+  `/api/admin/scraper/descubrir`) compilan.
+- `npm run discover` (Tavily real, 3 queries, 1 crédito/query = 3 créditos) →
+  `ScraperLog SUCCESS`, **6 becas nuevas `PENDING_REVIEW`** (todas México,
+  `coverageType: MONETARY`, mayoría `academicLevel: GRAD`, `deadline: null`
+  porque son páginas de listado/archivo de SECIHTI sin fecha explícita —
+  quedan para completar en `/admin`).
+- `curl -sIL` de 3 `applyUrl` resultantes (`secihti.mx/.../becas-al-extranjero/`,
+  `secihti.mx/.../convocatoria-de-becas-nacionales-para-estudios-de-posgrado-2026/`,
+  `enbc.secihti.mx/becas-nacionales/`) → **HTTP/1.1 200 OK** las tres.
+- Conversación real con `chatWithAssistant()`: 5 turnos en español, el
+  asistente pregunta una cosa a la vez (carrera → destino → situación →
+  metas → idioma) y asesora brevemente ("podrías calificar para becas de
+  manutención..."); en el turno 5 devuelve `profileReady: true` con un
+  `profile` completo y válido según `profileDraftSchema`.
+- `recomendarBecas({academicLevel: "GRAD", countryInterest: "México",
+  scholarshipTypes: ["FULL", "MONETARY"], language: "es"})` sobre las 8 becas
+  `ACTIVE` actuales → **4 matches** (todas `GRAD` + `MONETARY` + México).
+
+### 🔑 Hallazgos técnicos para fases futuras
+
+- [!] Las 6 becas descubiertas por Tavily son mayormente páginas de
+  **listado/archivo** de SECIHTI (título tipo "Becas Nacionales archivos -
+  SECIHTI"), no convocatorias individuales — `deadline: null` en todas. Para
+  mejorar la calidad del descubrimiento, ajustar `SEARCH_QUERIES`/
+  `INCLUDE_DOMAINS` para priorizar URLs de convocatoria individual
+  (`/convocatoria/...`) sobre categorías/archivos.
+- [!] Ninguna beca `ACTIVE` actual tiene `scholarshipTypes` que incluya
+  `FULL` — el match de `recomendarBecas` para el perfil de prueba vino solo
+  de `MONETARY`. Cuando se agreguen becas con cobertura `FULL`, validar que
+  el filtro `coverageType: { in: [...] }` las incluya correctamente.
+
+---
+
 ## Fase 5 — Notificaciones, refinamiento y deploy ⏳ PENDIENTE
 
 - [ ] Sistema de alertas por email (Resend)
@@ -451,3 +562,4 @@ Por ahora, correr `npm run scrape` manualmente (o vía un cron externo simple) e
 | Fase 3B | Capa de descubrimiento con **Tavily** (`src/lib/discovery/tavily.ts`, sin SDK), `validateUrlIsLive()` (`src/scrapers/url-liveness.ts`), `TavilyDiscoveryAdapter` con filtro México/vigente y extracción vía Groq, nuevo `SourceType.DISCOVERY` (migración no destructiva), registrado en `ADAPTER_REGISTRY` y seed (3ra fuente). `ADMIN_SCRAPER_TOKEN` documentado en `.env.example`. |
 | Fase 4B (en curso) | Panel `/admin` de curación: gate de sesión por cookie (`proxy.ts`, `ADMIN_SESSION_COOKIE`/`isAdminSessionRequest`, `ADMIN_PASSWORD`), login/logout, CRUD `/api/admin/becas` (+ `reverify`/`validar-url`) con invariante `assertCanPublish` (México + deadline vigente + link vivo), formulario de 3 pasos con extracción IA, tabla con health-check y archivado, 4ª fuente `MANUAL` en seed. Falta probar en dev, `npm run build` y commit. |
 | Fase 3C | Cierre de migración a Groq: `applyUrl` eliminado del contrato del modelo (prompt/schema/Zod); invariante "applyUrl = URL fetcheada y validada viva, nunca del modelo" aplicado también en `TavilyDiscoveryAdapter` (se quitó `resolveApplyUrl`). `BecasGobAdapter` reconstruido con el mismo pipeline que Tavily (fetch listado → enlaces → `<main>` texto → `validateUrlIsLive` → Groq → filtros México/vigente). Nuevo `scripts/test-scraper.ts` (`npm run scrape:test`, dry-run por etapas). Corrida real: `ScraperLog SUCCESS`, 3 becas `PENDING_REVIEW` con `applyUrl` verificado (200). Commit Parte A: `c098818`. |
+| Fase 6 | Tavily pasa a ser el único descubridor de becas, sin LLM: nuevo `src/scrapers/discovery/heuristics.ts` (`buildRawScholarship`, regex para deadline/montos + filtro México/vigente), `TavilyDiscoveryAdapter` y `BecasGobAdapter` reescritos sin Groq, `runAutoDiscovery()` + `npm run discover` + `POST /api/admin/scraper/descubrir`. Eliminado `src/lib/ai/parse-scholarship.ts`, `/api/admin/ai/parse-beca` y el paso "Analizar con IA" del panel. Groq reubicado en `src/lib/ai/profile-assistant.ts` (`chatWithAssistant`) como asistente conversacional de perfil del estudiante; nuevo modelo `Profile` (migración `add_profile`), endpoints `/api/perfil/asistente` y `/api/perfil`, página `(auth)/perfil/asistente`, y `recomendarBecas(profile)` como base de recomendación. Probado en vivo: `npm run discover` (6 nuevas `PENDING_REVIEW`, 3 `applyUrl` → 200), conversación real del asistente hasta `profileReady: true`, y `recomendarBecas` con 4 matches sobre las 8 becas `ACTIVE`. `tsc`/`build` OK. |

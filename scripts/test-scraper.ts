@@ -1,12 +1,13 @@
 import "dotenv/config";
 import { BecasGobAdapter } from "../src/scrapers/adapters/becas-gob.adapter";
 import { validateUrlIsLive } from "../src/scrapers/url-liveness";
-import { parseScholarshipText } from "../src/lib/ai/parse-scholarship";
-import { MEXICO_PATTERN } from "../src/lib/geo";
+import { buildRawScholarship } from "../src/scrapers/discovery/heuristics";
 
 /**
  * Script de prueba standalone (dry-run, sin DB) para `BecasGobAdapter`.
  * Ejecuta el pipeline etapa por etapa e imprime el resultado de cada una.
+ * Sin LLM: los campos ricos se infieren con heurísticas
+ * (`src/scrapers/discovery/heuristics.ts`).
  *
  * Uso: `npm run scrape:test` (procesa hasta `SAMPLE_SIZE` convocatorias).
  */
@@ -49,33 +50,19 @@ async function main() {
   const isLive = await validateUrlIsLive(sampleUrl);
   console.log(`validateUrlIsLive(${sampleUrl}) =>`, isLive);
 
-  // --- Etapa 5: parseo con Groq --------------------------------------------
-  section("ETAPA 5 — Parseo con Groq (applyUrl inyectado por el pipeline)");
-  const parsed = await parseScholarshipText(sampleText.slice(0, 20_000));
-  console.log("Resultado de Groq:", JSON.stringify(parsed, null, 2));
-  console.log(`applyUrl (= URL fetcheada, no del modelo): ${sampleUrl}`);
-
-  // --- Etapa 6: filtros (México + vigente) ---------------------------------
-  section("ETAPA 6 — Filtros México / vigente");
-  const countryText = `${parsed.country ?? ""} ${sampleText}`;
-  const passesMexico = MEXICO_PATTERN.test(countryText);
-  console.log(`Filtro México: ${passesMexico ? "PASA" : "DESCARTA"}`);
-
-  let passesVigente = true;
-  if (parsed.deadline) {
-    const deadline = new Date(parsed.deadline);
-    if (!Number.isNaN(deadline.getTime()) && deadline.getTime() < Date.now()) {
-      passesVigente = false;
-    }
-  }
-  console.log(
-    `Filtro vigente (deadline=${parsed.deadline ?? "null"}): ${
-      passesVigente ? "PASA" : "DESCARTA"
-    }`,
+  // --- Etapa 5: heurísticas (sin LLM) --------------------------------------
+  section(
+    "ETAPA 5 — Heurísticas + filtros México/vigente (applyUrl = URL fetcheada)",
   );
+  const heuristicResult = buildRawScholarship({
+    title: sampleText.slice(0, 120),
+    url: sampleUrl,
+    text: sampleText,
+  });
+  console.log("Resultado:", JSON.stringify(heuristicResult, null, 2));
 
-  // --- Etapa 7: pipeline completo (dry-run) sobre varias convocatorias -----
-  section(`ETAPA 7 — Pipeline completo (dry-run, hasta ${SAMPLE_SIZE} becas)`);
+  // --- Etapa 6: pipeline completo (dry-run) sobre varias convocatorias -----
+  section(`ETAPA 6 — Pipeline completo (dry-run, hasta ${SAMPLE_SIZE} becas)`);
   const dryRunResults = [];
   for (const url of links.slice(0, SAMPLE_SIZE)) {
     console.log(`\n--- procesando: ${url}`);

@@ -10,6 +10,7 @@
     "test": "vitest run",
     "scrape": "tsx scripts/scrape.ts",
     "scrape:test": "tsx scripts/test-scraper.ts",
+    "discover": "tsx scripts/discover.ts",
     "prepare": "husky"
   },
   "lint-staged": {
