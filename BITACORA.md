@@ -7,7 +7,7 @@
 - **Proyecto:** BecaHub — plataforma de agregación y búsqueda de becas
 - **Ubicación:** `C:\opbecaas` (la carpeta raíz NO se ha renombrado todavía; pendiente manual del usuario)
 - **Stack confirmado:** Next.js 16.2.9 · TypeScript · Tailwind · Prisma 7 · PostgreSQL · Redis (Upstash) · NextAuth · Zod
-- **Última actualización:** Fase 4A cerrada (pendiente commit)
+- **Última actualización:** Fase 3 cerrada y commiteada (`d9ea29d`); Fase 4A cerrada (pendiente commit)
 
 ---
 
@@ -155,9 +155,11 @@ curl "http://localhost:3000/api/becas?level=INVALID"
 
 ---
 
-## Fase 3 — Sistema de scraping 🚧 EN PROGRESO
+## Fase 3 — Sistema de scraping ✅ COMPLETADA
 
-**Objetivo:** arquitectura de adaptadores, orquestador, normalización/dedup, endpoints de admin y curación asistida por IA. **Sesión en pausa** — se retoma desde aquí.
+**Objetivo:** arquitectura de adaptadores, orquestador, normalización/dedup, endpoints de admin y curación asistida por IA.
+
+**Resultado:** `npx tsc --noEmit` y `npm run build` OK. Orquestador probado contra `becas.gob.mx` real (6 items, upsert OK). Endpoints admin probados con `ADMIN_SCRAPER_TOKEN` (401 sin token / 200 con token). `POST /api/admin/ai/parse-beca` probado en vivo contra Groq (200, JSON válido, pasó `parsedScholarshipSchema`) y en degradación (key inválida → 401 de Groq → 503 sin filtrar la key). Commit `d9ea29d` — `feat: sistema de scraping y curacion asistida por IA`.
 
 ### Completado
 
@@ -180,10 +182,6 @@ curl "http://localhost:3000/api/becas?level=INVALID"
 - [x] **Objetivo 8 — `POST /api/admin/ai/parse-beca`**: recibe `{ text: string }` (Zod, `src/validators/ai.validator.ts`), delega a `parseScholarshipText()` en `src/lib/ai/parse-scholarship.ts` — único módulo que conoce al proveedor de IA. Implementación actual: **Groq API** (hosted, OpenAI-compatible) vía `fetch` a `POST https://api.groq.com/openai/v1/chat/completions` (`GROQ_API_KEY` + `GROQ_MODEL`, default `llama-3.3-70b-versatile`), con `response_format: { type: "json_schema", strict: true }` para forzar `{ title, description, deadline, coverageType, country, level, applyUrl }`; si el modelo no soporta `json_schema` estricto (Groq devuelve 400 con `error.param === "response_format"`), reintenta automáticamente con `response_format: { type: "json_object" }`. La respuesta se re-valida con `parsedScholarshipSchema` (Zod) — si no es JSON válido o no cumple el esquema, el endpoint responde 422 (parseo automático falló, curador llena el formulario a mano). Si Groq no responde, da error 401/5xx o falta `GROQ_API_KEY`, responde 503 (sin exponer la key en logs ni en la respuesta). **No escribe en la base de datos** — devuelve el JSON para curación humana.
 - [x] **Objetivo 9 — Script `npm run scrape`**: `scripts/scrape.ts` (tsx, carga `.env` vía `dotenv/config`) llama a `runScraper("all")` o `runScraper(<sourceId>)` si se pasa como argumento, imprime los `ScraperRunResult[]` y sale con código 1 si alguna fuente terminó en `FAILED`.
 
-### Pendiente (continuar aquí)
-
-- [ ] Commit final: `feat: sistema de scraping y curación asistida por IA`
-
 ### [!] Decisión: proveedor de IA para curación (`parse-beca`)
 
 La extracción de campos vive aislada en `src/lib/ai/parse-scholarship.ts` (única función `parseScholarshipText(text)`) para que cambiar de proveedor solo toque ese archivo.
@@ -204,11 +202,10 @@ La extracción de campos vive aislada en `src/lib/ai/parse-scholarship.ts` (úni
 
 Por ahora, correr `npm run scrape` manualmente (o vía un cron externo simple) es suficiente para curar datos durante Fase 4.
 
-### 🔑 Notas técnicas para retomar
+### 🔑 Hallazgos técnicos para fases futuras
 
-- Archivos ya creados: `src/scrapers/types.ts`, `src/scrapers/base.adapter.ts`, `src/scrapers/normalize.ts`.
-- `Source` con `scraperAdapter: "becas-gob-mx"` (fuenteGobierno) y `"chevening"` (fuenteChevening) ya existen en el seed — el orquestador debe resolver estos slugs a clases de adapter.
-- `npm run build` no se ha vuelto a correr desde los cambios de esta fase (solo se corrió migración + generate).
+- `Source` con `scraperAdapter: "chevening"` (fuenteChevening) existe en el seed pero **no tiene adapter registrado** en `ADAPTER_REGISTRY` — al correr `npm run scrape` esa fuente termina en `FAILED` con `"No hay adapter registrado para \"chevening\""`. No bloquea (el orquestador sigue con el resto), pero falta implementar o quitar esa fuente del seed.
+- `ADMIN_SCRAPER_TOKEN` no estaba documentado en `.env.example` a pesar de que `src/lib/admin-auth.ts` lo requiere desde el Objetivo 7 — agregado a `.env` local para poder probar; falta agregarlo a `.env.example` cuando se revise el conjunto completo de env vars.
 
 ---
 
