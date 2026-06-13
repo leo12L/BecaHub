@@ -1,9 +1,17 @@
 import * as cheerio from "cheerio";
 import { BaseAdapter } from "../base.adapter";
 import type { RawScholarship } from "../types";
+import { validateUrlIsLive } from "../url-liveness";
+import { MEXICO_PATTERN } from "@/lib/geo";
+import {
+  parseScholarshipText,
+  AiUnavailableError,
+  AiParseError,
+} from "@/lib/ai/parse-scholarship";
 
 const BASE_URL = "https://www.gob.mx";
 const LISTING_URL = `${BASE_URL}/becasbenitojuarez`;
+const MAX_TEXT_LENGTH = 20_000;
 
 /**
  * Adaptador para el portal de Becas Benito Juárez (gob.mx). El sitio es un
@@ -11,9 +19,15 @@ const LISTING_URL = `${BASE_URL}/becasbenitojuarez`;
  * estructurados (montos, fechas límite, nivel académico): cada programa de
  * beca vive en un artículo individual con texto libre.
  *
- * Estrategia: desde la página principal extraemos los enlaces a artículos
- * cuyo texto/alt menciona "beca", y de cada artículo extraemos título,
- * descripción y (si aparece) una fecha límite en formato español.
+ * Pipeline por convocatoria (mismo patrón que `TavilyDiscoveryAdapter`):
+ * 1. `validateUrlIsLive()` sobre el enlace de la convocatoria.
+ * 2. Descarga la página (vía `fetchPage()`, con robots.txt y throttle) y
+ *    extrae el texto plano del contenido principal (`<main>`).
+ * 3. `parseScholarshipText()` (Groq) extrae los campos estructurados.
+ * 4. Filtro México y filtro vigente (igual que el adapter de Tavily).
+ *
+ * `applyUrl` siempre es la URL de la convocatoria que se descargó y validó
+ * como viva — el modelo nunca aporta ni rellena URLs.
  */
 export class BecasGobAdapter extends BaseAdapter {
   readonly name = "Becas Benito Juárez (gob.mx)";
@@ -24,7 +38,7 @@ export class BecasGobAdapter extends BaseAdapter {
 
     let html: string;
     try {
-      html = await this.fetchPage(LISTING_URL);
+      html = await this.fetchListing();
     } catch (error) {
       this.log("error", "No se pudo descargar el listado principal", {
         url: LISTING_URL,
@@ -46,7 +60,7 @@ export class BecasGobAdapter extends BaseAdapter {
 
     for (const url of links) {
       try {
-        const raw = await this.scrapeDetail(url);
+        const raw = await this.processDetail(url);
         if (raw) results.push(raw);
       } catch (error) {
         this.log(
@@ -64,7 +78,13 @@ export class BecasGobAdapter extends BaseAdapter {
     return results;
   }
 
-  private extractScholarshipLinks(html: string): Set<string> {
+  /** Descarga la página de listado de convocatorias. */
+  async fetchListing(): Promise<string> {
+    return this.fetchPage(LISTING_URL);
+  }
+
+  /** Extrae los URLs absolutos de cada convocatoria desde el listado. */
+  extractScholarshipLinks(html: string): Set<string> {
     const $ = cheerio.load(html);
     const links = new Set<string>();
 
@@ -82,35 +102,90 @@ export class BecasGobAdapter extends BaseAdapter {
     return links;
   }
 
-  private async scrapeDetail(url: string): Promise<RawScholarship | null> {
+  /** Descarga una convocatoria y extrae el texto plano de su contenido principal. */
+  async fetchDetailText(url: string): Promise<string> {
     const html = await this.fetchPage(url);
-    const $ = cheerio.load(html);
+    return extractMainText(html);
+  }
 
-    const title = $("h1").first().text().trim();
-    if (!title) return null;
+  /**
+   * Pipeline completo para una convocatoria: valida que el link esté vivo,
+   * descarga su texto, lo estructura con Groq y aplica los filtros
+   * México/vigente. Devuelve `null` si la convocatoria debe descartarse en
+   * cualquier paso. `url` (la URL fetcheada y validada) es siempre el
+   * `applyUrl` resultante.
+   */
+  async processDetail(url: string): Promise<RawScholarship | null> {
+    const isLive = await validateUrlIsLive(url);
+    if (!isLive) {
+      this.log("info", "URL no responde, se omite", { url });
+      return null;
+    }
 
-    const description = $('[class*="field--name-body"], article p')
-      .map((_, el) => $(el).text().trim())
-      .get()
-      .filter(Boolean)
-      .join("\n\n");
+    const text = await this.fetchDetailText(url);
+    if (!text || text.trim().length < 50) {
+      this.log("info", "Contenido insuficiente, se omite", { url });
+      return null;
+    }
 
-    const deadlineRaw = extractDeadline($("body").text());
+    let parsed;
+    try {
+      parsed = await parseScholarshipText(text.slice(0, MAX_TEXT_LENGTH));
+    } catch (error) {
+      if (
+        error instanceof AiUnavailableError ||
+        error instanceof AiParseError
+      ) {
+        this.log("warn", "IA no disponible o respuesta inválida, se omite", {
+          url,
+          error: error.message,
+        });
+        return null;
+      }
+      throw error;
+    }
+
+    if (!parsed.title) {
+      this.log("info", "La IA no extrajo título, se omite", { url });
+      return null;
+    }
+
+    const countryText = `${parsed.country ?? ""} ${text}`;
+    if (!MEXICO_PATTERN.test(countryText)) {
+      this.log("info", "Descartado por filtro México", { url });
+      return null;
+    }
+
+    if (parsed.deadline) {
+      const deadline = new Date(parsed.deadline);
+      if (
+        !Number.isNaN(deadline.getTime()) &&
+        deadline.getTime() < Date.now()
+      ) {
+        this.log("info", "Descartado por convocatoria vencida", {
+          url,
+          deadline: parsed.deadline,
+        });
+        return null;
+      }
+    }
 
     return {
-      title,
-      descriptionRaw: description || undefined,
+      title: parsed.title,
+      descriptionRaw: parsed.description ?? undefined,
       url,
-      deadlineRaw,
-      countryRaw: "México",
-      coverageRaw: title,
+      deadlineRaw: parsed.deadline ?? undefined,
+      countryRaw: parsed.country ?? "México",
+      levelRaw: parsed.level ?? undefined,
+      coverageRaw: parsed.coverageType ?? undefined,
       languageRaw: "es",
     };
   }
 }
 
-/** Busca un patrón "15 de marzo de 2026" en texto libre. */
-function extractDeadline(text: string): string | undefined {
-  const match = text.match(/\d{1,2}\s+de\s+[a-záéíóúñ]+\s+de\s+\d{4}/i);
-  return match?.[0];
+/** Extrae texto plano del contenido principal (`<main>`) de un HTML. */
+function extractMainText(html: string): string {
+  const $ = cheerio.load(html);
+  $("script, style, noscript").remove();
+  return $("main").first().text().replace(/\s+/g, " ").trim();
 }

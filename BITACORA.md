@@ -7,7 +7,7 @@
 - **Proyecto:** BecaHub — plataforma de agregación y búsqueda de becas
 - **Ubicación:** `C:\opbecaas` (la carpeta raíz NO se ha renombrado todavía; pendiente manual del usuario)
 - **Stack confirmado:** Next.js 16.2.9 · TypeScript · Tailwind · Prisma 7 · PostgreSQL · Redis (Upstash) · NextAuth · Zod
-- **Última actualización:** Fase 3 cerrada y commiteada (`d9ea29d`); Fase 4A cerrada (pendiente commit)
+- **Última actualización:** Fase 3 cerrada y commiteada (`d9ea29d`); Fase 4A cerrada (pendiente commit); Fase 3B (descubrimiento Tavily) cerrada (pendiente commit); Fase 4B (UI de admin) en curso, parte sustancial completada (pendiente commit); Fase 3C (invariante `applyUrl` + primer scraper real con Groq) cerrada y commiteada parcialmente (`c098818`, falta commit de Parte B)
 
 ---
 
@@ -205,7 +205,92 @@ Por ahora, correr `npm run scrape` manualmente (o vía un cron externo simple) e
 ### 🔑 Hallazgos técnicos para fases futuras
 
 - `Source` con `scraperAdapter: "chevening"` (fuenteChevening) existe en el seed pero **no tiene adapter registrado** en `ADAPTER_REGISTRY` — al correr `npm run scrape` esa fuente termina en `FAILED` con `"No hay adapter registrado para \"chevening\""`. No bloquea (el orquestador sigue con el resto), pero falta implementar o quitar esa fuente del seed.
-- `ADMIN_SCRAPER_TOKEN` no estaba documentado en `.env.example` a pesar de que `src/lib/admin-auth.ts` lo requiere desde el Objetivo 7 — agregado a `.env` local para poder probar; falta agregarlo a `.env.example` cuando se revise el conjunto completo de env vars.
+- `ADMIN_SCRAPER_TOKEN` no estaba documentado en `.env.example` a pesar de que `src/lib/admin-auth.ts` lo requiere desde el Objetivo 7 — **resuelto en Fase 3B**, agregado a `.env.example`.
+
+---
+
+## Fase 3B — Capa de descubrimiento con Tavily ✅ COMPLETADA
+
+**Objetivo:** agregar una fuente de descubrimiento automático de becas que no depende de un sitio fijo, usando búsqueda web (Tavily) + validación de liveness + filtro México/vigente + extracción estructurada con Groq.
+
+**Resultado:** `npx tsc --noEmit` OK. Migración `20260613074649_add_source_type_discovery` aplicada (nuevo valor de enum `SourceType.DISCOVERY`, no destructiva). Seed actualizado con la 3ra fuente (`tavily-discovery`).
+
+### Completado
+
+- [x] **`src/lib/discovery/tavily.ts`**: módulo aislado para la API de Tavily Search (hosted) vía `fetch`, sin SDK — mismo patrón que `src/lib/ai/parse-scholarship.ts`. Función `searchTavily(query, maxResults)`, env var `TAVILY_API_KEY`. Lanza `TavilyUnavailableError` si falta la key, hay timeout (20s) o Tavily responde con error.
+- [x] **`src/scrapers/url-liveness.ts`**: `validateUrlIsLive(url)` — `HEAD` (con fallback a `GET` si el servidor responde 403/404/405 o rechaza `HEAD`), timeout 10s, nunca lanza (cualquier fallo de red = "no vivo").
+- [x] **`enum SourceType.DISCOVERY`** agregado en `schema.prisma` (migración `add_source_type_discovery`, solo `ALTER TYPE ... ADD VALUE`, no destructiva).
+- [x] **`src/scrapers/adapters/tavily-discovery.adapter.ts`** (`TavilyDiscoveryAdapter`, `sourceSlug: "tavily-discovery"`), pipeline por resultado:
+  1. Tres queries fijas en español orientadas a "becas vigentes México 2026" (`SEARCH_QUERIES`, `MAX_RESULTS_PER_QUERY = 5`).
+  2. `validateUrlIsLive()` descarta URLs muertas.
+  3. Descarga la página vía `fetchPage()` (hereda robots.txt + throttle 1 req/seg de `BaseAdapter`) y extrae texto plano con `cheerio` (quita `script`/`style`); si falla la descarga, usa el snippet de Tavily como fallback.
+  4. `parseScholarshipText()` (Groq) extrae `{ title, description, deadline, coverageType, country, level, applyUrl }` del texto.
+  5. **Filtro México**: descarta si ni `country` ni el snippet de Tavily mencionan "méxico"/"mexico"/"mx" (regex `MEXICO_PATTERN`, insensible a mayúsculas/acentos).
+  6. **Filtro vigente**: si `deadline` es una fecha parseable y ya pasó (`< Date.now()`), se descarta.
+  7. Resultado mapeado a `RawScholarship` (mismo contrato que los demás adapters) → pasa por `normalize()`/`upsertScholarship()` del orquestador sin cambios, siempre `PENDING_REVIEW`/`isVerified: false`.
+- [x] **Registrado en `ADAPTER_REGISTRY`** (`src/scrapers/orchestrator.ts`) y en el seed (`Source` id `00000000-0000-0000-0000-000000000003`, `type: DISCOVERY`, `url: "https://tavily.com/"`).
+- [x] **Env vars**: `TAVILY_API_KEY` agregada a `.env` y `.env.example`; de paso se documentó `ADMIN_SCRAPER_TOKEN` en `.env.example` (hallazgo pendiente de Fase 3).
+
+### Degradación y errores
+
+- Si falta `TAVILY_API_KEY` o Tavily no responde, `searchTavily()` lanza `TavilyUnavailableError` en la primera query — el adapter la deja propagar y el orquestador marca la fuente como `FAILED` con el mensaje (no tiene sentido reintentar las otras queries: fallarían igual).
+- Si Groq no está disponible o la respuesta no cumple el esquema para un resultado puntual (`AiUnavailableError`/`AiParseError`), ese resultado se omite (log `warn`) pero la corrida continúa con el resto.
+- Cualquier otro error por resultado (descarga, parseo) se captura y loguea como `warn`, sin abortar la corrida.
+
+### Desviaciones / pendientes
+
+- [~] El mapeo `coverageRaw`/`levelRaw` pasa los valores del enum de Groq (`TUITION`, `PHD`, etc.) directamente a `normalize()`, que los matchea contra los diccionarios de sinónimos en español de Fase 3 (`COVERAGE_SYNONYMS`/`LEVEL_SYNONYMS`). Algunos valores en inglés coinciden (`tuition`, `phd`, `research`, `leadership`) pero otros no (p. ej. `GRAD` no matchea `"graduate"` por `.includes()`) y caen al default (`MONETARY`/`UNDERGRAD`). No bloquea — el curador humano revisa y corrige en `PENDING_REVIEW`.
+- [ ] No probado en vivo contra la API real de Tavily (requiere `TAVILY_API_KEY` válida) — pendiente de prueba manual con `npm run scrape <sourceId-tavily-discovery>`.
+- [ ] Las 3 queries de búsqueda son fijas en el código; si se quiere variarlas por temporada (becas de verano vs. anuales) habría que parametrizarlas — fuera de alcance por ahora.
+
+### [!] Fix: `applyUrl` debía usar la fuente verificada, no la URL extraída por la IA
+
+**Bug:** la primera versión usaba `url: parsed.applyUrl?.trim() || item.url` — si Groq extraía del texto cualquier URL (mencionada como "más información en...", un enlace roto, una ruta vieja, etc.), esa URL **alucinada/no verificada** sobrescribía `item.url`, que sí pasó por `validateUrlIsLive()`. Resultado: el botón "Ir a la convocatoria" en `/becas/[slug]` podía apuntar a un 404 aunque la página fuente estuviera viva.
+
+**Reproducido con curl**: texto sintético con `item.url = https://www.gob.mx/` (200) mencionando `https://www.gob.mx/conacyt/becas-posgrado-nacional-2026-pagina-que-no-existe` (404) como "portal oficial" → con la lógica vieja, `applyUrl` final = la URL rota (404).
+
+**Fix** (`resolveApplyUrl(sourceUrl, candidate)`): `item.url` (ya verificado vivo) es el valor por defecto. Solo se usa `parsed.applyUrl` si, resuelto como absoluto contra `sourceUrl`, es una **URL distinta** y además **`validateUrlIsLive()` confirma que responde**. Verificado con el mismo caso: ahora `applyUrl` final = `https://www.gob.mx/` (200).
+
+---
+
+## Fase 3C — Invariante `applyUrl` + primer scraper real con Groq ✅ COMPLETADA
+
+**Objetivo:** (A) cerrar la migración de `parse-scholarship.ts` a Groq quitando `applyUrl` del contrato del modelo, y (B) construir y probar por etapas un scraper real (`BecasGobAdapter`) que alimente a Groq, respetando el invariante: `applyUrl` siempre es la URL fetcheada y validada como viva, nunca una URL del modelo.
+
+**Resultado:** `npx tsc --noEmit` y `npm run build` OK. Endpoint probado en vivo. Script `npm run scrape:test` corrido con éxito (7 etapas). Corrida real `npm run scrape -- <sourceId-becas-gob-mx>` → `ScraperLog` `SUCCESS`, 3 becas `PENDING_REVIEW`/`isVerified: false` con `applyUrl` verificado (200 con `curl`).
+
+### Parte A — Migración a Groq cerrada
+
+- [x] `src/lib/ai/parse-scholarship.ts` ya llamaba correctamente a Groq (`POST https://api.groq.com/openai/v1/chat/completions`, `Authorization: Bearer ${GROQ_API_KEY}`, `GROQ_MODEL` con default `llama-3.3-70b-versatile`, `response_format: json_schema strict: true` con fallback a `json_object`, re-validación con `parsedScholarshipSchema`, degradación a `AiUnavailableError`/503 sin filtrar la key). Lo único pendiente era el contrato de `applyUrl`.
+- [x] **`applyUrl` eliminado del prompt, `RESPONSE_SCHEMA` y `parsedScholarshipSchema`** (`src/validators/ai.validator.ts`): el modelo ya no genera ni rellena URLs. El prompt ahora indica explícitamente que la URL la determina el pipeline.
+- [x] `src/scrapers/adapters/tavily-discovery.adapter.ts` simplificado: se eliminó `resolveApplyUrl` (la lógica de Fase 3B que a veces prefería una URL "candidata" del modelo); `applyUrl` ahora es siempre `item.url` (ya validado vivo por `validateUrlIsLive`).
+- [x] `GROQ_API_KEY`/`GROQ_MODEL` ya estaban configuradas en `.env` y `.env.example`; no quedan referencias a Ollama/Anthropic en `src/`.
+- [x] **Prueba en vivo** `POST /api/admin/ai/parse-beca` con texto real de una convocatoria → 200, JSON sin `applyUrl`, pasa `parsedScholarshipSchema`. Body inválido (`{"text":""}`) → 400 con detalle Zod.
+- [x] Commit `c098818` — `refactor: completar migracion de extraccion IA a Groq`.
+
+### Parte B — `BecasGobAdapter` reconstruido sobre el nuevo invariante
+
+- [x] **B0 — Fuente elegida**: `gob.mx/becasbenitojuarez` (Becas Benito Juárez), la misma fuente ya registrada como `Source` `becas-gob-mx` desde Fase 3. Se re-verificó en vivo con `curl`/`cheerio` antes de codear: el listado (`https://www.gob.mx/becasbenitojuarez`) sigue devolviendo 200 y el selector `a[href*="/articulos/"]` con filtro `/beca/i` sigue encontrando **6 enlaces**. Las páginas de detalle exponen el contenido relevante dentro de `<main>` (el `<body>` completo trae mucho ruido de navegación/sidebar).
+- [x] **B1 — Script de prueba standalone**: `scripts/test-scraper.ts` (`npm run scrape:test`), dry-run, no escribe en la DB.
+- [x] **B2 — Pipeline reconstruido por etapas** en `BecasGobAdapter` (`src/scrapers/adapters/becas-gob.adapter.ts`), mismo patrón que `TavilyDiscoveryAdapter`:
+  1. `fetchListing()` — descarga `https://www.gob.mx/becasbenitojuarez`.
+  2. `extractScholarshipLinks(html)` — extrae los 6 URLs absolutos de convocatorias (selector heredado de Fase 3, sigue funcionando).
+  3. `fetchDetailText(url)` — descarga la convocatoria y extrae texto plano de `<main>` (en vez de `<body>` completo o selectores `field--name-body` que ya no existen en el HTML actual).
+  4. `validateUrlIsLive(url)` — valida que el link de la convocatoria responda antes de procesarla.
+  5. `parseScholarshipText(text)` (Groq) — estructura el texto; `applyUrl` se inyecta como `url` (la URL fetcheada), nunca desde el modelo.
+  6. Filtro México (`MEXICO_PATTERN` sobre `país extraído + texto`) y filtro vigente (descarta si `deadline` extraída ya pasó; si no hay `deadline`, pasa).
+  7. `processDetail(url)` — pipeline completo por convocatoria; `scrape()` lo corre sobre los 6 enlaces.
+- [x] **Salida de `npm run scrape:test`** (resumen): de los 6 enlaces, las 7 etapas se ejecutaron sobre la primera convocatoria con éxito (fetch 200, texto extraído de `<main>`, link vivo, Groq devolvió JSON válido sin `applyUrl`, pasó ambos filtros) y el dry-run de 3 convocatorias mostró los 3 `RawScholarship` que se guardarían, cada uno con `url` = URL real fetcheada.
+- [x] **B3 — Integración**: el adapter ya estaba registrado en `ADAPTER_REGISTRY` (`"becas-gob-mx"`) y la `Source` ya existe en el seed desde Fase 3 — no requirió cambios de registro. Corrida real `npm run scrape -- 00000000-0000-0000-0000-000000000001`:
+  - `ScraperLog`: `status: SUCCESS`, `itemsFound: 3`, `itemsUpdated: 3`, `itemsCreated: 0` (ya existían de una corrida previa de Fase 3, dedup por `applyUrl`), `itemsSkipped: 0`.
+  - De los 6 enlaces: 1 descartado por **convocatoria vencida** (`deadline: 2026-02-27 < hoy`), 1 omitido por **Groq 429** (rate limit transitorio, log `warn`, no rompe la corrida), 1 omitido porque **la IA no extrajo título** (página "¿Qué es la Contraloría Social?", no es una beca), y 3 procesados con éxito → `PENDING_REVIEW` / `isVerified: false`.
+  - **Verificado con `curl`**: los 3 `applyUrl` resultantes responden `200`.
+
+### 🔑 Hallazgos técnicos para fases futuras
+
+- [!] El HTML actual de `gob.mx/becasbenitojuarez` ya no tiene `[class*="field--name-body"]` ni `article p` (selectores de Fase 3, que devolvían texto vacío); el contenido útil está en `<main>`. Si el sitio cambia de plantilla de nuevo, revisar `extractMainText()`.
+- [!] Groq (plan gratuito) puede devolver **429** bajo ráfagas de requests (6 convocatorias en ~9s en esta corrida ya disparó uno). El adapter lo trata como `AiUnavailableError` y omite ese ítem sin romper la corrida — aceptable para volumen bajo, pero si se escala a más fuentes/convocatorias por corrida convendría espaciar las llamadas a Groq o añadir retry/backoff específico (hoy solo `fetchPage` reintenta, no `parseScholarshipText`).
+- [!] No toda página enlazada desde el listado es una convocatoria de beca (p. ej. "¿Qué es la Contraloría Social?") — el filtro "la IA no extrajo título" actúa como red de seguridad, pero genera una llamada a Groq "desperdiciada" por cada página irrelevante.
 
 ---
 
@@ -254,6 +339,51 @@ Por ahora, correr `npm run scrape` manualmente (o vía un cron externo simple) e
 
 ---
 
+## Fase 4B — UI de admin (curación de becas) 🚧 EN CURSO
+
+**Objetivo:** panel `/admin` para curar becas (crear, editar, publicar/archivar) con apoyo de IA y verificación de URLs, protegido con un gate de sesión provisional.
+
+**Resultado parcial:** `npx tsc --noEmit` aplicado sobre los archivos nuevos (sin errores reportados por la exploración). Flujo de curación completo implementado end-to-end (login → tabla → alta/edición con IA → verificación de link → publicar/archivar). **No hay commit todavía** y falta la verificación manual en navegador (`npm run dev`) y la prueba de build completa.
+
+### Completado
+
+- [x] **Autenticación interina del panel** — gate de sesión por cookie, distinto del token `x-admin-scraper-token` usado por los endpoints de scraper:
+  - `src/proxy.ts` (nuevo, reemplaza `middleware.ts` en Next 16): protege `/admin/*` (excepto `/admin/login`) y los endpoints de `/api/admin/becas*`; sin sesión válida, las páginas redirigen a `/admin/login?from=/path` y las APIs responden 401 JSON.
+  - `src/lib/admin-auth.ts`: nuevas `ADMIN_SESSION_COOKIE = "becahub_admin_session"` e `isAdminSessionRequest()` — compara la cookie contra `ADMIN_PASSWORD` (env var, ya documentada en `.env.example`). Si falta `ADMIN_PASSWORD`, el panel queda **inaccesible por defecto** (falla cerrado). `isAdminScraperRequest()` (token) se mantiene intacta para los endpoints de scraper existentes.
+  - `POST /api/admin/login`: valida password contra `ADMIN_PASSWORD`, fija cookie httpOnly/sameSite=lax (8h). `POST /api/admin/logout`: la borra.
+  - `POST /api/admin/ai/parse-beca` ahora acepta **ambos** mecanismos (`isAdminScraperRequest` **o** `isAdminSessionRequest`), para que el panel pueda reusar el endpoint de extracción IA de Fase 3.
+- [x] **`src/lib/geo.ts`**: helper minimalista `MEXICO_PATTERN`-like (regex `/m[eé]xic|\bmx\b/i`) para detectar si un texto refiere a México — usado por las validaciones de publicación.
+- [x] **`src/lib/validation/url-health.ts`**: `checkUrlHealth(url)`, verificación de URL más estricta que `validateUrlIsLive` (Fase 3B) pensada para el flujo de curación humana: `GET` siguiendo redirects, reporta la URL final, rechaza respuestas no-2xx, contenido vacío y **soft-404** (heurística de frases tipo "no encontrado", "convocatoria cerrada", "enlace roto", etc.).
+- [x] **`src/lib/becas/admin.ts`**: `assertCanPublish(beca)` — invariante central para permitir `status: ACTIVE`: país de destino debe incluir México (`geo.ts`), `deadline` presente y `>= hoy`, y URL viva según `checkUrlHealth`. Se usa tanto en el endpoint de CRUD como en el formulario (validación duplicada cliente/servidor).
+- [x] **`src/validators/admin-becas.validator.ts`** (Zod): `adminBecaInputSchema` (alta/edición completa; `status` solo `DRAFT`/`ACTIVE`, nunca `PENDING_REVIEW` desde el panel) y `adminBecaPatchSchema` (PATCH rápido de `status`: `DRAFT`/`ACTIVE`/`CLOSED`), con validación de URL, enums y campos numéricos.
+- [x] **Endpoints `/api/admin/becas`**:
+  - `GET` (listado con filtro por `status`), `POST` (alta), `PUT` (edición completa) y `PATCH` (cambio rápido de estado) — todos via `adminBecaInputSchema`/`adminBecaPatchSchema` + `assertCanPublish` cuando el resultado es `ACTIVE`.
+  - `POST /api/admin/becas/[id]/reverify`: re-corre `checkUrlHealth` sobre el `applyUrl` de una beca; si el link cayó y la beca estaba `ACTIVE`, la **archiva automáticamente** (`ACTIVE` → `DRAFT`), sin notificación adicional.
+  - `POST /api/admin/becas/validar-url`: expone `checkUrlHealth` standalone para el formulario (botón "verificar link").
+- [x] **Páginas `/admin`**:
+  - `/admin/login`: formulario de password → `POST /api/admin/login`.
+  - `/admin/becas`: tabla con filtro por `status` (ACTIVE/DRAFT/PENDING_REVIEW/CLOSED), acciones editar / re-verificar link / archivar.
+  - `/admin/becas/nueva` y `/admin/becas/[id]/editar`: formulario de 3 pasos — (1) pegar texto de la convocatoria → análisis IA (`POST /api/admin/ai/parse-beca`) rellena título/descripción/deadline/cobertura/nivel; (2) editar/completar campos manualmente (fuente, categorías, montos, etc.); (3) verificar link (`validar-url`) y publicar (`ACTIVE`) o guardar como `DRAFT`.
+- [x] **Componentes `src/components/admin/`**: `beca-form.tsx` (formulario de 3 pasos, maneja estados `analyzing` / `linkCheck: idle|checking|valid|invalid` / `saving`), `becas-table.tsx` (tabla con health-check de link y archivado), `logout-button.tsx`. Nuevo primitivo `src/components/ui/textarea.tsx` (shadcn-style).
+- [x] **Seed actualizado** (`prisma/seed.ts`): nueva 4ª `Source` ("Curación manual (admin)", `type: MANUAL`) como punto de entrada de las becas creadas desde el panel.
+- [x] **`prisma/schema.prisma`**: solo el valor de enum `SourceType.DISCOVERY` (heredado de Fase 3B, migración `20260613074649_add_source_type_discovery` ya aplicada).
+- [x] **`src/scrapers/orchestrator.ts`**: registro de `"tavily-discovery"` → `TavilyDiscoveryAdapter` en `ADAPTER_REGISTRY` (parte de Fase 3B, agrupado aquí por estar en el mismo diff sin commit).
+
+### [!] Decisiones / deuda técnica explícita
+
+- [!] **Autenticación de un solo usuario por password** (`ADMIN_PASSWORD` en cookie, sin hashing ni expiración revocable más allá de las 8h del cookie): marcado con `TODO: reemplazar por NextAuth` en `admin-auth.ts`, `proxy.ts`, login/logout. Suficiente para curación interna mientras no haya múltiples admins.
+- [!] **Archivado automático silencioso**: si `reverify` detecta que una beca `ACTIVE` quedó con link muerto, la pasa a `DRAFT` sin generar notificación. Si en el futuro se agregan alertas (Fase 5), considerar loguear o notificar este evento.
+- [ ] Falta verificación manual en navegador (`npm run dev` + recorrido de `/admin/login` → `/admin/becas` → alta/edición) y `npm run build` completo antes de cerrar la fase y commitear.
+
+### Pendiente para cerrar Fase 4B
+
+- [ ] Probar el flujo completo en dev (login, listar, crear con IA, verificar link, publicar, archivar, reverify)
+- [ ] `npm run build` y `npx tsc --noEmit` sobre todo el proyecto
+- [ ] Commit (agrupar junto con Fase 3B, que comparte el mismo diff sin commitear)
+- [ ] Decidir si el resto de Fase 4B (NextAuth real, favoritos/postulaciones, perfil de usuario) se hace en esta misma fase o se separa
+
+---
+
 ## Fase 5 — Notificaciones, refinamiento y deploy ⏳ PENDIENTE
 
 - [ ] Sistema de alertas por email (Resend)
@@ -272,3 +402,6 @@ Por ahora, correr `npm run scrape` manualmente (o vía un cron externo simple) e
 | Fase 4A | Refactor a `src/lib/becas/queries.ts`, identidad visual violeta/ámbar, layout público (header/footer), home, listado `/becas` (filtros, búsqueda con debounce, paginación, loading/empty states), detalle `/becas/[slug]` con OG dinámico, sitemap/robots. `npm run build` OK. |
 | Fase 3 (ajuste) | Migración de la curación IA de `@anthropic-ai/sdk` a **Ollama local** (`src/lib/ai/parse-scholarship.ts`, `fetch` sin SDK), re-validación Zod de la respuesta, degradación 503 si Ollama no responde. Decisión documentada: n8n + modelo hosted queda planeado para después. |
 | Fase 3 (ajuste 2) | Migración de la curación IA de Ollama local a **API de Groq** (`llama-3.3-70b-versatile`, `response_format: json_schema` con fallback a `json_object`), sin SDK. Probado en vivo: extracción real (200 + Zod OK) y degradación con key inválida (401 de Groq → 503 sin filtrar la key). |
+| Fase 3B | Capa de descubrimiento con **Tavily** (`src/lib/discovery/tavily.ts`, sin SDK), `validateUrlIsLive()` (`src/scrapers/url-liveness.ts`), `TavilyDiscoveryAdapter` con filtro México/vigente y extracción vía Groq, nuevo `SourceType.DISCOVERY` (migración no destructiva), registrado en `ADAPTER_REGISTRY` y seed (3ra fuente). `ADMIN_SCRAPER_TOKEN` documentado en `.env.example`. |
+| Fase 4B (en curso) | Panel `/admin` de curación: gate de sesión por cookie (`proxy.ts`, `ADMIN_SESSION_COOKIE`/`isAdminSessionRequest`, `ADMIN_PASSWORD`), login/logout, CRUD `/api/admin/becas` (+ `reverify`/`validar-url`) con invariante `assertCanPublish` (México + deadline vigente + link vivo), formulario de 3 pasos con extracción IA, tabla con health-check y archivado, 4ª fuente `MANUAL` en seed. Falta probar en dev, `npm run build` y commit. |
+| Fase 3C | Cierre de migración a Groq: `applyUrl` eliminado del contrato del modelo (prompt/schema/Zod); invariante "applyUrl = URL fetcheada y validada viva, nunca del modelo" aplicado también en `TavilyDiscoveryAdapter` (se quitó `resolveApplyUrl`). `BecasGobAdapter` reconstruido con el mismo pipeline que Tavily (fetch listado → enlaces → `<main>` texto → `validateUrlIsLive` → Groq → filtros México/vigente). Nuevo `scripts/test-scraper.ts` (`npm run scrape:test`, dry-run por etapas). Corrida real: `ScraperLog SUCCESS`, 3 becas `PENDING_REVIEW` con `applyUrl` verificado (200). Commit Parte A: `c098818`. |

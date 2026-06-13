@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "scrape": "tsx scripts/scrape.ts",
+    "scrape:test": "tsx scripts/test-scraper.ts",
     "prepare": "husky"
   },
   "lint-staged": {
