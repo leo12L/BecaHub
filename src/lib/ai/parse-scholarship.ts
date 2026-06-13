@@ -18,9 +18,10 @@ Responde EXCLUSIVAMENTE con un objeto JSON válido, sin texto adicional, sin exp
 - "coverageType": uno de ${Object.values(CoverageType).join(", ")}, o null si no se puede determinar.
 - "country": string con el país o países destino, o null si no se menciona.
 - "level": uno de ${Object.values(AcademicLevel).join(", ")}, o null si no se puede determinar.
-- "applyUrl": string con la URL para aplicar, o null si no se menciona en el texto.
 
-Si un dato no aparece en el texto, usa null para ese campo. No inventes información.`;
+No incluyas ninguna URL ni campo "applyUrl": la URL de aplicación la determina el
+pipeline a partir de la página que se descargó, nunca el modelo. Si un dato no
+aparece en el texto, usa null para ese campo. No inventes información.`;
 
 /** JSON Schema para `response_format: { type: "json_schema" }` de Groq (modo strict). */
 const RESPONSE_SCHEMA = {
@@ -38,7 +39,6 @@ const RESPONSE_SCHEMA = {
       type: ["string", "null"],
       enum: [...Object.values(AcademicLevel), null],
     },
-    applyUrl: { type: ["string", "null"] },
   },
   required: [
     "title",
@@ -47,7 +47,6 @@ const RESPONSE_SCHEMA = {
     "coverageType",
     "country",
     "level",
-    "applyUrl",
   ],
   additionalProperties: false,
 };

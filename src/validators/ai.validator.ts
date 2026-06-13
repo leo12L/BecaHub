@@ -26,7 +26,6 @@ export const parsedScholarshipSchema = z.object({
   coverageType: z.enum(coverageTypeValues).nullable(),
   country: z.string().nullable(),
   level: z.enum(academicLevelValues).nullable(),
-  applyUrl: z.string().nullable(),
 });
 
 export type ParsedScholarship = z.infer<typeof parsedScholarshipSchema>;
