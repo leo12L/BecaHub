@@ -38,3 +38,16 @@ esté vivo (`validateUrlIsLive()`), extrae el texto de `<main>` y lo pasa a
 `TavilyDiscoveryAdapter`, con el invariante de `applyUrl` arriba. Para probar
 el pipeline etapa por etapa sin escribir en la DB: `npm run scrape:test`
 (`scripts/test-scraper.ts`). Ver Fase 3C en `BITACORA.md`.
+
+> [!] `gob.mx/becasbenitojuarez` ahora devuelve 404 (cambio reciente del
+> sitio) — el adapter necesita revisión antes de volver a correrse.
+
+## Datos: sin becas de ejemplo
+
+`prisma/seed.ts` **ya no inserta becas ficticias** — solo crea las 4 `Source`
+y las 6 `Category`. Las becas actuales en DB (8, `status: ACTIVE`,
+`isVerified: true`) se cargaron manualmente desde convocatorias reales de
+SECIHTI (`enbc.secihti.mx`/`secihti.mx`), cada una con `applyUrl` verificado
+con `curl -IL` → 200. Ver Fase 4D en `BITACORA.md`. Para añadir más becas,
+usa el panel `/admin` o repite el mismo proceso de verificación manual — nunca
+insertes `applyUrl` sin verificarlo en vivo.

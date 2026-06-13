@@ -7,7 +7,7 @@
 - **Proyecto:** BecaHub — plataforma de agregación y búsqueda de becas
 - **Ubicación:** `C:\opbecaas` (la carpeta raíz NO se ha renombrado todavía; pendiente manual del usuario)
 - **Stack confirmado:** Next.js 16.2.9 · TypeScript · Tailwind · Prisma 7 · PostgreSQL · Redis (Upstash) · NextAuth · Zod
-- **Última actualización:** Fase 3 cerrada y commiteada (`d9ea29d`); Fase 4A cerrada (pendiente commit); Fase 3B (descubrimiento Tavily) cerrada (pendiente commit); Fase 4B (UI de admin) en curso, parte sustancial completada (pendiente commit); Fase 3C (invariante `applyUrl` + primer scraper real con Groq) cerrada y commiteada parcialmente (`c098818`, falta commit de Parte B)
+- **Última actualización:** Fase 3 cerrada y commiteada (`d9ea29d`); Fase 4A cerrada (pendiente commit); Fase 3B (descubrimiento Tavily) cerrada y commiteada (`9d6aecd`); Fase 4B (UI de admin) en curso, parte sustancial completada (pendiente commit); Fase 3C (invariante `applyUrl` + primer scraper real con Groq) cerrada y commiteada (`c098818`, `9d6aecd`); Fase 4D (purga de datos falsos + 8 becas reales verificadas) cerrada (pendiente commit)
 
 ---
 
@@ -381,6 +381,52 @@ Por ahora, correr `npm run scrape` manualmente (o vía un cron externo simple) e
 - [ ] `npm run build` y `npx tsc --noEmit` sobre todo el proyecto
 - [ ] Commit (agrupar junto con Fase 3B, que comparte el mismo diff sin commitear)
 - [ ] Decidir si el resto de Fase 4B (NextAuth real, favoritos/postulaciones, perfil de usuario) se hace en esta misma fase o se separa
+
+---
+
+## Fase 4D — Purga de datos de ejemplo y carga de becas reales verificadas ✅ COMPLETADA
+
+**Objetivo:** la home/listado mostraban becas de `prisma/seed.ts` con `applyUrl` ficticios (404/dominios inexistentes/soft-404), por lo que ningún botón "Ir a la convocatoria" abría una página real. Purgar todo dato inventado y cargar convocatorias mexicanas reales y vigentes, verificadas una por una con `curl -IL`.
+
+**Resultado:** DB purgada (21 → 0 becas), `prisma/seed.ts` ya no inserta becas de ejemplo (solo fuentes y categorías), y se cargaron **8 becas reales, `status: ACTIVE`, `isVerified: true`**, todas con `applyUrl` verificado en 200. `npm run build` OK.
+
+### Diagnóstico (Paso 1)
+
+- Las 21 becas existentes venían de dos orígenes: 15 del array `becas` hardcodeado en `prisma/seed.ts` (ficticias), y 6 de una corrida real de `BecasGobAdapter` (Fase 3C, `PENDING_REVIEW`/`isVerified: false`, sobre `gob.mx/becasbenitojuarez`).
+- `curl -IL` sobre 5 `applyUrl` del seed confirmó que **todas son falsas**: `becasbenitojuarez.sep.gob.mx/becas/educacion-superior` (DNS no resuelve), `gob.mx/sep/becas/movilidad-internacional` (404), `conahcyt.mx/becas/posgrado-nacional` (200 pero página de bloqueo Incapsula = soft-404), `chevening.org/scholarship/` (301 a una ruta inventada), `conade.gob.mx/becas/talento-nacional` (522 Cloudflare).
+
+### Purga (Paso 2)
+
+- `db.scholarship.deleteMany({})` → 21 borradas, recuento final = 0 (cascada limpia `ScholarshipCategory`/`Favorite`/`Application`).
+- `prisma/seed.ts` reescrito: mantiene las 4 `Source` y las 6 `Category`, elimina el array `becas` y el loop de inserción. El seed ya **no inventa becas** — el mensaje final lo deja explícito.
+
+### Carga de becas reales (Paso 3)
+
+- `gob.mx/becasbenitojuarez` (la fuente usada en Fase 3C) ahora devuelve **404** — el sitio cambió de estructura, por lo que no se pudo reusar `BecasGobAdapter` para esta carga.
+- En su lugar se usó **SECIHTI** (`enbc.secihti.mx` / `secihti.mx`), que expone convocatorias 2026 individuales con fecha límite explícita. Para cada una: búsqueda web → `curl -IL` (200 verificado) → extracción de campos (título, descripción, deadline, monto, nivel) vía `WebFetch` sobre el contenido real → inserción manual con `applyUrl` = la URL verificada (nunca generada por IA), `status: ACTIVE`, `isVerified: true`, `sourceId` = "Curación manual (admin)" (`...0004`).
+- **8 becas cargadas** (todas México, deadline futuro respecto a 2026-06-13):
+
+  | Beca | Deadline | applyUrl (curl → 200) |
+  |---|---|---|
+  | Programa de Inserción Laboral (PIL) 2026 | 2026-06-22 | `enbc.secihti.mx/convocatoria/ciencias-y-humanidades/programa-de-insercion-laboral-pil/convocatoria-del-programa-de-insercion-laboral-2026/` |
+  | Apoyo complementario tutorías IA/nube/infraestructura | 2026-07-10 | `enbc.secihti.mx/convocatoria/becas-nacionales/convocatoria-2026-apoyo-complementario-para-actividades-de-tutoria-...` |
+  | Cátedras de la Diáspora Mexicana 2026 | 2026-07-24 | `secihti.mx/catedras-de-la-diaspora-mexicana/` |
+  | Becas Nacionales de Inclusión 2026 | 2026-09-25 | `enbc.secihti.mx/convocatoria/becas-nacionales/convocatoria-becas-nacionales-de-inclusion-2026/` |
+  | Becas Nacionales para la Formación en CP-SECIHTI 2026 | 2026-10-23 | `enbc.secihti.mx/convocatoria/becas-nacionales/convocatoria-becas-nacionales-para-la-formacion-en-cp-secihti-2026/` |
+  | Apoyos complementarios de movilidad nacional e internacional | 2026-10-31 | `enbc.secihti.mx/convocatoria/becas-nacionales/convocatoria-de-apoyos-complementarios-de-movilidad-en-el-extranjero-...` |
+  | Becas Nacionales para Estudios de Posgrado 2026 | 2026-11-28 | `enbc.secihti.mx/convocatoria/becas-nacionales/convocatoria-de-becas-nacionales-para-estudios-de-posgrado-2026/` |
+  | Apoyo complementario de maternidad y paternidad | 2026-12-03 | `enbc.secihti.mx/convocatoria/becas-nacionales/convocatoria-2026-apoyo-complementario-de-maternidad-y-paternidad-...` |
+
+### Verificación final (Paso 4)
+
+- `/becas` lista las 8 becas reales; cada `/becas/[slug]` muestra el botón "Ir a la convocatoria" apuntando exactamente al `applyUrl` cargado.
+- 3 becas elegidas al azar (Cátedras de la Diáspora Mexicana, Becas Nacionales de Inclusión, PIL 2026) → `curl -IL` de su `applyUrl` final → **200** en los tres casos.
+- `npm run build` OK.
+
+### 🔑 Hallazgos técnicos para fases futuras
+
+- [!] `gob.mx/becasbenitojuarez` (fuente `becas-gob-mx` de `BecasGobAdapter`, Fase 3C) ahora responde 404 — el adapter necesita revisión/actualización de URL antes de volver a usarse.
+- [!] SECIHTI (`enbc.secihti.mx`) publica convocatorias 2026 individuales con fecha límite explícita y URLs estables — buena candidata para un futuro adapter de scraping real, similar en estructura a `BecasGobAdapter`.
 
 ---
 
