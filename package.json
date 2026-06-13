@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "scrape": "tsx scripts/scrape.ts",
     "prepare": "husky"
   },
   "lint-staged": {

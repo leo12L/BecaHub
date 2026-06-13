@@ -66,6 +66,13 @@ enum ApplicationStatus {
   REJECTED
 }
 
+enum ScraperRunStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
 // =========================================
 // Auth (compatible con NextAuth v4 / Auth.js v5
 // via @auth/prisma-adapter o @next-auth/prisma-adapter)
@@ -141,6 +148,7 @@ model Source {
   createdAt      DateTime   @default(now())
 
   scholarships Scholarship[]
+  scraperLogs  ScraperLog[]
 }
 
 model Category {
@@ -239,4 +247,26 @@ model Notification {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// =========================================
+// Scraping
+// =========================================
+
+model ScraperLog {
+  id           String           @id @default(uuid())
+  sourceId     String?
+  status       ScraperRunStatus @default(RUNNING)
+  itemsFound   Int              @default(0)
+  itemsCreated Int              @default(0)
+  itemsUpdated Int              @default(0)
+  itemsSkipped Int              @default(0)
+  errorMessage String?          @db.Text
+  startedAt    DateTime         @default(now())
+  finishedAt   DateTime?
+  durationMs   Int?
+
+  source Source? @relation(fields: [sourceId], references: [id])
+
+  @@index([sourceId, startedAt])
 }

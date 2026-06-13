@@ -177,13 +177,23 @@ curl "http://localhost:3000/api/becas?level=INVALID"
 
 - [x] **Objetivo 6 — Orquestador (`src/scrapers/orchestrator.ts`)**: `runScraper(target)` (`"all"` o `sourceId`), registro `ADAPTER_REGISTRY` (slug → clase de adapter), concurrencia 3 fuentes en paralelo vía `p-queue` (el throttle de 1 req/seg por dominio sigue aplicando dentro de cada adapter). Crea/actualiza un `ScraperLog` por fuente con conteos (`itemsFound/Created/Updated/Skipped`), `status` (`SUCCESS`/`PARTIAL`/`FAILED`) y `lastScrapedAt` en `Source`. Una fuente que falla no detiene al resto.
 - [x] **Objetivo 7 — Endpoints admin**: `POST /api/admin/scraper/ejecutar` (body `{ sourceId? }`, sin `sourceId` = todas las fuentes activas) y `GET /api/admin/scraper/logs` (paginado). Ambos protegidos con `isAdminScraperRequest` (header `x-admin-scraper-token` vs `ADMIN_SCRAPER_TOKEN`, provisional hasta NextAuth real).
-- [x] **Objetivo 8 — `POST /api/admin/ai/parse-beca`**: recibe `{ text: string }` (Zod, `src/validators/ai.validator.ts`), llama a Claude (`claude-opus-4-8` vía `@anthropic-ai/sdk`) con un prompt que pide únicamente JSON (sin markdown) con `{ title, description, deadline, coverageType, country, level, applyUrl }`, parsea la respuesta con `JSON.parse` + try/catch (502 si no es JSON válido). **No escribe en la base de datos** — devuelve el JSON para curación humana. Requiere `ANTHROPIC_API_KEY` (agregada a `.env`/`.env.example`).
+- [x] **Objetivo 8 — `POST /api/admin/ai/parse-beca`**: recibe `{ text: string }` (Zod, `src/validators/ai.validator.ts`), delega a `parseScholarshipText()` en `src/lib/ai/parse-scholarship.ts` — único módulo que conoce al proveedor de IA. Implementación actual: **Groq API** (hosted, OpenAI-compatible) vía `fetch` a `POST https://api.groq.com/openai/v1/chat/completions` (`GROQ_API_KEY` + `GROQ_MODEL`, default `llama-3.3-70b-versatile`), con `response_format: { type: "json_schema", strict: true }` para forzar `{ title, description, deadline, coverageType, country, level, applyUrl }`; si el modelo no soporta `json_schema` estricto (Groq devuelve 400 con `error.param === "response_format"`), reintenta automáticamente con `response_format: { type: "json_object" }`. La respuesta se re-valida con `parsedScholarshipSchema` (Zod) — si no es JSON válido o no cumple el esquema, el endpoint responde 422 (parseo automático falló, curador llena el formulario a mano). Si Groq no responde, da error 401/5xx o falta `GROQ_API_KEY`, responde 503 (sin exponer la key en logs ni en la respuesta). **No escribe en la base de datos** — devuelve el JSON para curación humana.
 - [x] **Objetivo 9 — Script `npm run scrape`**: `scripts/scrape.ts` (tsx, carga `.env` vía `dotenv/config`) llama a `runScraper("all")` o `runScraper(<sourceId>)` si se pasa como argumento, imprime los `ScraperRunResult[]` y sale con código 1 si alguna fuente terminó en `FAILED`.
 
 ### Pendiente (continuar aquí)
 
-- [ ] Verificar `npm run build`, probar orquestador real, actualizar esta sección con resultados finales
 - [ ] Commit final: `feat: sistema de scraping y curación asistida por IA`
+
+### [!] Decisión: proveedor de IA para curación (`parse-beca`)
+
+La extracción de campos vive aislada en `src/lib/ai/parse-scholarship.ts` (única función `parseScholarshipText(text)`) para que cambiar de proveedor solo toque ese archivo.
+
+- **Actual: API de Groq** (hosted, OpenAI-compatible), modelo `llama-3.3-70b-versatile` vía `GROQ_MODEL`, sin SDK (`fetch` nativo). Recorrido de decisiones: `@anthropic-ai/sdk` (instalado y desinstalado) → Ollama local (probado, descartado por requerir instalación/hardware local) → Groq.
+- **Planeado (después):** capa intermedia con **n8n** + modelo hosted — fuera de alcance de este cambio, no implementado.
+- Validación: la respuesta de Groq se re-valida con Zod (`parsedScholarshipSchema`); si no cumple, 422 con mensaje de fallback manual.
+- Fallback de `response_format`: si el modelo configurado no soporta `json_schema` estricto, el módulo reintenta automáticamente con `json_object`.
+- Degradación: Groq caído/timeout/401/5xx → 503 `{ error: "El servicio de parseo IA no está disponible; completa el formulario manualmente." }`. La key nunca se expone en logs ni en la respuesta. El flujo manual de curación nunca se bloquea.
+- **Probado en esta sesión**: `POST /api/admin/ai/parse-beca` con texto real de una convocatoria de ejemplo devolvió `{ title, description, deadline: "2026-03-15", coverageType: "TUITION", country: "Mexico", level: "UNDERGRAD", applyUrl }` (HTTP 200, pasó `parsedScholarshipSchema` vía fallback a `json_object`); con `GROQ_API_KEY` inválida, Groq respondió 401 y el endpoint devolvió 503 sin filtrar la key.
 
 ### [!] Decisión pendiente: ejecución programada (cron)
 
@@ -263,3 +273,5 @@ Por ahora, correr `npm run scrape` manualmente (o vía un cron externo simple) e
 | Fase 1 | Documento creado. Registrada Fase 1 completa con desviaciones y hallazgos de Next 16 / Prisma 7. |
 | Fase 2 | Schema Prisma completo + conexión a Supabase (Prisma 7 + adapter-pg), migración `init` aplicada, seed (2 fuentes/6 categorías/15 becas), validators Zod, caché/rate-limit con degradación, Route Handlers `/api/becas`, `/api/becas/[slug]` y `/api/becas/destacadas` probados. Dependencia extra: `tsx` (para correr el seed). |
 | Fase 4A | Refactor a `src/lib/becas/queries.ts`, identidad visual violeta/ámbar, layout público (header/footer), home, listado `/becas` (filtros, búsqueda con debounce, paginación, loading/empty states), detalle `/becas/[slug]` con OG dinámico, sitemap/robots. `npm run build` OK. |
+| Fase 3 (ajuste) | Migración de la curación IA de `@anthropic-ai/sdk` a **Ollama local** (`src/lib/ai/parse-scholarship.ts`, `fetch` sin SDK), re-validación Zod de la respuesta, degradación 503 si Ollama no responde. Decisión documentada: n8n + modelo hosted queda planeado para después. |
+| Fase 3 (ajuste 2) | Migración de la curación IA de Ollama local a **API de Groq** (`llama-3.3-70b-versatile`, `response_format: json_schema` con fallback a `json_object`), sin SDK. Probado en vivo: extracción real (200 + Zod OK) y degradación con key inválida (401 de Groq → 503 sin filtrar la key). |
