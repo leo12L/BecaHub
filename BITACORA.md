@@ -7,7 +7,7 @@
 - **Proyecto:** BecaHub — plataforma de agregación y búsqueda de becas
 - **Ubicación:** `C:\opbecaas` (la carpeta raíz NO se ha renombrado todavía; pendiente manual del usuario)
 - **Stack confirmado:** Next.js 16.2.9 · TypeScript · Tailwind · Prisma 7 · PostgreSQL · Redis (Upstash) · NextAuth · Zod
-- **Última actualización:** Fase 2 cerrada (pendiente commit)
+- **Última actualización:** Fase 4A cerrada (pendiente commit)
 
 ---
 
@@ -155,24 +155,95 @@ curl "http://localhost:3000/api/becas?level=INVALID"
 
 ---
 
-## Fase 3 — Sistema de scraping ⏳ PENDIENTE
+## Fase 3 — Sistema de scraping 🚧 EN PROGRESO
 
-- [ ] Interfaz `ScraperAdapter` en `src/scrapers/types.ts`
-- [ ] `BaseAdapter` con retry, logging, dedup por URL
-- [ ] Adaptadores reales (empezar por `becas.gob.mx`)
-- [ ] `ScraperOrchestrator` con concurrencia controlada (`p-queue`)
-- [ ] Tabla `scraper_logs` en Prisma
-- [ ] Cron job (inngest o Vercel Cron)
-- [ ] Descargar browsers de Playwright cuando se use (`npx playwright install`)
-- [ ] Integración con Claude AI para parsear texto pegado de redes sociales
+**Objetivo:** arquitectura de adaptadores, orquestador, normalización/dedup, endpoints de admin y curación asistida por IA. **Sesión en pausa** — se retoma desde aquí.
+
+### Completado
+
+- [x] **Modelo `ScraperLog` + enum `ScraperRunStatus`** en `schema.prisma` (campos: `sourceId?`, `status`, `itemsFound/Created/Updated/Skipped`, `errorMessage?`, `startedAt`, `finishedAt?`, `durationMs?`, índice `[sourceId, startedAt]`). Relación `Source.scraperLogs[]`. Migración `20260613010804_add_scraper_logs` aplicada y `prisma generate` corrido.
+- [x] **`src/scrapers/types.ts`**: `RawScholarship`, `ScraperAdapter` (interfaz: `name`, `sourceSlug`, `scrape()`), `ScraperRunResult`.
+- [x] **`src/scrapers/base.adapter.ts`**: clase abstracta `BaseAdapter` con:
+  - User-Agent honesto: `BecaHubBot/1.0 (+https://becahub.example/about-bot)` (constante `SCRAPER_USER_AGENT`)
+  - Chequeo de `robots.txt` cacheado por dominio (parser propio minimalista, sin librería externa)
+  - Throttle 1 req/seg por dominio vía `p-queue` (`intervalCap: 1, interval: 1000`), una cola estática compartida por dominio
+  - `fetchPage(url)`: valida robots.txt → encola → `fetchWithRetry` (3 intentos, backoff 1s/2s/4s, timeout 15s)
+  - `log()` estructurado en JSON (info/warn/error)
+- [x] **`src/scrapers/normalize.ts`**:
+  - `slugify()` (maneja acentos vía NFD)
+  - `parseSpanishDate()`: soporta ISO, `dd/mm/yyyy`/`dd-mm-yyyy` y "15 de marzo de 2026"
+  - `normalize(raw, sourceId)`: mapea `coverageRaw`/`levelRaw` con diccionarios de sinónimos (default `MONETARY`/`UNDERGRAD` si no hay match), `countryRaw` → `countryDestination` (default "No especificado"), parsea montos tipo "$1,000 - $2,400". Devuelve `null` si falta `title` o `url`. Siempre `status: PENDING_REVIEW`, `isVerified: false`.
+  - `upsertScholarship(normalized)`: dedup por `applyUrl` (no por slug — más estable entre corridas); si es nuevo, resuelve colisión de slug con sufijo numérico. Devuelve `"created" | "updated"`.
+
+- [x] **Objetivo 6 — Orquestador (`src/scrapers/orchestrator.ts`)**: `runScraper(target)` (`"all"` o `sourceId`), registro `ADAPTER_REGISTRY` (slug → clase de adapter), concurrencia 3 fuentes en paralelo vía `p-queue` (el throttle de 1 req/seg por dominio sigue aplicando dentro de cada adapter). Crea/actualiza un `ScraperLog` por fuente con conteos (`itemsFound/Created/Updated/Skipped`), `status` (`SUCCESS`/`PARTIAL`/`FAILED`) y `lastScrapedAt` en `Source`. Una fuente que falla no detiene al resto.
+- [x] **Objetivo 7 — Endpoints admin**: `POST /api/admin/scraper/ejecutar` (body `{ sourceId? }`, sin `sourceId` = todas las fuentes activas) y `GET /api/admin/scraper/logs` (paginado). Ambos protegidos con `isAdminScraperRequest` (header `x-admin-scraper-token` vs `ADMIN_SCRAPER_TOKEN`, provisional hasta NextAuth real).
+- [x] **Objetivo 8 — `POST /api/admin/ai/parse-beca`**: recibe `{ text: string }` (Zod, `src/validators/ai.validator.ts`), llama a Claude (`claude-opus-4-8` vía `@anthropic-ai/sdk`) con un prompt que pide únicamente JSON (sin markdown) con `{ title, description, deadline, coverageType, country, level, applyUrl }`, parsea la respuesta con `JSON.parse` + try/catch (502 si no es JSON válido). **No escribe en la base de datos** — devuelve el JSON para curación humana. Requiere `ANTHROPIC_API_KEY` (agregada a `.env`/`.env.example`).
+- [x] **Objetivo 9 — Script `npm run scrape`**: `scripts/scrape.ts` (tsx, carga `.env` vía `dotenv/config`) llama a `runScraper("all")` o `runScraper(<sourceId>)` si se pasa como argumento, imprime los `ScraperRunResult[]` y sale con código 1 si alguna fuente terminó en `FAILED`.
+
+### Pendiente (continuar aquí)
+
+- [ ] Verificar `npm run build`, probar orquestador real, actualizar esta sección con resultados finales
+- [ ] Commit final: `feat: sistema de scraping y curación asistida por IA`
+
+### [!] Decisión pendiente: ejecución programada (cron)
+
+`npm run scrape` solo se ejecuta manualmente. **No se instaló ningún SDK de cron** (ni Inngest, ni `@vercel/cron`, etc.) — queda como decisión explícita para Fase 5:
+
+- **Opción A — Vercel Cron**: simple, declarativo (`vercel.json`), pero requiere que el endpoint `/api/admin/scraper/ejecutar` esté expuesto con auth compatible con cron jobs (sin sesión de usuario).
+- **Opción B — Inngest**: más control (reintentos, observabilidad, steps), pero añade una dependencia y un servicio externo nuevo.
+
+Por ahora, correr `npm run scrape` manualmente (o vía un cron externo simple) es suficiente para curar datos durante Fase 4.
+
+### 🔑 Notas técnicas para retomar
+
+- Archivos ya creados: `src/scrapers/types.ts`, `src/scrapers/base.adapter.ts`, `src/scrapers/normalize.ts`.
+- `Source` con `scraperAdapter: "becas-gob-mx"` (fuenteGobierno) y `"chevening"` (fuenteChevening) ya existen en el seed — el orquestador debe resolver estos slugs a clases de adapter.
+- `npm run build` no se ha vuelto a correr desde los cambios de esta fase (solo se corrió migración + generate).
 
 ---
 
-## Fase 4 — Frontend completo ⏳ PENDIENTE
+## Fase 4A — Frontend público ✅ COMPLETADA
 
-- [ ] Home, listado `/becas` con filtros, detalle `/becas/[slug]`, perfil, admin
-- [ ] Búsqueda con debounce
-- [ ] SEO: sitemap dinámico + meta tags OG por beca
+**Objetivo:** capa de datos compartida, identidad visual propia, layout público (header/footer), home, listado `/becas` con filtros/búsqueda/paginación, detalle `/becas/[slug]` con SEO dinámico, y SEO global (`sitemap.xml`, `robots.txt`).
+
+**Resultado:** `npm run build` OK (Turbopack), todas las rutas verificadas en dev (`/`, `/becas`, `/becas/[slug]`, `/sitemap.xml`, `/robots.txt`) responden 200. **Falta hacer el commit.**
+
+### Completado
+
+- [x] **Objetivo 0 — refactor a capa de datos compartida**: `src/lib/becas/queries.ts` con `getBecas`, `getBecaBySlug`, `getFeaturedBecas`, `getFilterCategories`, `getFilterCountries`. Los Route Handlers `/api/becas`, `/api/becas/[slug]` y `/api/becas/destacadas` ahora llaman a estas funciones (mismo comportamiento, caché/rate-limit/Zod sin cambios). Las páginas RSC llaman a `queries.ts` directamente — **no** hacen fetch a su propia API.
+- [x] **Identidad visual**: paleta violeta como color primario (`--primary: oklch(0.5 0.21 292)`) + acento ámbar (`--highlight`) para urgencia de fechas límite, definida en `globals.css` (`:root` + `.dark` + `@theme inline`). Tipografía Geist heredada de Fase 1.
+- [x] **Layout público**: `src/components/layout/header.tsx` (sticky, brand "BecaHub" + ícono, nav Inicio/Explorar becas, acceso a búsqueda, menú hamburguesa móvil con `Sheet`) y `src/components/layout/footer.tsx` (enlaces, aviso de fuentes oficiales, copyright dinámico). Integrados en `src/app/(public)/layout.tsx`. Se eliminó `src/app/page.tsx` (starter de create-next-app).
+- [x] **Home `/`**: hero con `HeroSearchForm` (client island → `/becas?search=...`), sección de becas destacadas (`getFeaturedBecas()`), exploración por categoría (ejes TYPE y AREA vía `getFilterCategories()`), sección "Cómo funciona" (3 pasos) y CTA final a `/becas`.
+- [x] **Listado `/becas`**: `await searchParams` → Zod (`becasQuerySchema`) → `getBecas(query, { sort })`. Grid de `ScholarshipCard`, `SearchBar` (debounce ~300ms, actualiza `search` en la URL y resetea `page`), `FilterPanel` (type/area/country/level/deadlineBefore/sort, todo vía URL params, sin localStorage), `Pagination` vía `page`, `loading.tsx` con skeletons, estado vacío "No encontramos becas con estos filtros" / "No se encontraron becas".
+- [x] **Detalle `/becas/[slug]`**: `await params` → `getBecaBySlug(slug)`, `notFound()` si no existe o `status !== "ACTIVE"`. Muestra todos los campos, `DeadlineBadge` con urgencia, botón "Ir a la convocatoria" (`target="_blank"`, `rel="noopener noreferrer"`), botones "Guardar"/"Ya postulé" deshabilitados con `TODO(auth)`. `generateMetadata` async con OG/Twitter dinámicos por beca.
+- [x] **Componentes reutilizables** en `src/components/scholarships/`: `ScholarshipCard`, `FilterPanel`, `SearchBar`, `HeroSearchForm`, `Pagination`, `CategoryBadge`, `DeadlineBadge`, `CoverageBadge`. Helpers de formato en `src/lib/becas/format.ts` (`coverageLabels`, `academicLevelLabels`, `statusLabels`, `formatAmount`, `getDeadlineInfo`, `formatDate`).
+- [x] **SEO**: `src/app/sitemap.ts` (rutas estáticas + una entrada por beca `ACTIVE`), `src/app/robots.ts` (`disallow: ["/api/"]`, referencia al sitemap), metadata base en `src/app/layout.tsx` (`metadataBase`, `title.template`, `description`, OG/Twitter defaults, `lang="es"`). Constantes centralizadas en `src/lib/site.ts`.
+
+### Verificación manual
+
+- `npm run build` → compila sin errores (Turbopack).
+- `/`, `/becas`, `/becas/chevening-uk-masters`, `/sitemap.xml`, `/robots.txt` → HTTP 200.
+- `<head>` del detalle incluye `title`, `meta description`, `og:title`, `og:description`, `og:type=article`, `twitter:card=summary`, `twitter:title`, `twitter:description`, todos generados dinámicamente desde `generateMetadata`.
+- Filtros vía URL: `/becas?search=chevening` → "2 becas encontradas"; `/becas?area=stem` → "4 becas encontradas".
+- Estado vacío: `/becas?search=xyzxyznoexiste` → "No encontramos becas con estos filtros" / "No se encontraron becas".
+- Paginación: `/becas?limit=20&page=1` → HTTP 200.
+
+### Desviaciones respecto al plan original
+
+- [~] **Solo shadcn + Lucide**, sin librerías de fechas adicionales (no se necesitó `date-fns`; `Intl`/`Date` nativos fueron suficientes para `formatAmount`/`formatDate`/`getDeadlineInfo`).
+- [~] `formatAmount` tipa los montos como `number | string | { toString(): string }` (no `Prisma.Decimal` directo) para evitar acoplar `src/lib/becas/format.ts` al cliente generado de Prisma.
+
+### 🔑 Hallazgos técnicos para fases futuras
+
+- [!] El ícono `ArrowSquareOut` **no existe** en la versión instalada de `lucide-react` — usar `ExternalLink`.
+- [!] Los botones "Guardar" y "Ya postulé" del detalle están deshabilitados con comentarios `TODO(auth)` — quedan listos para conectarse en Fase 4B (auth + UI protegida).
+
+### Pendiente (Fase 4B — auth y UI protegida)
+
+- [ ] NextAuth (login/registro), rutas `(auth)`
+- [ ] Favoritos ("Guardar") y postulaciones ("Ya postulé") — modelos `Favorite`/`Application` ya existen en el schema
+- [ ] Perfil de usuario
+- [ ] UI de admin (curación de becas scrapeadas, gestión de fuentes)
 
 ---
 
@@ -191,3 +262,4 @@ curl "http://localhost:3000/api/becas?level=INVALID"
 |-------|--------|
 | Fase 1 | Documento creado. Registrada Fase 1 completa con desviaciones y hallazgos de Next 16 / Prisma 7. |
 | Fase 2 | Schema Prisma completo + conexión a Supabase (Prisma 7 + adapter-pg), migración `init` aplicada, seed (2 fuentes/6 categorías/15 becas), validators Zod, caché/rate-limit con degradación, Route Handlers `/api/becas`, `/api/becas/[slug]` y `/api/becas/destacadas` probados. Dependencia extra: `tsx` (para correr el seed). |
+| Fase 4A | Refactor a `src/lib/becas/queries.ts`, identidad visual violeta/ámbar, layout público (header/footer), home, listado `/becas` (filtros, búsqueda con debounce, paginación, loading/empty states), detalle `/becas/[slug]` con OG dinámico, sitemap/robots. `npm run build` OK. |

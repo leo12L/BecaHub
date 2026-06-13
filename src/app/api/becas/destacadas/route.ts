@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getFeaturedBecas } from "@/lib/becas/queries";
 import { getCached, setCached } from "@/lib/cache";
 
 const FEATURED_CACHE_TTL = 1800; // 30 minutos
@@ -15,25 +15,7 @@ export async function GET() {
     });
   }
 
-  const scholarships = await db.scholarship.findMany({
-    where: { isFeatured: true, status: "ACTIVE" },
-    orderBy: [
-      { deadline: { sort: "asc", nulls: "last" } },
-      { createdAt: "desc" },
-    ],
-    include: {
-      source: { select: { id: true, name: true, type: true } },
-      categories: { include: { category: true } },
-    },
-  });
-
-  const data = scholarships.map((scholarship) => {
-    const { categories, ...rest } = scholarship;
-    return {
-      ...rest,
-      categories: categories.map((sc) => sc.category),
-    };
-  });
+  const data = await getFeaturedBecas();
 
   await setCached(cacheKey, { data }, FEATURED_CACHE_TTL);
 

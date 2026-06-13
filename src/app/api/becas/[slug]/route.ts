@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getBecaBySlug } from "@/lib/becas/queries";
 import { getCached, setCached } from "@/lib/cache";
 
 const DETAIL_CACHE_TTL = 3600; // 1 hora
@@ -20,23 +20,11 @@ export async function GET(
     });
   }
 
-  const scholarship = await db.scholarship.findUnique({
-    where: { slug },
-    include: {
-      source: { select: { id: true, name: true, url: true, type: true } },
-      categories: { include: { category: true } },
-    },
-  });
+  const data = await getBecaBySlug(slug);
 
-  if (!scholarship) {
+  if (!data) {
     return NextResponse.json({ error: "Beca no encontrada" }, { status: 404 });
   }
-
-  const { categories, ...rest } = scholarship;
-  const data = {
-    ...rest,
-    categories: categories.map((sc) => sc.category),
-  };
 
   await setCached(cacheKey, data, DETAIL_CACHE_TTL);
 
