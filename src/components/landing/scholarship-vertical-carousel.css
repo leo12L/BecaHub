@@ -1,0 +1,32 @@
+/* Scholarship Vertical Carousel Animations */
+
+.scholarship-carousel-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem; /* gap-3 */
+  animation: scrollUp 35s linear infinite;
+}
+
+.scholarship-carousel-container:hover .scholarship-carousel-inner {
+  animation-play-state: paused;
+}
+
+@keyframes scrollUp {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .scholarship-carousel-inner {
+    animation: none;
+  }
+
+  .scholarship-carousel-container:hover .scholarship-carousel-inner {
+    animation-play-state: running;
+  }
+}
