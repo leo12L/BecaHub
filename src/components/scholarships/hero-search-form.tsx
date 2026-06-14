@@ -26,7 +26,7 @@ export function HeroSearchForm() {
     >
       <div className="relative flex-1">
         <Search
-          className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2"
+          className="text-highlight pointer-events-none absolute top-1/2 left-3.5 size-5 -translate-y-1/2"
           aria-hidden="true"
         />
         <Input
@@ -35,7 +35,7 @@ export function HeroSearchForm() {
           onChange={(e) => setValue(e.target.value)}
           placeholder="Ej. maestría en ciencias, beca de viaje, Chevening…"
           aria-label="Buscar becas"
-          className="h-12 rounded-xl pl-11 text-base"
+          className="focus-visible:ring-primary/40 h-12 rounded-xl border-[#CFE2DB] bg-white pl-11 text-base text-[#10231F] placeholder:text-[#6F8A82]"
         />
       </div>
       <Button

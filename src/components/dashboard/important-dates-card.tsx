@@ -3,9 +3,12 @@
  * Displays a vertical timeline of important scholarship-related dates.
  */
 
+import Link from "next/link";
+
 interface TimelineEvent {
   date: string;
   title: string;
+  href?: string;
   icon?: React.ReactNode;
 }
 
@@ -15,52 +18,47 @@ interface ImportantDatesCardProps {
 
 export function ImportantDatesCard({ events }: ImportantDatesCardProps) {
   return (
-    <div
-      className="rounded-lg p-6"
-      style={{
-        backgroundColor: "#FFFFFF",
-        border: "1px solid rgba(128, 0, 32, 0.15)",
-      }}
-    >
-      <h3 className="mb-6 text-lg font-semibold text-gray-900">
-        Fechas Importantes
+    <section className="border-border bg-card rounded-2xl border p-5 shadow-sm">
+      <h3 className="text-foreground mb-6 text-lg font-semibold">
+        Próximos cierres
       </h3>
 
-      <div className="relative space-y-6">
-        {events.map((event, index) => (
-          <div key={index} className="flex gap-4">
-            {/* Timeline dot and line */}
-            <div className="flex flex-col items-center">
-              <div
-                className="mt-1.5 h-3 w-3 rounded-full"
-                style={{
-                  backgroundColor: "#800020",
-                  boxShadow: "0 0 0 4px rgba(128, 0, 32, 0.1)",
-                }}
-              ></div>
-              {index !== events.length - 1 && (
-                <div
-                  className="my-3 w-0.5 flex-1"
-                  style={{
-                    backgroundColor: "rgba(128, 0, 32, 0.15)",
-                    minHeight: "2rem",
-                  }}
-                ></div>
-              )}
-            </div>
+      {events.length === 0 ? (
+        <p className="text-muted-foreground text-sm">
+          No hay fechas limite proximas en el catalogo.
+        </p>
+      ) : (
+        <div className="relative space-y-6">
+          {events.map((event, index) => (
+            <div key={`${event.title}-${event.date}`} className="flex gap-4">
+              <div className="flex flex-col items-center">
+                <div className="bg-primary ring-primary/10 mt-1.5 h-3 w-3 rounded-full ring-4" />
+                {index !== events.length - 1 && (
+                  <div className="bg-border my-3 w-0.5 flex-1" />
+                )}
+              </div>
 
-            {/* Event content */}
-            <div className="flex-1 pt-0.5">
-              <p className="text-xs font-semibold text-gray-500 uppercase">
-                {event.date}
-              </p>
-              <p className="mt-1 text-sm font-medium text-gray-900">
-                {event.title}
-              </p>
+              <div className="flex-1 pt-0.5">
+                <p className="text-muted-foreground text-xs font-semibold uppercase">
+                  {event.date}
+                </p>
+                {event.href ? (
+                  <Link
+                    href={event.href}
+                    className="text-foreground hover:text-primary mt-1 block text-sm font-medium"
+                  >
+                    {event.title}
+                  </Link>
+                ) : (
+                  <p className="text-foreground mt-1 text-sm font-medium">
+                    {event.title}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-    </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

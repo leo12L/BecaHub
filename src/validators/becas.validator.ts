@@ -22,7 +22,7 @@ export const academicLevelValues = [
  */
 export const becasQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(50).default(20),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
   status: z.enum(scholarshipStatusValues).optional(),
   type: z.string().min(1).optional(),
   area: z.string().min(1).optional(),

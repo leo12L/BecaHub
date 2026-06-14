@@ -85,6 +85,7 @@ model User {
   name          String?
   image         String?
   emailVerified DateTime?
+  password      String?   @db.Text
   role          Role      @default(USER)
   country       String?
   academicLevel AcademicLevel?

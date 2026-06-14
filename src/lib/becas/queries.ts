@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import type { BecasQuery } from "@/validators/becas.validator";
@@ -37,16 +38,16 @@ function flattenCategories<T extends { categories: { category: unknown }[] }>(
 }
 
 /**
- * Becas activas por defecto: el listado público nunca debe exponer
- * DRAFT/PENDING_REVIEW salvo que se pida explícitamente otro status.
+ * Catalogo completo por defecto. Si no llega `status`, no se filtra por estado.
  */
 export async function getBecas(
   query: BecasQuery,
   options?: { sort?: SortOrder },
 ) {
-  const where: Prisma.ScholarshipWhereInput = {
-    status: query.status ?? "ACTIVE",
-  };
+  const where: Prisma.ScholarshipWhereInput = {};
+  if (query.status) {
+    where.status = query.status;
+  }
 
   if (query.country) {
     where.countryDestination = {
@@ -123,7 +124,7 @@ export async function getBecaBySlug(slug: string) {
 
 export async function getFeaturedBecas() {
   const scholarships = await db.scholarship.findMany({
-    where: { isFeatured: true, status: "ACTIVE" },
+    where: { isFeatured: true },
     orderBy: LIST_ORDER_BY.deadline,
     include: LIST_INCLUDE,
   });
@@ -135,45 +136,53 @@ export type BecaListItem = Awaited<ReturnType<typeof getBecas>>["data"][number];
 export type BecaDetail = NonNullable<Awaited<ReturnType<typeof getBecaBySlug>>>;
 
 /** Categorías para los selectores del panel de filtros, agrupadas por eje. */
-export async function getFilterCategories() {
-  const categories = await db.category.findMany({
-    orderBy: { name: "asc" },
-  });
+export const getFilterCategories = unstable_cache(
+  async () => {
+    const categories = await db.category.findMany({
+      orderBy: { name: "asc" },
+    });
+    return {
+      type: categories.filter((c) => c.axis === "TYPE"),
+      area: categories.filter((c) => c.axis === "AREA"),
+    };
+  },
+  ["filter-categories"],
+  { revalidate: 3600 },
+);
 
-  return {
-    type: categories.filter((c) => c.axis === "TYPE"),
-    area: categories.filter((c) => c.axis === "AREA"),
-  };
-}
-
-/** Países de destino distintos entre becas activas, para el filtro de país. */
-export async function getFilterCountries() {
-  const rows = await db.scholarship.findMany({
-    where: { status: "ACTIVE" },
-    select: { countryDestination: true },
-    distinct: ["countryDestination"],
-    orderBy: { countryDestination: "asc" },
-  });
-
-  return rows.map((r) => r.countryDestination);
-}
-
-/** Métricas reales para los chips de la landing (becas activas, países, % verificadas). */
-export async function getLandingStats() {
-  const [activeCount, countries, verifiedCount] = await Promise.all([
-    db.scholarship.count({ where: { status: "ACTIVE" } }),
-    db.scholarship.findMany({
-      where: { status: "ACTIVE" },
+/** Paises de destino distintos entre todas las becas, para el filtro de pais. */
+export const getFilterCountries = unstable_cache(
+  async () => {
+    const rows = await db.scholarship.findMany({
       select: { countryDestination: true },
       distinct: ["countryDestination"],
-    }),
-    db.scholarship.count({ where: { status: "ACTIVE", isVerified: true } }),
-  ]);
+      orderBy: { countryDestination: "asc" },
+    });
+    return rows.map((r) => r.countryDestination).filter(Boolean);
+  },
+  ["filter-countries-all"],
+  { revalidate: 600 },
+);
+
+/** Metricas reales para los chips de la landing y el dashboard. */
+export async function getLandingStats() {
+  const [totalCount, activeCount, countries, verifiedCount] = await Promise.all(
+    [
+      db.scholarship.count(),
+      db.scholarship.count({ where: { status: "ACTIVE" } }),
+      db.scholarship.findMany({
+        select: { countryDestination: true },
+        distinct: ["countryDestination"],
+      }),
+      db.scholarship.count({ where: { isVerified: true } }),
+    ],
+  );
 
   return {
+    totalCount,
     activeCount,
     countriesCount: countries.length,
     verifiedPercentage:
-      activeCount > 0 ? Math.round((verifiedCount / activeCount) * 100) : 0,
+      totalCount > 0 ? Math.round((verifiedCount / totalCount) * 100) : 0,
   };
 }

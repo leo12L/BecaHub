@@ -60,6 +60,18 @@ async function main() {
     },
   });
 
+  await db.source.upsert({
+    where: { id: "00000000-0000-0000-0000-000000000005" },
+    update: {},
+    create: {
+      id: "00000000-0000-0000-0000-000000000005",
+      name: "Descubrimiento (Perplexity)",
+      url: "https://api.perplexity.ai/",
+      type: SourceType.DISCOVERY,
+      scraperAdapter: "perplexity-discovery",
+    },
+  });
+
   // ---------------------------------------------------------------------
   // Categorías
   // ---------------------------------------------------------------------
@@ -111,7 +123,7 @@ async function main() {
   }
 
   console.log(
-    `Seed completado: ${categoriasData.length} categorías, 4 fuentes. Sin becas de ejemplo — cárgalas vía scraper o el panel de admin.`,
+    `Seed completado: ${categoriasData.length} categorías, 5 fuentes. Sin becas de ejemplo — cárgalas vía scraper o el panel de admin.`,
   );
 }
 

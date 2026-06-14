@@ -16,9 +16,9 @@ const institutions = [
 
 export function SocialProof() {
   return (
-    <section className="border-t border-[#E8E8E8] bg-[#F5F5F5] px-4 py-8">
+    <section className="border-border bg-secondary border-t px-4 py-8">
       <div className="mx-auto max-w-screen-xl">
-        <p className="mb-4 text-center text-xs font-medium tracking-wide text-[#6B7280] uppercase">
+        <p className="text-muted-foreground mb-4 text-center text-xs font-medium tracking-wide uppercase">
           Convocatorias de instituciones como:
         </p>
 
@@ -26,7 +26,7 @@ export function SocialProof() {
           {institutions.map((institution) => (
             <div
               key={institution}
-              className="rounded-md border border-[#E8E8E8] bg-white px-3 py-1.5 text-xs whitespace-nowrap text-[#1A1A1A]"
+              className="border-border text-foreground rounded-md border bg-white px-3 py-1.5 text-xs whitespace-nowrap"
             >
               {institution}
             </div>

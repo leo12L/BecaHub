@@ -10,7 +10,7 @@ import { saveProfileSchema } from "./profile-assistant.validator";
  * `localStorage` y lo asocia a un usuario existente vía este campo.
  */
 export const savePerfilSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
   profile: saveProfileSchema,
 });
 

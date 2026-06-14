@@ -76,7 +76,8 @@ export function buildRawScholarship(
   const title = input.title.trim();
   if (!title) return null;
 
-  const countryText = `${title} ${input.text}`;
+  // Include URL domain so .mx domains (gob.mx, secihti.mx, etc.) pass automatically
+  const countryText = `${title} ${input.url} ${input.text}`;
   if (!MEXICO_PATTERN.test(countryText)) return null;
 
   const deadlineRaw = extractDeadlineRaw(input.text);

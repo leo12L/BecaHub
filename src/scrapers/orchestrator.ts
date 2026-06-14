@@ -5,11 +5,13 @@ import { normalize, upsertScholarship } from "./normalize";
 import type { ScraperAdapter, ScraperRunResult } from "./types";
 import { BecasGobAdapter } from "./adapters/becas-gob.adapter";
 import { TavilyDiscoveryAdapter } from "./adapters/tavily-discovery.adapter";
+import { PerplexityDiscoveryAdapter } from "./adapters/perplexity-discovery.adapter";
 
 /** Mapa de `Source.scraperAdapter` -> clase de adapter concreta. */
 const ADAPTER_REGISTRY: Record<string, new () => ScraperAdapter> = {
   "becas-gob-mx": BecasGobAdapter,
   "tavily-discovery": TavilyDiscoveryAdapter,
+  "perplexity-discovery": PerplexityDiscoveryAdapter,
 };
 
 /** Cuántas fuentes distintas se procesan en paralelo (el throttle de
