@@ -157,3 +157,23 @@ export async function getFilterCountries() {
 
   return rows.map((r) => r.countryDestination);
 }
+
+/** Métricas reales para los chips de la landing (becas activas, países, % verificadas). */
+export async function getLandingStats() {
+  const [activeCount, countries, verifiedCount] = await Promise.all([
+    db.scholarship.count({ where: { status: "ACTIVE" } }),
+    db.scholarship.findMany({
+      where: { status: "ACTIVE" },
+      select: { countryDestination: true },
+      distinct: ["countryDestination"],
+    }),
+    db.scholarship.count({ where: { status: "ACTIVE", isVerified: true } }),
+  ]);
+
+  return {
+    activeCount,
+    countriesCount: countries.length,
+    verifiedPercentage:
+      activeCount > 0 ? Math.round((verifiedCount / activeCount) * 100) : 0,
+  };
+}

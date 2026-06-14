@@ -7,14 +7,21 @@ import { LandingNavbar } from "@/components/landing/landing-navbar";
 import { HeroSection } from "@/components/landing/hero-section";
 import { AuthOptionsCard } from "@/components/landing/auth-options-card";
 import { SocialProof } from "@/components/landing/social-proof";
+import { getBecas, getLandingStats } from "@/lib/becas/queries";
+import { becasQuerySchema } from "@/validators/becas.validator";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const [{ data: scholarships }, stats] = await Promise.all([
+    getBecas(becasQuerySchema.parse({ limit: 8 }), { sort: "deadline" }),
+    getLandingStats(),
+  ]);
+
   return (
     <div className="min-h-screen bg-[#F5F5F5]">
       <LandingNavbar />
 
       <main>
-        <HeroSection />
+        <HeroSection scholarships={scholarships} stats={stats} />
 
         {/* Auth options section */}
         <section className="px-4 py-16">
