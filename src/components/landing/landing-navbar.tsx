@@ -5,6 +5,7 @@
 
 "use client";
 
+import Link from "next/link";
 import { BecaHubLogo } from "@/components/brand/becahub-logo";
 
 export function LandingNavbar() {
@@ -26,6 +27,14 @@ export function LandingNavbar() {
 
       {/* Right side buttons */}
       <div className="flex items-center gap-3">
+        {/* Apply for a scholarship */}
+        <Link
+          href="/solicitud-beca"
+          className="hidden rounded-md border border-[#E8E8E8] px-4 py-2 text-sm font-medium text-[#1A1A1A] transition-colors duration-150 hover:bg-[#F5F5F5] sm:inline-flex"
+        >
+          Solicitar beca
+        </Link>
+
         {/* Sign in button */}
         <button
           onClick={() => {

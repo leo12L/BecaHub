@@ -15,6 +15,7 @@ import {
 const navLinks = [
   { href: "/", label: "Inicio" },
   { href: "/becas", label: "Explorar becas" },
+  { href: "/solicitud-beca", label: "Solicitar beca" },
 ];
 
 export function Header() {

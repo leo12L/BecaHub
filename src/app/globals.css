@@ -1,15 +1,74 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
 :root {
+  /* Identidad visual BecaHub: guinda (#800020) como color primario,
+     verde azulado (#004451) como acento secundario, sobre fondo claro
+     neutro (#F5F5F5). Variables --bh-* se mantienen para los componentes
+     de landing que las usan directamente. */
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --primary: #800020;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #1a1a1a;
+  --muted: #f5f5f5;
+  --muted-foreground: #6b7280;
+  --accent: #ececec;
+  --accent-foreground: #1a1a1a;
+  --highlight: #004451;
+  --highlight-foreground: #ffffff;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #e8e8e8;
+  --input: #e8e8e8;
+  --ring: #800020;
+  --radius: 0.75rem;
+
   --bh-primary: #800020;
   --bh-teal: #004451;
-  --bh-bg: #F5F5F5;
-  --bh-neutral: #1A1A1A;
-  --bh-surface: #FFFFFF;
-  --bh-border: #E8E8E8;
-  --bh-muted: #6B7280;
+  --bh-bg: #f5f5f5;
+  --bh-neutral: #1a1a1a;
+  --bh-surface: #ffffff;
+  --bh-border: #e8e8e8;
+  --bh-muted: #6b7280;
 }
 
 @media (prefers-color-scheme: dark) {

@@ -7,7 +7,7 @@
 - **Proyecto:** BecaHub — plataforma de agregación y búsqueda de becas
 - **Ubicación:** `C:\opbecaas` (la carpeta raíz NO se ha renombrado todavía; pendiente manual del usuario)
 - **Stack confirmado:** Next.js 16.2.9 · TypeScript · Tailwind · Prisma 7 · PostgreSQL · Redis (Upstash) · NextAuth · Zod
-- **Última actualización:** Fase 3 cerrada y commiteada (`d9ea29d`); Fase 4A cerrada (pendiente commit); Fase 3B (descubrimiento Tavily) cerrada y commiteada (`9d6aecd`); Fase 4B (UI de admin) en curso, parte sustancial completada (pendiente commit); Fase 3C (invariante `applyUrl` + primer scraper real con Groq) cerrada y commiteada (`c098818`, `9d6aecd`); Fase 4D (purga de datos falsos + 8 becas reales verificadas) cerrada (pendiente commit); Fase 6 (Tavily descubre becas sin LLM, Groq se vuelve asistente de perfil) cerrada
+- **Última actualización:** Fase 3 cerrada y commiteada (`d9ea29d`); Fase 4A cerrada (pendiente commit); Fase 3B (descubrimiento Tavily) cerrada y commiteada (`9d6aecd`); Fase 4B (UI de admin) en curso, parte sustancial completada (pendiente commit); Fase 3C (invariante `applyUrl` + primer scraper real con Groq) cerrada y commiteada (`c098818`, `9d6aecd`); Fase 4D (purga de datos falsos + 8 becas reales verificadas) cerrada (pendiente commit); Fase 6 (Tavily descubre becas sin LLM, Groq se vuelve asistente de perfil) cerrada y commiteada (`b302d3a`); Fase 7 (merge de landing/dashboard "fronted" + conexión a datos reales) cerrada y commiteada (`f3a01ed`, `b62b9ff`, `5836be7`, `50a085d`); Fase 8 (formulario de solicitud de beca + fix de `globals.css`) cerrada (pendiente commit)
 
 ---
 
@@ -541,6 +541,79 @@ recomendaciones futuras.
 
 ---
 
+## Fase 7 — Merge de landing/dashboard ("fronted") + conexión a datos reales ✅ COMPLETADA (con hallazgo pendiente)
+
+**Contexto:** un colaborador externo (`badblox916-gif`) trabajó en paralelo en una rama `fronted` con un rediseño de la landing y un dashboard skeleton, partiendo de un `package.json`/`package-lock.json` reducidos (estado tipo create-next-app limpio, sin Prisma/Zod/NextAuth/etc.). Esa rama se mergeó a `main` y luego se conectó la landing a datos reales.
+
+### Completado
+
+- [x] **`f3a01ed` (rama `fronted`)**: nuevos componentes de landing (`src/components/landing/`: `landing-navbar`, `hero-section`, `scholarship-vertical-carousel` + CSS, `auth-options-card`, `social-proof`), nuevo dashboard skeleton (`src/components/dashboard/`: `dashboard-sidebar`, `dashboard-topbar`, `summary-card`, `recommended-scholarship-card`, `important-dates-card`, `suggestions-card`) y nueva ruta `(auth)/dashboard/page.tsx` + `(auth)/layout.tsx`. Nuevo `src/components/brand/becahub-logo.tsx`. Reescribió `(public)/page.tsx` y `(public)/layout.tsx` y reemplazó por completo `src/app/globals.css`. Este commit venía con un `package.json`/`package-lock.json` reducidos (sin Prisma, Zod, NextAuth, Tailwind plugins de shadcn, etc.) y `"name": "opbecaas"`.
+- [x] **`b62b9ff` — merge de `fronted` a `main`**: conflictos en `package.json`/`package-lock.json` resueltos **manteniendo las dependencias de BecaHub** (Prisma 7, Zod, NextAuth, scripts `scrape`/`discover`/`test`, `"name": "becahub"`) — confirmado: `package.json` actual conserva toda la sección `dependencies`/`devDependencies`/scripts de Fase 1-6. Se incorporan los componentes nuevos de landing/dashboard del paso anterior.
+- [x] **`5836be7` — fix**: el merge sobreescribió `(public)/layout.tsx` con un layout de landing sin `Header`/`Footer`, rompiendo la apariencia de `/becas` (que depende del layout del grupo `(public)`). Se creó `src/app/(public)/becas/layout.tsx` que envuelve `/becas` y `/becas/[slug]` con `Header`/`Footer` explícitamente.
+- [x] **`50a085d` — conectar landing con becas reales**:
+  - `src/lib/becas/queries.ts`: nueva `getLandingStats()` — `activeCount` (becas `ACTIVE`), `countriesCount` (`countryDestination` distintos entre `ACTIVE`), `verifiedPercentage` (`isVerified: true` / `activeCount`, redondeado).
+  - `(public)/page.tsx` ahora es `async`: llama en paralelo a `getBecas({ limit: 8 }, { sort: "deadline" })` y `getLandingStats()`, pasa ambos a `HeroSection`.
+  - `HeroSection` recibe `scholarships: BecaListItem[]` y `stats`; los chips de la landing ("becas activas", "países", "% verificadas") ya muestran datos reales de la DB en vez de los números hardcodeados (`1,204`, `68`, `94% match promedio`).
+  - `ScholarshipVerticalCarousel` ya no usa el array mock de 8 becas ficticias — recibe `BecaListItem[]` reales, cada tarjeta es un `Link` a `/becas/[slug]`, muestra `coverage`/`amount` (`formatAmount`/`coverageLabels`), `academicLevelLabels`, `countryDestination` y `deadline` formateada (`toLocaleDateString("es-MX")`); si no hay becas, el carousel no se renderiza (`if (scholarships.length === 0) return null`).
+  - El botón secundario del hero ("Ver oportunidades") ahora es un `Link` a `/becas` (antes era un anchor `#scholarships` sin destino real).
+
+### [!] Hallazgo: `globals.css` perdió los tokens shadcn que usan los componentes existentes — **resuelto en Fase 8**
+
+`f3a01ed` reemplazó por completo `src/app/globals.css`: se eliminó el bloque `@theme inline` y todas las variables `:root` (`--primary`, `--card`, `--border`, `--muted`, `--secondary`, `--accent`, `--popover`, `--ring`, `--destructive`, `--highlight`, paleta violeta/ámbar de Fase 4A) y los imports `tw-animate-css`/`shadcn/tailwind.css`. En su lugar quedó una paleta nueva con variables `--bh-primary` (`#800020`), `--bh-teal` (`#004451`), `--bh-bg`, `--bh-neutral`, etc., usadas directamente como hex en los componentes nuevos de landing.
+
+11 archivos existentes (botones, cards, badges, header/footer, panel admin) seguían usando clases Tailwind que dependían de esos tokens (`bg-primary`, `border-border`, `bg-muted`, etc.), que en Tailwind v4 se generan desde `@theme`. Ver Fase 8 para la solución aplicada.
+
+### Pendientes adicionales
+
+- [ ] `(auth)/dashboard/page.tsx` sigue siendo un skeleton con datos **mock** (`mockSummaryCards`, etc.) — no conectado a `Profile`/`recomendarBecas`/sesión real. No está protegido por `proxy.ts` (matcher solo cubre `/admin/*` y `/api/admin/becas/*`).
+
+### Pruebas ejecutadas
+
+- `npx tsc --noEmit` → 0 errores.
+- `npm run build` → OK; todas las rutas compilan (`/`, `/becas`, `/becas/[slug]`, `/dashboard`, `/perfil/asistente`, `/admin/*`, APIs).
+
+---
+
+## Fase 8 — Formulario de solicitud de beca (solo frontend) + fix de `globals.css` ✅ COMPLETADA
+
+**Objetivo:** wizard de 5 pasos en `/solicitud-beca` para que un estudiante registre una solicitud (sin backend, sin DB, sin auth — simula el envío con un modal de confirmación), y resolver el hallazgo crítico de Fase 7 antes de construir UI nueva.
+
+### Fix de `globals.css` (decisión: opción A)
+
+- [x] Se restauró el bloque `@theme inline` (mapeo `--color-*`/`--radius-*` que Tailwind v4 necesita para generar `bg-primary`, `border-border`, `bg-muted`, `rounded-xl`, etc.) y las variables `:root` correspondientes (`--primary`, `--card`, `--popover`, `--secondary`, `--muted`, `--accent`, `--highlight`, `--destructive`, `--border`, `--input`, `--ring`, `--radius`), ahora con valores alineados a la **paleta oficial de BecaHub** (`#800020` primario/`--ring`, `#F5F5F5` secundario/muted, `#1A1A1A` foreground, `#004451` como `--highlight`, `#E8E8E8` border) en vez de la violeta/ámbar de Fase 4A.
+- [x] Se conservaron las variables `--bh-primary`/`--bh-teal`/`--bh-bg`/`--bh-neutral`/`--bh-surface`/`--bh-border`/`--bh-muted` que usan directamente los componentes de landing (`hero-section`, `scholarship-vertical-carousel`, `landing-navbar`, etc.) — mismos valores hex, así que landing y componentes shadcn ahora comparten la misma paleta.
+- [x] Se agregó `--font-sans`/`--font-mono`/`--font-heading` al `@theme inline` apuntando a `--font-geist-sans`/`--font-geist-mono` (definidas en `src/app/layout.tsx`), que antes eran circulares/no resueltas.
+- [x] `npm run build` y `npm run dev` confirman que `/`, `/becas` y `/solicitud-beca` responden 200 con las clases `bg-primary`/`text-primary-foreground`/etc. ya resueltas por Tailwind.
+
+### Nuevos componentes UI (`src/components/ui/`)
+
+- [x] `checkbox.tsx`, `radio-group.tsx`, `dialog.tsx` — mismo patrón que los componentes shadcn existentes (`radix-ui` ya instalado, cva, `cn`), sin instalar dependencias nuevas.
+
+### Wizard `/solicitud-beca`
+
+- [x] `src/validators/scholarship-application.validator.ts`: un schema Zod por paso (`personalDataSchema`, `academicDataSchema`, `scholarshipInfoSchema`, `socioeconomicSchema`, `documentsSchema`) + `STEP_SCHEMAS`. Validaciones condicionales con `superRefine`: CURP obligatoria y con formato de 18 caracteres solo si `country === "México"`; `otherScholarshipName` obligatorio solo si `receivesOtherScholarship === "si"`. `truthDeclaration`/`privacyConsent` deben ser `true` (`.refine`).
+- [x] `src/components/forms/ProgressBar.tsx`: indicador de 5 pasos (círculos numerados + check al completar, conectados por líneas), paso activo en `bg-primary`.
+- [x] `src/components/forms/FileUploadMock.tsx`: input de archivo oculto + label estilizado que solo guarda y muestra el nombre del archivo (sin subir nada).
+- [x] `src/components/forms/ScholarshipApplicationForm.tsx` (`"use client"`): wizard completo —
+  - Paso 1 Datos personales (con CURP/documento de identidad condicional por país), Paso 2 Datos académicos, Paso 3 Información de la beca (textarea con contador 0/500), Paso 4 Situación socioeconómica (radios sí/no, campo condicional), Paso 5 Documentos (5 uploads mock + 2 checkboxes obligatorios).
+  - "Siguiente" valida solo el paso actual contra `STEP_SCHEMAS[step]` y muestra errores debajo de cada campo; "Anterior" no valida. Botón final "Registrar solicitud" deshabilitado hasta marcar ambos checkboxes; al enviar valida el paso 5 completo y abre un `Dialog` de éxito ("¡Solicitud registrada!" + botón "Volver al inicio" → `/`). "Guardar como borrador" muestra un mensaje temporal "Borrador guardado" (estado local, sin persistencia).
+  - No se solicitan datos bancarios; el campo "Comprobante de ingresos" indica explícitamente que CLABE solo se pediría si resulta beneficiario.
+- [x] `src/app/(public)/solicitud-beca/page.tsx` (RSC) + `src/app/(public)/solicitud-beca/layout.tsx` (Header/Footer, mismo patrón que `becas/layout.tsx` de Fase 7).
+- [x] Enlace "Solicitar beca" agregado a `src/components/layout/header.tsx` (nav pública de `/becas`) y a `src/components/landing/landing-navbar.tsx` (navbar de la home).
+
+### Pruebas ejecutadas
+
+- `npx tsc --noEmit` → 0 errores (sin `any`).
+- `npm run build` → OK; nueva ruta estática `○ /solicitud-beca`.
+- `npm run dev` → `/`, `/becas`, `/solicitud-beca` → HTTP 200.
+
+### Pendiente
+
+- [ ] No se hizo recorrido manual completo del wizard en navegador (llenar cada paso, ver errores, completar los 5 pasos y confirmar el modal) — pendiente de prueba manual por el usuario.
+- [ ] `(auth)/dashboard` sigue sin conectar a datos reales (heredado de Fase 7).
+
+---
+
 ## Fase 5 — Notificaciones, refinamiento y deploy ⏳ PENDIENTE
 
 - [ ] Sistema de alertas por email (Resend)
@@ -562,4 +635,6 @@ recomendaciones futuras.
 | Fase 3B | Capa de descubrimiento con **Tavily** (`src/lib/discovery/tavily.ts`, sin SDK), `validateUrlIsLive()` (`src/scrapers/url-liveness.ts`), `TavilyDiscoveryAdapter` con filtro México/vigente y extracción vía Groq, nuevo `SourceType.DISCOVERY` (migración no destructiva), registrado en `ADAPTER_REGISTRY` y seed (3ra fuente). `ADMIN_SCRAPER_TOKEN` documentado en `.env.example`. |
 | Fase 4B (en curso) | Panel `/admin` de curación: gate de sesión por cookie (`proxy.ts`, `ADMIN_SESSION_COOKIE`/`isAdminSessionRequest`, `ADMIN_PASSWORD`), login/logout, CRUD `/api/admin/becas` (+ `reverify`/`validar-url`) con invariante `assertCanPublish` (México + deadline vigente + link vivo), formulario de 3 pasos con extracción IA, tabla con health-check y archivado, 4ª fuente `MANUAL` en seed. Falta probar en dev, `npm run build` y commit. |
 | Fase 3C | Cierre de migración a Groq: `applyUrl` eliminado del contrato del modelo (prompt/schema/Zod); invariante "applyUrl = URL fetcheada y validada viva, nunca del modelo" aplicado también en `TavilyDiscoveryAdapter` (se quitó `resolveApplyUrl`). `BecasGobAdapter` reconstruido con el mismo pipeline que Tavily (fetch listado → enlaces → `<main>` texto → `validateUrlIsLive` → Groq → filtros México/vigente). Nuevo `scripts/test-scraper.ts` (`npm run scrape:test`, dry-run por etapas). Corrida real: `ScraperLog SUCCESS`, 3 becas `PENDING_REVIEW` con `applyUrl` verificado (200). Commit Parte A: `c098818`. |
+| Fase 8 | Wizard de 5 pasos en `/solicitud-beca` (solo frontend, sin backend/DB/auth): `ScholarshipApplicationForm`/`ProgressBar`/`FileUploadMock`, schemas Zod por paso (`scholarship-application.validator.ts`) con validación condicional (CURP, "¿cuál beca recibes?"), nuevos `ui/{checkbox,radio-group,dialog}.tsx`, modal de éxito y enlaces "Solicitar beca" en header/landing-navbar. Fix de `globals.css`: se restauró `@theme inline` + tokens shadcn (`--primary`, `--card`, `--border`, etc.) con la paleta oficial (`#800020`/`#004451`/`#F5F5F5`/`#1A1A1A`), resolviendo el hallazgo crítico de Fase 7. `tsc`/`build`/`dev` OK. |
+| Fase 7 | Merge de la rama `fronted` (landing rediseñada + dashboard skeleton, `f3a01ed`) a `main` (`b62b9ff`, conflictos resueltos manteniendo deps de BecaHub), fix de header/footer en `/becas` (`5836be7`), y conexión de la landing a datos reales: `getLandingStats()`, hero con stats/carousel reales enlazando a `/becas/[slug]` (`50a085d`). `tsc`/`build` OK. **Hallazgo crítico pendiente**: `globals.css` perdió los tokens shadcn (`--primary`, `--card`, `--border`, etc.) que usan Header/Footer/ScholarshipCard/admin/badges — falta verificación visual y decisión sobre restaurarlos o migrar esos componentes a la paleta `--bh-*`. |
 | Fase 6 | Tavily pasa a ser el único descubridor de becas, sin LLM: nuevo `src/scrapers/discovery/heuristics.ts` (`buildRawScholarship`, regex para deadline/montos + filtro México/vigente), `TavilyDiscoveryAdapter` y `BecasGobAdapter` reescritos sin Groq, `runAutoDiscovery()` + `npm run discover` + `POST /api/admin/scraper/descubrir`. Eliminado `src/lib/ai/parse-scholarship.ts`, `/api/admin/ai/parse-beca` y el paso "Analizar con IA" del panel. Groq reubicado en `src/lib/ai/profile-assistant.ts` (`chatWithAssistant`) como asistente conversacional de perfil del estudiante; nuevo modelo `Profile` (migración `add_profile`), endpoints `/api/perfil/asistente` y `/api/perfil`, página `(auth)/perfil/asistente`, y `recomendarBecas(profile)` como base de recomendación. Probado en vivo: `npm run discover` (6 nuevas `PENDING_REVIEW`, 3 `applyUrl` → 200), conversación real del asistente hasta `profileReady: true`, y `recomendarBecas` con 4 matches sobre las 8 becas `ACTIVE`. `tsc`/`build` OK. |
