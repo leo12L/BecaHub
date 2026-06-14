@@ -1,161 +1,85 @@
-/**
- * Dashboard Sidebar Component
- * Navigation sidebar with logo, menu items, and settings.
- */
-
 "use client";
 
-import { useState } from "react";
-import { BecaHubLogo } from "@/components/brand/becahub-logo";
-import {
-  Home,
-  Star,
-  Bookmark,
-  Calendar,
-  BarChart3,
-  Settings,
-  ChevronRight,
-} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { GraduationCap, Home, Search, Bot, FileText } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface SidebarItemProps {
-  icon: React.ReactNode;
-  label: string;
-  href: string;
-  active?: boolean;
-  onClick?: () => void;
-}
+const NAV_ITEMS = [
+  { icon: Home,     label: "Inicio",         href: "/dashboard"       },
+  { icon: Search,   label: "Explorar becas", href: "/becas"           },
+  { icon: Bot,      label: "Asistente IA",   href: "/perfil/asistente"},
+  { icon: FileText, label: "Solicitar beca", href: "/solicitud-beca"  },
+] as const;
 
 function SidebarItem({
-  icon,
+  icon: Icon,
   label,
-  active = false,
-  onClick,
-}: SidebarItemProps) {
+  href,
+  active,
+}: {
+  icon: React.ElementType;
+  label: string;
+  href: string;
+  active: boolean;
+}) {
   return (
-    <button
-      onClick={onClick}
-      className="group relative flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition-colors"
-      style={{
-        backgroundColor: active ? "rgba(128, 0, 32, 0.08)" : "transparent",
-        color: active ? "#800020" : "#666",
-      }}
+    <Link
+      href={href}
       aria-current={active ? "page" : undefined}
+      className={cn(
+        "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#800020] md:w-full",
+        active
+          ? "bg-[#800020]/10 text-[#800020]"
+          : "text-slate-500 hover:bg-slate-100 hover:text-slate-800",
+      )}
     >
-      {/* Left accent line when active */}
       {active && (
-        <div
-          className="absolute top-0 bottom-0 left-0 w-1 rounded-r"
-          style={{ backgroundColor: "#800020" }}
-        ></div>
+        <span className="absolute top-2 bottom-2 left-0 hidden w-1 rounded-r-full bg-[#800020] md:block" />
       )}
-
-      {/* Icon */}
-      <span className="flex-shrink-0">{icon}</span>
-
-      {/* Label */}
-      <span className="flex-1 text-sm font-medium">{label}</span>
-
-      {/* Chevron on hover */}
-      {active && (
-        <ChevronRight
-          size={16}
-          className="flex-shrink-0"
-          style={{ color: "#800020" }}
-        />
-      )}
-    </button>
+      <Icon size={18} className="shrink-0" />
+      <span className="whitespace-nowrap md:flex-1">{label}</span>
+    </Link>
   );
 }
 
-interface DashboardSidebarProps {
-  currentPath?: string;
-  onNavigate?: (path: string) => void;
-}
-
-export function DashboardSidebar({
-  currentPath = "/dashboard",
-  onNavigate,
-}: DashboardSidebarProps) {
-  const [activeItem, setActiveItem] = useState(currentPath);
-
-  const menuItems = [
-    { icon: <Home size={20} />, label: "Inicio", href: "/dashboard" },
-    {
-      icon: <Star size={20} />,
-      label: "Recomendadas",
-      href: "/dashboard/recommended",
-    },
-    {
-      icon: <Bookmark size={20} />,
-      label: "Guardadas",
-      href: "/dashboard/saved",
-    },
-    { icon: <Calendar size={20} />, label: "Fechas", href: "/dashboard/dates" },
-    {
-      icon: <BarChart3 size={20} />,
-      label: "Actividad",
-      href: "/dashboard/activity",
-    },
-  ];
-
-  const handleItemClick = (href: string) => {
-    setActiveItem(href);
-    onNavigate?.(href);
-    // TODO(auth): Implement navigation
-    console.log(`Navegando a ${href}`);
-  };
+export function DashboardSidebar() {
+  const pathname = usePathname();
 
   return (
-    <div
-      className="flex h-screen w-64 flex-col overflow-y-auto border-r"
-      style={{
-        backgroundColor: "#FFFFFF",
-        borderColor: "rgba(128, 0, 32, 0.1)",
-      }}
-    >
-      {/* Logo section */}
-      <div
-        className="border-b p-6"
-        style={{ borderColor: "rgba(128, 0, 32, 0.1)" }}
-      >
-        <div className="mb-4">
-          <BecaHubLogo variant="mark" className="h-12 w-12" />
+    <aside className="flex w-full shrink-0 flex-col border-b border-slate-200 bg-white md:sticky md:top-0 md:h-screen md:w-60 md:border-r md:border-b-0 md:shadow-sm">
+      {/* Logo */}
+      <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-5 md:flex-col md:items-start">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-[#800020]">
+          <GraduationCap size={20} className="text-white" />
         </div>
-        <h1 className="text-xl font-bold text-gray-900">BecaHub</h1>
-        <p className="mt-1 text-xs text-gray-500">Portal de Becas Premium</p>
+        <div>
+          <p className="text-base font-extrabold text-slate-800">BecaHub</p>
+          <p className="text-xs text-slate-400">Portal de oportunidades</p>
+        </div>
       </div>
 
-      {/* Navigation items */}
-      <nav className="flex-1 space-y-2 px-4 py-6">
-        {menuItems.map((item) => (
+      {/* Nav */}
+      <nav
+        className="flex gap-1 overflow-x-auto px-4 py-3 md:flex-1 md:flex-col md:overflow-visible md:px-3 md:py-5"
+        aria-label="Navegación principal"
+      >
+        {NAV_ITEMS.map((item) => (
           <SidebarItem
             key={item.href}
             icon={item.icon}
             label={item.label}
             href={item.href}
-            active={activeItem === item.href}
-            onClick={() => handleItemClick(item.href)}
+            active={
+              item.href === "/becas"
+                ? pathname.startsWith("/becas")
+                : item.href === "/perfil/asistente"
+                  ? pathname.startsWith("/perfil")
+                  : pathname === item.href
+            }
           />
         ))}
       </nav>
-
-      {/* Settings section */}
-      <div
-        className="border-t p-4"
-        style={{ borderColor: "rgba(128, 0, 32, 0.1)" }}
-      >
-        <button
-          className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-gray-600 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-[#800020] focus:ring-offset-2 focus:outline-none"
-          onClick={() => {
-            // TODO(auth): Navigate to settings
-            console.log("Abriendo configuración");
-          }}
-          aria-label="Settings"
-        >
-          <Settings size={20} />
-          <span className="text-sm font-medium">Configuración</span>
-        </button>
-      </div>
-    </div>
+    </aside>
   );
 }

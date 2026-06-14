@@ -11,7 +11,16 @@ import {
   academicLevelLabels,
   coverageLabels,
   formatAmount,
+  statusLabels,
 } from "@/lib/becas/format";
+
+function fmtShortDate(date: Date | string | null | undefined) {
+  if (!date) return "Sin fecha";
+  return new Date(date).toLocaleDateString("es-MX", {
+    day: "numeric",
+    month: "short",
+  });
+}
 
 function ScholarshipCard({ scholarship }: { scholarship: BecaListItem }) {
   const coverage =
@@ -21,43 +30,47 @@ function ScholarshipCard({ scholarship }: { scholarship: BecaListItem }) {
       scholarship.currency,
     ) ?? coverageLabels[scholarship.coverageType];
 
-  const deadlineLabel = scholarship.deadline
-    ? new Date(scholarship.deadline).toLocaleDateString("es-MX", {
-        day: "numeric",
-        month: "short",
-      })
-    : "Sin fecha límite";
-
   return (
     <Link
       href={`/becas/${scholarship.slug}`}
-      className="w-full flex-shrink-0 rounded-lg border border-[#E8E8E8] bg-white p-4 transition-colors hover:border-[#800020]/30"
+      className="border-border hover:border-primary/40 w-full flex-shrink-0 rounded-xl border bg-white p-4 shadow-sm transition-colors"
     >
-      <div>
-        <p className="text-sm font-medium text-[#1A1A1A]">
-          {scholarship.title}
-        </p>
-        <p className="mt-0.5 text-xs text-[#6B7280]">
-          {scholarship.source.name}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-foreground line-clamp-2 text-sm font-bold">
+            {scholarship.title}
+          </p>
+          <p className="text-muted-foreground mt-1 truncate text-xs">
+            {scholarship.source.name}
+          </p>
+        </div>
+        <span className="bg-secondary text-secondary-foreground shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold">
+          {statusLabels[scholarship.status]}
+        </span>
       </div>
 
-      {/* Badges */}
-      <div className="mt-3 flex gap-2">
-        <span className="rounded-md bg-[#004451]/10 px-2 py-0.5 text-xs text-[#004451]">
+      <div className="mt-3 flex flex-wrap gap-2">
+        <span className="bg-highlight/10 text-highlight rounded-md px-2 py-0.5 text-xs font-semibold">
           {coverage}
         </span>
-        <span className="rounded-md bg-[#F0F0F0] px-2 py-0.5 text-xs text-[#6B7280]">
+        <span className="bg-secondary text-secondary-foreground rounded-md px-2 py-0.5 text-xs font-semibold">
           {academicLevelLabels[scholarship.academicLevel]}
         </span>
       </div>
 
-      {/* Footer */}
-      <div className="mt-2 flex items-center justify-between">
-        <span className="rounded-full bg-[#800020]/10 px-2.5 py-0.5 text-xs font-medium text-[#800020]">
-          {scholarship.countryDestination}
-        </span>
-        <span className="text-xs text-[#6B7280]">Cierra: {deadlineLabel}</span>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded-lg bg-[#F5FAF7] px-2.5 py-2">
+          <p className="text-muted-foreground font-bold uppercase">Inicio</p>
+          <p className="text-foreground mt-0.5 font-semibold">
+            {fmtShortDate(scholarship.createdAt)}
+          </p>
+        </div>
+        <div className="rounded-lg bg-[#FFF4F2] px-2.5 py-2">
+          <p className="text-primary font-bold uppercase">Cierre</p>
+          <p className="text-primary mt-0.5 font-semibold">
+            {fmtShortDate(scholarship.deadline)}
+          </p>
+        </div>
       </div>
     </Link>
   );
@@ -70,7 +83,6 @@ export function ScholarshipVerticalCarousel({
 }) {
   if (scholarships.length === 0) return null;
 
-  // Duplicate array for infinite loop
   const duplicatedScholarships = [...scholarships, ...scholarships];
 
   return (
@@ -78,11 +90,10 @@ export function ScholarshipVerticalCarousel({
       className="scholarship-carousel-container hidden lg:block"
       style={{
         overflow: "hidden",
-        height: "480px",
+        height: "520px",
         position: "relative",
       }}
     >
-      {/* Mask gradient */}
       <div
         style={{
           maskImage:

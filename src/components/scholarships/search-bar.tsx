@@ -46,7 +46,7 @@ export function SearchBar({
   return (
     <div className={`relative ${className ?? ""}`}>
       <Search
-        className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+        className="text-highlight pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
         aria-hidden="true"
       />
       <Input
@@ -55,7 +55,7 @@ export function SearchBar({
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
         aria-label="Buscar becas"
-        className="pl-9"
+        className="focus-visible:ring-primary/40 border-[#CFE2DB] bg-white pl-9 text-[#10231F] placeholder:text-[#6F8A82]"
       />
     </div>
   );

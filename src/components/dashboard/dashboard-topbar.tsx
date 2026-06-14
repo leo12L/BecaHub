@@ -1,99 +1,80 @@
-/**
- * Dashboard Topbar Component
- * Displays search bar, notifications, and user greeting.
- */
-
 "use client";
 
-import { Search, Bell, User } from "lucide-react";
-import { useState } from "react";
+import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
+import { Search, Bot, LogOut, LogIn } from "lucide-react";
 
-interface DashboardTopbarProps {
-  userName?: string;
-  onSearch?: (query: string) => void;
-}
-
-export function DashboardTopbar({
-  userName = "Eduardo",
-  onSearch,
-}: DashboardTopbarProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-    onSearch?.(value);
-  };
+export function DashboardTopbar() {
+  const { data: session } = useSession();
+  const userName =
+    session?.user?.name ??
+    session?.user?.email?.split("@")[0] ??
+    "estudiante";
 
   return (
-    <div
-      className="flex h-20 items-center justify-between border-b px-8"
-      style={{
-        backgroundColor: "#FFFFFF",
-        borderColor: "rgba(128, 0, 32, 0.1)",
-      }}
-    >
-      {/* Search bar */}
-      <div className="max-w-2xl flex-1">
-        <div
-          className="flex items-center gap-3 rounded-lg border px-4 py-2.5"
-          style={{
-            backgroundColor: "#F5F5F5",
-            borderColor: "rgba(128, 0, 32, 0.15)",
-          }}
-        >
-          <Search size={18} className="text-gray-400" />
+    <header className="border-border bg-card flex shrink-0 flex-col gap-4 border-b px-4 py-4 shadow-sm sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+      {/* Search */}
+      <form action="/becas" className="w-full max-w-2xl">
+        <div className="border-border bg-secondary/60 focus-within:border-primary focus-within:ring-primary flex items-center gap-3 rounded-xl border px-3 py-2.5 focus-within:ring-1">
+          <Search size={16} className="text-highlight shrink-0" />
           <input
+            name="search"
             type="text"
-            placeholder="Buscar becas, instituciones..."
-            value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="flex-1 bg-transparent text-sm text-gray-900 placeholder-gray-500 outline-none"
-            aria-label="Search scholarships"
+            placeholder="Buscar becas, instituciones, países…"
+            className="text-foreground flex-1 bg-transparent text-sm placeholder:text-[#6F8A82] focus:outline-none"
+            aria-label="Buscar becas"
           />
-        </div>
-      </div>
-
-      {/* Right section */}
-      <div className="ml-8 flex items-center gap-6">
-        {/* Notification icon */}
-        <button
-          className="relative rounded-lg p-2 transition-colors hover:bg-gray-100 focus:ring-2 focus:ring-[#800020] focus:ring-offset-2 focus:outline-none"
-          aria-label="Notifications"
-          title="You have 0 new notifications"
-        >
-          <Bell size={20} className="text-gray-600" />
-          {/* Notification badge (example: hidden for now) */}
-          {/* <span className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ backgroundColor: "#800020" }}></span> */}
-        </button>
-
-        {/* Divider */}
-        <div
-          className="h-6 w-px"
-          style={{ backgroundColor: "rgba(128, 0, 32, 0.2)" }}
-        ></div>
-
-        {/* User section */}
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <p className="text-sm font-semibold text-gray-900">
-              Hola, {userName}
-            </p>
-            <p className="text-xs text-gray-500">Bienvenido</p>
-          </div>
-
-          {/* Avatar - simple circle */}
           <button
-            className="flex h-10 w-10 items-center justify-center rounded-full font-semibold text-white transition-opacity hover:opacity-90 focus:ring-2 focus:ring-[#004451] focus:ring-offset-2 focus:outline-none"
-            style={{
-              backgroundColor: "#004451",
-            }}
-            aria-label="User profile"
-            title="Profile settings"
+            type="submit"
+            className="bg-primary hover:bg-primary/90 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-colors"
           >
-            <User size={18} />
+            Buscar
           </button>
         </div>
+      </form>
+
+      {/* Right side */}
+      <div className="flex items-center justify-between gap-3 lg:justify-end">
+        <div className="text-left lg:text-right">
+          <p className="text-foreground text-sm font-bold">Hola, {userName}</p>
+          <p className="text-muted-foreground text-xs">
+            {session ? "Sesión activa" : "Convocatorias verificadas"}
+          </p>
+        </div>
+
+        {/* AI Assistant button */}
+        <Link
+          href="/perfil/asistente"
+          className="border-primary/20 bg-secondary text-primary hover:border-primary/40 hover:bg-primary/10 flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-all"
+          aria-label="Abrir asistente IA"
+          title="Asistente IA"
+        >
+          <Bot size={16} />
+          <span className="hidden sm:inline">Asistente IA</span>
+        </Link>
+
+        {/* Auth button */}
+        {session ? (
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="border-border text-muted-foreground hover:text-primary flex items-center gap-1.5 rounded-xl border bg-white px-3 py-2 text-xs font-semibold transition-all"
+            title="Cerrar sesión"
+          >
+            <LogOut size={14} />
+            <span className="hidden sm:inline">Salir</span>
+          </button>
+        ) : (
+          <Link
+            href="/login"
+            className="border-border text-muted-foreground hover:text-primary flex items-center gap-1.5 rounded-xl border bg-white px-3 py-2 text-xs font-semibold transition-all"
+            title="Iniciar sesión"
+          >
+            <LogIn size={14} />
+            <span className="hidden sm:inline">Entrar</span>
+          </Link>
+        )}
       </div>
-    </div>
+    </header>
   );
 }

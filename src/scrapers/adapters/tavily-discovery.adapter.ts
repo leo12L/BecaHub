@@ -7,9 +7,24 @@ import { db } from "@/lib/db";
 
 /** Consultas usadas para descubrir convocatorias nuevas vía Tavily. */
 export const SEARCH_QUERIES = [
+  // Gobierno de México
   "becas México 2026 convocatoria abierta",
-  "becas posgrado México 2026 SECIHTI",
-  "becas licenciatura gobierno México vigente",
+  "becas posgrado México 2026 SECIHTI CONACYT",
+  "becas licenciatura gobierno México vigente 2026",
+  "Becas Benito Juárez 2026 convocatoria",
+  "becas SECIHTI posdoctorado 2026 convocatoria",
+  "becas retención repatriación investigadores México 2026",
+  // Internacionales con presencia en México
+  "becas Fulbright García Robles 2026 México",
+  "becas DAAD México 2026 posgrado",
+  "becas OEA posgrado latinoamérica 2026",
+  "becas Erasmus+ México 2026 intercambio",
+  "beca Santander universidades México 2026",
+  "becas CONACYT internacionales 2026",
+  // Específicas por nivel
+  "becas doctorado México 2026 convocatoria abierta",
+  "becas maestría México 2026 gobierno",
+  "becas bachillerato México 2026 programa federal",
 ];
 
 /** Dominios oficiales/confiables a priorizar en la búsqueda. */
@@ -19,6 +34,13 @@ export const INCLUDE_DOMAINS = [
   "enbc.secihti.mx",
   "sep.gob.mx",
   "becasbenitojuarez.sep.gob.mx",
+  "bienestar.gob.mx",
+  "conacyt.mx",
+  "fulbright.edu.mx",
+  "daad.de",
+  "oas.org",
+  "santander.com",
+  "erasmusplus.mx",
 ];
 
 const MAX_RESULTS_PER_QUERY = 5;

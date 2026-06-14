@@ -1,8 +1,4 @@
-/**
- * Summary Card Component
- * Displays metric cards for the dashboard overview section.
- * Can be highlighted (e.g., profile completion) or standard.
- */
+import { cn } from "@/lib/utils";
 
 interface SummaryCardProps {
   title: string;
@@ -19,47 +15,47 @@ export function SummaryCard({
   highlighted = false,
   description,
 }: SummaryCardProps) {
-  if (highlighted) {
-    return (
-      <div
-        className="rounded-lg p-6 text-white shadow-sm transition-shadow hover:shadow-md"
-        style={{ backgroundColor: "#800020" }}
-      >
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium opacity-90">{title}</p>
-            <p className="mt-3 text-3xl font-bold tracking-tight">{value}</p>
-            {description && (
-              <p className="mt-2 text-xs opacity-75">{description}</p>
-            )}
-          </div>
-          {icon && <div className="text-2xl opacity-70">{icon}</div>}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div
-      className="rounded-lg border p-6 shadow-sm transition-shadow hover:shadow-md"
-      style={{
-        backgroundColor: "#FFFFFF",
-        borderColor: "#800020",
-        borderWidth: "1px",
-        opacity: 0.85,
-      }}
+      className={cn(
+        "rounded-2xl border p-5 shadow-sm transition-shadow hover:shadow-md",
+        highlighted
+          ? "border-primary/20 bg-primary text-white"
+          : "border-border bg-card text-foreground",
+      )}
     >
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="mt-3 text-3xl font-bold tracking-tight text-gray-900">
-            {value}
+          <p
+            className={cn(
+              "text-sm font-semibold",
+              highlighted ? "text-white/80" : "text-muted-foreground",
+            )}
+          >
+            {title}
           </p>
+          <p className="mt-2 text-3xl font-extrabold tracking-tight">{value}</p>
           {description && (
-            <p className="mt-2 text-xs text-gray-500">{description}</p>
+            <p
+              className={cn(
+                "mt-1.5 text-xs leading-relaxed",
+                highlighted ? "text-white/70" : "text-muted-foreground",
+              )}
+            >
+              {description}
+            </p>
           )}
         </div>
-        {icon && <div className="text-2xl text-gray-400">{icon}</div>}
+        {icon && (
+          <div
+            className={cn(
+              "rounded-xl p-2.5",
+              highlighted ? "bg-white/15" : "bg-secondary text-highlight",
+            )}
+          >
+            {icon}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,8 +1,3 @@
-/**
- * Landing Page - Public Home
- * Main landing page for BecaHub platform.
- */
-
 import { LandingNavbar } from "@/components/landing/landing-navbar";
 import { HeroSection } from "@/components/landing/hero-section";
 import { AuthOptionsCard } from "@/components/landing/auth-options-card";
@@ -12,29 +7,24 @@ import { becasQuerySchema } from "@/validators/becas.validator";
 
 export default async function LandingPage() {
   const [{ data: scholarships }, stats] = await Promise.all([
-    getBecas(becasQuerySchema.parse({ limit: 8 }), { sort: "deadline" }),
+    getBecas(becasQuerySchema.parse({ limit: 50 }), { sort: "deadline" }),
     getLandingStats(),
   ]);
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5]">
+    <div className="bg-background min-h-screen">
       <LandingNavbar />
 
       <main>
         <HeroSection scholarships={scholarships} stats={stats} />
 
-        {/* Auth options section */}
-        <section className="px-4 py-16">
-          <div className="mx-auto flex max-w-screen-lg flex-col items-center gap-4">
-            <p className="max-w-sm text-center text-sm text-[#6B7280]">
-              Para acceder a recomendaciones personalizadas, inicia sesión o
-              crea una cuenta gratuita.
-            </p>
+        {/* Auth options */}
+        <section className="border-border bg-background border-t px-4 py-16">
+          <div className="mx-auto flex max-w-screen-lg justify-center">
             <AuthOptionsCard />
           </div>
         </section>
 
-        {/* Social proof */}
         <SocialProof />
       </main>
     </div>
