@@ -20,6 +20,10 @@ export default function BecasLoading() {
           <div
             key={i}
             className="ring-foreground/10 flex flex-col gap-3 rounded-xl p-4 ring-1"
+            style={{
+              animation: `slideUp 0.4s ease-out both`,
+              animationDelay: `${i * 80}ms`,
+            }}
           >
             <div className="flex gap-1.5">
               <Skeleton className="h-5 w-20 rounded-full" />
@@ -32,6 +36,19 @@ export default function BecasLoading() {
           </div>
         ))}
       </div>
+
+      <style>{`
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(24px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
