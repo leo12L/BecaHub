@@ -23,15 +23,21 @@ export async function POST(request: NextRequest) {
     throw error;
   }
 
-  // Session userId takes precedence over body userId
-  const userId = session?.user?.id ?? body.userId;
+  // Session userId is required - no fallback to body userId
+  const userId = session?.user?.id;
   if (!userId) {
-    return NextResponse.json({ error: "Se requiere autenticación" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Se requiere autenticación" },
+      { status: 401 },
+    );
   }
 
   const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) {
-    return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Usuario no encontrado" },
+      { status: 404 },
+    );
   }
 
   const { profile } = body;
