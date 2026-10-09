@@ -58,6 +58,8 @@ jobs:
         run: npx prisma migrate deploy
 
       - name: Validate migrations match schema
+        env:
+          SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/becahub_shadow
         run: |
           echo "Verificando que las migraciones coincidan con el schema..."
           npx prisma migrate diff \
