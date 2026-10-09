@@ -1,26 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
-// TODO: Migrar a Supabase Auth
-// import { getCurrentUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireUser();
     const body = await request.json();
 
-    // TODO: Descomentar cuando se complete la migración del frontend
-    // const user = await getCurrentUser();
-    // if (!user) {
-    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // }
+    const profile = await db.profile.upsert({
+      where: { userId: user.id },
+      update: {
+        academicLevel: body.academicLevel || null,
+        fieldOfInterest: body.fieldOfInterest || null,
+        countryOrigin: body.countryOrigin || null,
+        countryInterest: body.countryInterest || null,
+        scholarshipTypes: body.scholarshipTypes || [],
+        language: body.language || null,
+        situation: body.situation || null,
+        goals: body.goals || null,
+        updatedAt: new Date(),
+      },
+      create: {
+        userId: user.id,
+        academicLevel: body.academicLevel || null,
+        fieldOfInterest: body.fieldOfInterest || null,
+        countryOrigin: body.countryOrigin || null,
+        countryInterest: body.countryInterest || null,
+        scholarshipTypes: body.scholarshipTypes || [],
+        language: body.language || null,
+        situation: body.situation || null,
+        goals: body.goals || null,
+      },
+    });
 
-    // const profile = await db.profile.upsert({
-    //   where: { userId: user.id },
-    //   update: { ...body },
-    //   create: { userId: user.id, ...body },
-    // });
-
-    return NextResponse.json({ success: true, profile: null });
+    return NextResponse.json({ success: true, profile });
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error(error);
     return NextResponse.json(
       { error: "Internal server error" },

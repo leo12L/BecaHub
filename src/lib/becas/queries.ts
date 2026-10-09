@@ -52,23 +52,29 @@ function getTodayInMexicoCity(): Date {
 }
 
 /**
- * Catalogo completo por defecto. Si no llega `status`, no se filtra por estado.
- * Las becas con deadline < hoy (en zona America/Mexico_City) se ocultan automáticamente
- * si el status es ACTIVE.
+ * Catálogo de becas con filtrado automático de vencidas.
+ * Las becas con deadline < hoy (zona America/Mexico_City) se ocultan SIEMPRE,
+ * excepto si se especifica explícitamente un status distinto a ACTIVE.
  */
 export async function getBecas(
   query: BecasQuery,
   options?: { sort?: SortOrder },
 ) {
   const where: Prisma.ScholarshipWhereInput = {};
+  
+  // Filtro de status
   if (query.status) {
     where.status = query.status;
   }
 
-  // Ocultar becas vencidas si se solicitan becas ACTIVE
-  if (query.status === "ACTIVE") {
+  // Ocultar becas vencidas SIEMPRE, a menos que se pida un status específico diferente a ACTIVE
+  // En vistas públicas (sin status o status=ACTIVE), siempre se ocultan las vencidas
+  if (!query.status || query.status === "ACTIVE") {
     const todayMexico = getTodayInMexicoCity();
-    where.OR = [{ deadline: { gte: todayMexico } }, { deadline: null }];
+    where.AND = where.AND || [];
+    (where.AND as Prisma.ScholarshipWhereInput[]).push({
+      OR: [{ deadline: { gte: todayMexico } }, { deadline: null }],
+    });
   }
 
   if (query.country) {
@@ -86,11 +92,15 @@ export async function getBecas(
     where.deadline = { lte: query.deadlineBefore };
   }
 
+  // Búsqueda de texto - combinar con AND usando el where.AND que ya existe
   if (query.search) {
-    where.OR = [
-      { title: { contains: query.search, mode: "insensitive" } },
-      { description: { contains: query.search, mode: "insensitive" } },
-    ];
+    where.AND = where.AND || [];
+    (where.AND as Prisma.ScholarshipWhereInput[]).push({
+      OR: [
+        { title: { contains: query.search, mode: "insensitive" } },
+        { description: { contains: query.search, mode: "insensitive" } },
+      ],
+    });
   }
 
   const categoryFilters: Prisma.ScholarshipCategoryWhereInput[] = [];

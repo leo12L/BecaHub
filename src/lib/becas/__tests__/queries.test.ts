@@ -2,7 +2,10 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { db } from "@/lib/db";
 import { getBecas } from "../queries";
 
-describe("getBecas - deadline filtering", () => {
+// Skip tests if DATABASE_URL is not set
+const shouldSkip = !process.env.DATABASE_URL;
+
+describe.skipIf(shouldSkip)("getBecas - deadline filtering", () => {
   let sourceId: string;
   let todayBecaId: string;
   let tomorrowBecaId: string;
@@ -109,11 +112,36 @@ describe("getBecas - deadline filtering", () => {
     expect(ids).not.toContain(yesterdayBecaId);
   });
 
-  it("debe mostrar todas las becas si no se especifica status ACTIVE", async () => {
+  it("debe ocultar becas vencidas incluso sin especificar status", async () => {
     const result = await getBecas({ page: 1, limit: 100 });
     const ids = result.data.map((b) => b.id);
     expect(ids).toContain(todayBecaId);
     expect(ids).toContain(tomorrowBecaId);
-    expect(ids).toContain(yesterdayBecaId);
+    expect(ids).not.toContain(yesterdayBecaId);
+  });
+
+  it("debe ocultar becas vencidas con búsqueda de texto", async () => {
+    const result = await getBecas({
+      page: 1,
+      limit: 100,
+      search: "beca",
+    });
+    const ids = result.data.map((b) => b.id);
+    expect(ids).toContain(todayBecaId);
+    expect(ids).toContain(tomorrowBecaId);
+    expect(ids).not.toContain(yesterdayBecaId);
+  });
+
+  it("debe combinar búsqueda de texto con filtro de fecha usando AND", async () => {
+    const result = await getBecas({
+      page: 1,
+      limit: 100,
+      search: "mañana",
+    });
+    const ids = result.data.map((b) => b.id);
+    // Solo la beca de mañana contiene "mañana" en el título
+    expect(ids).toContain(tomorrowBecaId);
+    expect(ids).not.toContain(todayBecaId);
+    expect(ids).not.toContain(yesterdayBecaId);
   });
 });

@@ -28,8 +28,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/becahub_test
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/becahub_test
-      NEXTAUTH_SECRET: test-secret-for-ci-only
-      NEXTAUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key-for-ci-only
       NODE_ENV: test
 
     steps:
@@ -85,8 +85,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/becahub_test
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/becahub_test
-      NEXTAUTH_SECRET: test-secret-for-ci-only
-      NEXTAUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key-for-ci-only
       NODE_ENV: test
 
     steps:
