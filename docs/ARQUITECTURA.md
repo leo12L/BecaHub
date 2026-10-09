@@ -136,7 +136,7 @@ BecaHub es una plataforma para estudiantes mexicanos, principalmente universitar
 **Roles:**
 - `ADMIN`: puede aprobar becas, administrar usuarios y fuentes
 - `MODERATOR`: puede aprobar becas, pero no administrar usuarios ni fuentes (pendiente de implementar)
-- `USER` (estudiantes): sin acceso al panel
+- `USER` (rol por defecto, estudiantes): sin acceso al panel
 
 **Validación de publicación (`assertCanPublish`):**
 - País de destino debe incluir "México" (`MEXICO_PATTERN`)
@@ -149,18 +149,11 @@ BecaHub es una plataforma para estudiantes mexicanos, principalmente universitar
 
 ### 4. Cuentas y perfil
 
-**Descripción:** registro, inicio de sesión y perfil del estudiante. El perfil se puede llenar manualmente o con ayuda de un asistente conversacional (Groq).
+**Descripción:** registro, inicio de sesión y perfil del estudiante. El perfil se llena manualmente con un formulario.
 
 **Rutas:**
 - `/perfil` — formulario manual (pendiente de implementar)
-- `/perfil/asistente` — chat con asistente de IA que hace preguntas y construye el perfil
 - `/dashboard` — tablero del estudiante (skeleton, sin datos reales todavía)
-
-**Asistente de perfil:**
-- `src/lib/ai/profile-assistant.ts` — `chatWithAssistant(messages)`
-- Hace una pregunta a la vez en español
-- Cuando tiene suficiente información, devuelve `profileReady: true` + `ProfileDraft`
-- Endpoints: `POST /api/perfil/asistente` (chat), `POST /api/perfil` (guardar)
 
 **Autenticación planeada:**
 - **Migrar de NextAuth v4 a Supabase Auth**
@@ -168,7 +161,7 @@ BecaHub es una plataforma para estudiantes mexicanos, principalmente universitar
 - `User.id` será el id de Supabase Auth
 - Row-Level Security de Supabase protegerá los datos por usuario
 
-**Estado actual:** ⏳ asistente funcional con Groq (Fase 6), autenticación real pendiente, `POST /api/perfil` acepta `userId` en el body de forma interina
+**Estado actual:** ⏳ autenticación real pendiente, formulario de perfil manual pendiente
 
 ---
 
@@ -234,13 +227,11 @@ graph TB
         A[Home / Landing]
         B[Catálogo /becas]
         C[Detalle /becas/slug]
-        D[Solicitud /solicitud-beca]
     end
 
     subgraph "Frontend Autenticado"
         E[Dashboard /dashboard]
         F[Perfil /perfil]
-        G[Asistente /perfil/asistente]
         H[Expediente]
         I[Postulaciones]
     end
@@ -285,7 +276,6 @@ graph TB
     C --> M
     E --> N
     F --> N
-    G --> N
     H --> P
     I --> O
     J --> K
@@ -670,26 +660,7 @@ model AuditLog {
 
 ---
 
-### 3. Flujo de construcción de perfil con asistente (Groq)
-
-1. **Estudiante accede a `/perfil/asistente`**
-2. Inicia conversación con `chatWithAssistant([])` (`POST /api/perfil/asistente`)
-3. El asistente (Groq) hace **una pregunta a la vez en español**:
-   - "¿Qué carrera estudias?"
-   - "¿A qué país te gustaría ir?"
-   - "¿Cuál es tu situación económica?"
-   - "¿Cuáles son tus metas académicas?"
-4. El estudiante responde en lenguaje natural
-5. El asistente asesora brevemente ("podrías calificar para becas de manutención...")
-6. Cuando tiene suficiente información, responde `profileReady: true` + `profile` (JSON con `academicLevel`, `fieldOfInterest`, `countryOrigin`, `countryInterest`, `scholarshipTypes`, `language`, `situation`, `goals`)
-7. La UI muestra el perfil propuesto y el estudiante confirma "Guardar perfil"
-8. Se envía `POST /api/perfil` para guardar en la DB
-
-**Degradación:** si Groq no responde (503), el estudiante puede llenar el perfil manualmente en `/perfil`.
-
----
-
-### 4. Flujo de postulación (estudiante)
+### 3. Flujo de postulación (estudiante)
 
 Este flujo aún no está implementado. El diseño planeado es:
 
@@ -709,7 +680,7 @@ Este flujo aún no está implementado. El diseño planeado es:
 
 ---
 
-### 5. Flujo de recomendaciones
+### 4. Flujo de recomendaciones
 
 1. **Estudiante completa su perfil** (manual o con asistente)
 2. En `/dashboard` se llama a `recomendarBecas(profile, limit)`
@@ -732,8 +703,6 @@ Este flujo aún no está implementado. El diseño planeado es:
   ```env
   DATABASE_URL=      # pooled (Supavisor)
   DIRECT_URL=        # directo para migraciones
-  GROQ_API_KEY=      # asistente de perfil
-  GROQ_MODEL=        # default: llama-3.3-70b-versatile
   ADMIN_PASSWORD=    # acceso provisional al panel /admin
   NEXTAUTH_SECRET=   # genera con: openssl rand -base64 32
   NEXTAUTH_URL=http://localhost:3000
@@ -823,15 +792,11 @@ La LFPDPPP (Ley Federal de Protección de Datos Personales en Posesión de los P
    - Mitigación: `ScraperLog` registra fallas, panel `/admin` muestra aviso si no hubo corrida exitosa en 48 horas
    - `POST /api/admin/becas/[id]/reverify` archiva automáticamente becas cuyos links caen
 
-2. **Groq (plan gratuito) puede devolver 429 bajo ráfagas**
-   - Mitigación actual: el adapter omite ese ítem sin romper la corrida
-   - Mejora futura: espaciar las llamadas o añadir retry/backoff
-
-3. **Heurísticas de extracción pueden fallar**
+2. **Heurísticas de extracción pueden fallar**
    - `extractDeadlineRaw()` no detecta todas las formas de expresar una fecha límite
    - Mitigación: los campos `null` quedan para revisión del admin en `/admin`
 
-4. **Sin alertas, los estudiantes pueden perder fechas límite**
+3. **Sin alertas, los estudiantes pueden perder fechas límite**
    - Mitigación futura: agregar modelo `Alert` y enviar emails con Resend
 
 ### Riesgos de negocio
@@ -861,27 +826,27 @@ La LFPDPPP (Ley Federal de Protección de Datos Personales en Posesión de los P
 
 Cada fase tiene criterios de éxito que se responden con **sí o no**.
 
-### Fase 1: Base y despliegue ✅ COMPLETADA
+### Fase 1: Base y despliegue ⏳ EN CURSO
 
 1.1 El sitio está en Netlify y el listado carga en producción → ⏳ sitio no está en Netlify todavía, corre en local  
 1.2 El registro y el inicio de sesión funcionan con Supabase Auth → ⏳ autenticación real pendiente  
-1.3 Un usuario sin rol de admin o moderador recibe 403 en `/admin` → ✅ sí (via `proxy.ts`)  
+1.3 Un usuario sin rol de admin o moderador recibe 403 en `/admin` → ⏳ pendiente: `proxy.ts` no revisa roles ni da 403  
 1.4 Cada PR corre Vitest y Playwright contra un Postgres temporal → ⏳ CI pendiente de configurar  
-1.5 Una beca con fecha de cierre pasada no aparece en el listado → ✅ sí (filtro `deadline >= today` en `getBecas`)  
-1.6 Se resuelven o justifican las vulnerabilidades críticas de `next` y `next-auth` → ⏳ pendiente:
+1.5 Una beca con fecha de cierre pasada no aparece en el listado, comparando con la fecha de hoy en hora de México; una beca que cierra hoy sí aparece → ⏳ pendiente: `getBecas` no filtra por `deadline >= hoy`  
+1.6 `npm audit --omit=dev` no reporta vulnerabilidades críticas; las altas que queden se anotan en el documento con su motivo → ⏳ pendiente:
 - Subir `next` a `>=16.4.0` (actualmente 16.2.9)
 - `next-auth` desaparecerá completamente con la migración a Supabase Auth
 - Revisar manualmente las vulnerabilidades de alta en `prisma` y `shadcn` (si las hay)  
 1.7 En un clon nuevo, `npm install` seguido de `npm test` pasa sin pasos manuales → ⏳ pendiente: agregar `prisma generate` en `postinstall` o antes de las pruebas  
 
-### Fase 2: Ingesta ✅ COMPLETADA (parcial)
+### Fase 2: Ingesta ⏳ EN CURSO
 
 2.1 Cada fuente tiene una prueba sobre una copia guardada de su respuesta → ⏳ no todas las fuentes tienen tests todavía  
 2.2 Si una fuente falla, las demás siguen y la falla queda registrada como `FAILED` → ✅ sí  
 2.3 Ninguna beca importada se publica sin aprobación → ✅ sí (todas quedan `PENDING_REVIEW`)  
-2.4 La misma beca de dos fuentes queda como un solo registro → ✅ sí (dedup por `applyUrl`)  
-2.5 Una beca sin fecha válida o con el enlace roto queda marcada para revisión → ✅ sí (quedará `deadline: null` o se omite si el link no pasa `validateUrlIsLive`)  
-2.6 El panel muestra un aviso si no hubo una corrida exitosa en 48 horas → ⏳ pendiente en la UI de `/admin`  
+2.4 La misma beca de dos fuentes queda como un solo registro → ⏳ pendiente: solo quita duplicados por `applyUrl`, falta implementar huella de duplicados  
+2.5 Una beca sin fecha válida o con el enlace roto queda marcada para revisión → ⏳ pendiente: una fecha vacía (`null`) no equivale a marcarla explícitamente para revisión  
+2.6 El panel muestra un aviso si no hubo una corrida exitosa en 48 horas, se prueba simulando una última corrida exitosa de hace 49 horas → ⏳ pendiente en la UI de `/admin`  
 2.7 Quitar o reemplazar código restante de Tavily y Groq → ⏳ pendiente:
 - `src/lib/discovery/tavily.ts` (búsqueda web)
 - `scripts/discover.ts` (comando `npm run discover`)
@@ -889,9 +854,9 @@ Cada fase tiene criterios de éxito que se responden con **sí o no**.
 - Botón "Descubrir" en `/admin` (si existe)
 - **Opción de reemplazo:** Exa para descubrimiento de becas  
 
-### Fase 3: Perfil y búsqueda ✅ COMPLETADA (parcial)
+### Fase 3: Perfil y búsqueda ⏳ EN CURSO
 
-3.1 Buscar "mexico" encuentra "Becas México" → ✅ sí (filtro `search` con `contains` insensible)  
+3.1 Buscar "mexico" encuentra "Becas México" → ⏳ pendiente: `contains` no ignora acentos. La extensión `unaccent` de Postgres se activa con una migración de Prisma para que también funcione en el Postgres de la CI  
 3.2 Las recomendaciones no incluyen becas de otro nivel académico → ✅ sí (`recomendarBecas` filtra por `academicLevel`)  
 3.3 Los favoritos y las postulaciones se guardan → ⏳ modelos existen, UI pendiente  
 3.4 El estudiante A no puede leer ni cambiar nada del B, aunque cambie el id en la URL → ⏳ validación de sesión pendiente  
@@ -901,9 +866,9 @@ Cada fase tiene criterios de éxito que se responden con **sí o no**.
 4.1 Sin aceptar los términos y el aviso no se pueden subir documentos → ⏳ modelo `Consent` pendiente  
 4.2 Los archivos son privados y su enlace firmado caduca en 10 minutos o menos → ⏳ integración con Supabase Storage pendiente  
 4.3 Se rechazan los archivos que no sean PDF, JPG o PNG, o que pesen más de 2 MB → ⏳ pendiente  
-4.4 El botón "Postular" abre el enlace oficial en otra pestaña, y ese enlace responde → ✅ sí (todas las becas `ACTIVE` tienen `applyUrl` verificado)  
+4.4 El botón "Postular" abre el enlace oficial en otra pestaña, y ese enlace responde → ⏳ pendiente: no hay prueba automatizada que respalde que los enlaces actuales respondan  
 4.5 Borrar la cuenta elimina el perfil, los datos y los archivos del bucket de Storage → ⏳ pendiente  
-4.6 El estudiante puede descargar todos sus datos → ⏳ pendiente  
+4.6 El estudiante puede descargar todos sus datos: un archivo JSON con su perfil, postulaciones y lista de documentos → ⏳ pendiente  
 4.7 Un documento vigente del tipo que pide la beca aparece como "ya lo tienes"; uno faltante o caducado, como "te falta" → ⏳ pendiente  
 4.8 Un documento con fecha de emisión más vieja que lo permitido aparece como vencido → ⏳ pendiente  
 4.9 Marcar "ya postulé" lleva la beca al tablero con el estado "enviada" → ⏳ pendiente  
@@ -912,7 +877,7 @@ Cada fase tiene criterios de éxito que se responden con **sí o no**.
 
 5.1 Un moderador puede aprobar becas, pero no administrar usuarios ni fuentes → ⏳ rol `MODERATOR` existe, lógica diferenciada pendiente  
 5.2 Cada aprobación queda en la bitácora → ⏳ modelo `AuditLog` pendiente  
-5.3 Todo lo que usa la web está en `/api/v1`, con validación y pruebas → ⏳ endpoints actuales están en `/api`, no `/api/v1`  
+5.3 Ningún componente de la web llama a una ruta `/api/` que no empiece con `/api/v1` → ⏳ pendiente: los endpoints actuales están en `/api`, no `/api/v1`  
 
 ### Después: App nativa, alertas y monetización
 
@@ -928,7 +893,8 @@ Esta sección debe actualizarse en cada PR que modifique la arquitectura.
 
 | Fecha | PR | Cambios |
 |-------|----|----|
-| 2026-10-09 | (este PR) | Documento `ARQUITECTURA.md` creado. Refleja el estado actual del proyecto tras Fase 0 (limpieza en `main`), Fase 1-3 (scraping, admin, landing), Fase 6 (Tavily sin LLM, Groq como asistente de perfil), Fase 7 (merge de `fronted`), Fase 8 (wizard `/solicitud-beca` + fix de `globals.css`). |
+| 2026-10-09 | #4 (v1) | Documento `ARQUITECTURA.md` creado. Refleja el estado actual del proyecto tras Fase 0 (limpieza en `main`), Fase 1-3 (scraping, admin, landing), Fase 6 (Tavily sin LLM, Groq como asistente de perfil), Fase 7 (merge de `fronted`), Fase 8 (wizard `/solicitud-beca` + fix de `globals.css`). |
+| 2026-10-09 | #4 (v2) | **Correcciones tras revisión del arquitecto y QA:** (1) Rama actualizada con `main`. (2) Eliminado asistente de perfil con Groq del módulo 4, diagrama de módulos, flujo 3 (renumerados flujos 4→3, 5→4), variables de entorno (`GROQ_API_KEY`, `GROQ_MODEL`) y riesgos técnicos (renumerados). El perfil se llena manualmente; el código de Groq queda pendiente de retirar en criterio 2.7. (3) Eliminado `/solicitud-beca` del diagrama de módulos (contradice postulación ligera). (4) Fases 1, 2 y 3 marcadas como "⏳ EN CURSO" (no completadas). (5) Criterios 1.3, 1.5, 2.4, 2.5, 3.1 y 4.4 marcados como ⏳ pendiente con justificación técnica (no se cumplen hoy, no hay pruebas que los respalden). (6) Corregido "STUDENT" → "USER" (rol por defecto en el esquema de Prisma). (7) Anotado en criterio 3.1 que la extensión `unaccent` de Postgres se activa con migración de Prisma para funcionar también en CI. (8) Redacción actualizada en criterios 1.5, 1.6, 2.6, 4.6 y 5.3 según especificaciones de QA. |
 
 ---
 
