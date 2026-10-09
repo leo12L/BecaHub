@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminScraperRequest } from "@/lib/admin-auth";
 import { tavilySearch } from "@/lib/discovery/tavily";
-import {
-  perplexitySearch,
-  PerplexityUnavailableError,
-} from "@/lib/discovery/perplexity";
 import { TavilyUnavailableError } from "@/lib/discovery/tavily";
 import { checkUrlHealth } from "@/lib/validation/url-health";
 import { buildRawScholarship } from "@/scrapers/discovery/heuristics";
@@ -12,7 +9,6 @@ import { db } from "@/lib/db";
 
 const SOURCE_IDS = {
   tavily: "00000000-0000-0000-0000-000000000003",
-  perplexity: "00000000-0000-0000-0000-000000000005",
 } as const;
 
 const QUERIES_BY_TOPIC: Record<string, string[]> = {
