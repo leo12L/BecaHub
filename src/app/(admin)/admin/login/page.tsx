@@ -15,9 +15,12 @@ export default function AdminLoginPage() {
   useEffect(() => {
     const errorParam = searchParams.get("error");
     if (errorParam === "email_not_confirmed") {
-      setError(
-        "Debes confirmar tu correo electrónico antes de continuar. Revisa tu bandeja de entrada.",
-      );
+      // Usar setTimeout para evitar llamar setState directamente en el efecto
+      setTimeout(() => {
+        setError(
+          "Debes confirmar tu correo electrónico antes de continuar. Revisa tu bandeja de entrada.",
+        );
+      }, 0);
     }
   }, [searchParams]);
 

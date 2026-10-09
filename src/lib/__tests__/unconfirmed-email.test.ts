@@ -50,6 +50,7 @@ describe("Manejo de correo no confirmado", () => {
       },
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(supabaseServer.createServerClient).mockReturnValue(mockSupabase as any);
 
     // Mock de db.user.findUnique para simular usuario legacy existente
@@ -108,6 +109,8 @@ describe("Manejo de correo no confirmado", () => {
       },
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(supabaseServer.createServerClient).mockReturnValue(mockSupabase as any);
 
     // Mock de db.user.findUnique - usuario no existe aún
@@ -154,6 +157,8 @@ describe("Manejo de correo no confirmado", () => {
       },
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(supabaseServer.createServerClient).mockReturnValue(mockSupabase as any);
 
     const findUniqueSpy = vi.spyOn(db.user, "findUnique");
