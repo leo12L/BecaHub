@@ -67,6 +67,7 @@ describe("recomendarBecas con BD", () => {
     });
 
     // Crear beca de licenciatura vencida (no debe aparecer)
+    // Usar una fecha claramente en el pasado (30 días atrás) para evitar problemas de zona horaria
     await db.scholarship.upsert({
       where: { id: SCHOLARSHIP_UNDERGRAD_EXPIRED_ID },
       create: {
@@ -78,7 +79,7 @@ describe("recomendarBecas con BD", () => {
         coverageType: "FULL",
         countryDestination: "México",
         academicLevel: "UNDERGRAD",
-        deadline: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // -1 día (ayer)
+        deadline: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // -30 días (claramente en el pasado)
         applyUrl: "https://example.com/apply-undergrad-expired",
         sourceId: TEST_SOURCE_ID,
         isVerified: true,
