@@ -335,6 +335,9 @@ describe("Aislamiento de datos entre usuarios", () => {
 
     expect(applicationB).not.toBeNull();
     expect(applicationB?.status).toBe("APPLIED"); // No cambió a REJECTED
-    expect(applicationB?.notes).not.toContain("Intento de A");
+    // Verificar que las notas no fueron modificadas por A
+    if (applicationB?.notes) {
+      expect(applicationB.notes).not.toContain("Intento de A");
+    }
   });
 });

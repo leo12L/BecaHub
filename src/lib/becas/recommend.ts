@@ -49,23 +49,27 @@ export async function recomendarBecas(
 
   return db.scholarship.findMany({
     where: {
-      status: ScholarshipStatus.ACTIVE,
-      // Excluir becas vencidas (igual que en getBecas)
-      OR: [{ deadline: { gte: todayMexico } }, { deadline: null }],
-      ...(profile.academicLevel
-        ? { academicLevel: profile.academicLevel as AcademicLevel }
-        : {}),
-      ...(profile.scholarshipTypes?.length
-        ? { coverageType: { in: profile.scholarshipTypes as CoverageType[] } }
-        : {}),
-      ...(profile.countryInterest
-        ? {
-            countryDestination: {
-              contains: profile.countryInterest,
-              mode: "insensitive",
-            },
-          }
-        : {}),
+      AND: [
+        { status: ScholarshipStatus.ACTIVE },
+        // Excluir becas vencidas (igual que en getBecas)
+        { OR: [{ deadline: { gte: todayMexico } }, { deadline: null }] },
+        ...(profile.academicLevel
+          ? [{ academicLevel: profile.academicLevel as AcademicLevel }]
+          : []),
+        ...(profile.scholarshipTypes?.length
+          ? [{ coverageType: { in: profile.scholarshipTypes as CoverageType[] } }]
+          : []),
+        ...(profile.countryInterest
+          ? [
+              {
+                countryDestination: {
+                  contains: profile.countryInterest,
+                  mode: "insensitive",
+                },
+              },
+            ]
+          : []),
+      ],
     },
     orderBy: { deadline: "asc" },
     take: limit,
