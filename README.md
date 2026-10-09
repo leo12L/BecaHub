@@ -1,6 +1,8 @@
 # BecaHub
 
-Plataforma web que agrega, categoriza y permite buscar oportunidades de becas.
+Plataforma web que agrega, categoriza y permite buscar oportunidades de becas para estudiantes mexicanos.
+
+> **📖 [Documentación de Arquitectura](docs/ARQUITECTURA.md)** — visión general, decisiones técnicas, módulos del sistema, modelo de datos, flujos principales, infraestructura y fases de desarrollo.
 
 ## Stack
 
