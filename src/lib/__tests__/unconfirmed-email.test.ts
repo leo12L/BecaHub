@@ -187,8 +187,10 @@ describe("Manejo de correo no confirmado", () => {
     // Verificar que el mensaje está en español
     expect(error?.message).toMatch(/confirmar tu correo/i);
     expect(error?.message).toMatch(/bandeja/i);
-    // No debe contener palabras en inglés
-    expect(error?.message).not.toMatch(/confirm|email|inbox/i);
+    // Verificar que usa términos en español (no inglés directo)
+    // Nota: "confirmar" contiene "confirm" como substring, pero es la palabra española correcta
+    expect(error?.message).toMatch(/correo electrónico/i);
+    expect(error?.message).not.toMatch(/\binbox\b/i); // "inbox" como palabra completa
 
     findUniqueSpy.mockRestore();
   });
