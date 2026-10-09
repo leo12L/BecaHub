@@ -1,0 +1,52 @@
+Title: Becas para estudiantes mexicanos - Fundación XYZ
+
+URL Source: https://www.ejemplo.gob.mx/becas
+
+Markdown Content:
+
+# Becas de Investigación 2026
+
+## Beca Nacional de Investigación Científica
+
+La Secretaría de Educación Pública convoca a estudiantes mexicanos a participar en el programa de Becas Nacionales de Investigación Científica 2026.
+
+**Fecha límite:** 15 de diciembre de 2026
+
+**Monto:** $15,000 MXN mensuales
+
+**Dirigido a:** Estudiantes de maestría y doctorado
+
+**Requisitos:**
+- Ser ciudadano mexicano
+- Estar inscrito en un programa de posgrado
+- Dedicación de tiempo completo
+
+Para más información y registro, visite: https://www.ejemplo.gob.mx/becas/investigacion-2026
+
+---
+
+## Programa de Movilidad Internacional
+
+Becas para realizar estancias de investigación en universidades extranjeras.
+
+**Fecha de cierre:** 30 de noviembre de 2026
+
+**Cobertura:** Colegiatura completa + manutención
+
+**Nivel académico:** Licenciatura y posgrado
+
+Más detalles en: https://www.ejemplo.gob.mx/becas/movilidad
+
+---
+
+## Beca de Excelencia Académica
+
+Apoyo económico para estudiantes destacados de licenciatura.
+
+**Periodo de registro:** Del 1 al 31 de octubre de 2026
+
+**Apoyo mensual:** $8,000 MXN
+
+**Convoca:** Secretaría de Educación Pública
+
+Información completa: https://www.ejemplo.gob.mx/becas/excelencia
