@@ -1,5 +1,6 @@
 import PQueue from "p-queue";
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { ScraperRunStatus, ScholarshipStatus } from "@/generated/prisma/enums";
 import type { BecaCandidata, FuenteLector, ResultadoIngesta } from "./types";
 import {
@@ -318,18 +319,22 @@ async function procesarBeca(
   if (existing) {
     // Actualizar solo campos permitidos (A)
     const updateData: {
-      rawPayload?: unknown;
+      rawPayload?: Prisma.InputJsonValue;
       scrapedAt: Date;
-      validationErrors: unknown;
+      validationErrors:
+        | Prisma.NullableJsonNullValueInput
+        | Prisma.InputJsonValue;
       fingerprint?: string;
     } = {
       scrapedAt: new Date(),
       validationErrors:
-        validationErrors.length > 0 ? (validationErrors as unknown) : null,
+        validationErrors.length > 0
+          ? (validationErrors as Prisma.InputJsonValue)
+          : Prisma.DbNull,
     };
 
     if (beca.rawData) {
-      updateData.rawPayload = beca.rawData as unknown;
+      updateData.rawPayload = beca.rawData as Prisma.InputJsonValue;
     }
 
     if (fingerprint && fingerprint !== existing.fingerprint) {
@@ -345,7 +350,7 @@ async function procesarBeca(
         validationErrors.push(
           `La fecha de cierre cambió: antes ${new Date(existing.deadline).toISOString().split("T")[0]}, ahora ${parsedDeadline.toISOString().split("T")[0]}`,
         );
-        updateData.validationErrors = validationErrors as unknown;
+        updateData.validationErrors = validationErrors;
       }
     }
 
@@ -353,12 +358,12 @@ async function procesarBeca(
       validationErrors.push(
         `El link cambió: antes ${existing.applyUrl}, ahora ${beca.applyUrl}`,
       );
-      updateData.validationErrors = validationErrors as unknown;
+      updateData.validationErrors = validationErrors;
     }
 
     await db.scholarship.update({
       where: { id: existing.id },
-      data: updateData as never,
+      data: updateData,
     });
 
     return "updated";
@@ -373,32 +378,34 @@ async function procesarBeca(
     suffix += 1;
   }
 
-  const createData = {
-    title: beca.title,
-    slug,
-    description: beca.description,
-    status: ScholarshipStatus.PENDING_REVIEW,
-    coverageType: mapCoverageType(beca.coverageType),
-    amountMin: extractAmount(beca.amount)?.[0] ?? null,
-    amountMax: extractAmount(beca.amount)?.[1] ?? null,
-    currency: "MXN",
-    countryOrigin: null,
-    countryDestination: beca.countryDestination ?? "México",
-    academicLevel: mapAcademicLevel(beca.academicLevel),
-    language: beca.language ?? null,
-    deadline: parsedDeadline,
-    applyUrl: beca.applyUrl,
-    sourceId,
-    isVerified: false,
-    scrapedAt: new Date(),
-    fingerprint,
-    ...(beca.rawData && { rawPayload: beca.rawData as unknown }),
-    validationErrors:
-      validationErrors.length > 0 ? (validationErrors as unknown) : null,
-  };
-
   await db.scholarship.create({
-    data: createData as never,
+    data: {
+      title: beca.title,
+      slug,
+      description: beca.description,
+      status: ScholarshipStatus.PENDING_REVIEW,
+      coverageType: mapCoverageType(beca.coverageType),
+      amountMin: extractAmount(beca.amount)?.[0] ?? null,
+      amountMax: extractAmount(beca.amount)?.[1] ?? null,
+      currency: "MXN",
+      countryOrigin: null,
+      countryDestination: beca.countryDestination ?? "México",
+      academicLevel: mapAcademicLevel(beca.academicLevel),
+      language: beca.language ?? null,
+      deadline: parsedDeadline,
+      applyUrl: beca.applyUrl,
+      sourceId,
+      isVerified: false,
+      scrapedAt: new Date(),
+      fingerprint,
+      rawPayload: beca.rawData
+        ? (beca.rawData as Prisma.InputJsonValue)
+        : Prisma.DbNull,
+      validationErrors:
+        validationErrors.length > 0
+          ? (validationErrors as Prisma.InputJsonValue)
+          : Prisma.DbNull,
+    },
   });
 
   return "created";
@@ -416,27 +423,27 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
-function mapCoverageType(raw: string | null): string {
-  if (!raw) return "MONETARY";
+function mapCoverageType(raw: string | null) {
+  if (!raw) return "MONETARY" as const;
 
   const normalized = raw.toLowerCase();
   if (normalized.includes("completa") || normalized.includes("full"))
-    return "FULL";
+    return "FULL" as const;
   if (normalized.includes("colegiatura") || normalized.includes("tuition"))
-    return "TUITION";
+    return "TUITION" as const;
   if (normalized.includes("viaje") || normalized.includes("movilidad"))
-    return "TRAVEL";
+    return "TRAVEL" as const;
   if (normalized.includes("investigaci") || normalized.includes("research"))
-    return "RESEARCH";
-  if (normalized.includes("deport")) return "SPORTS";
+    return "RESEARCH" as const;
+  if (normalized.includes("deport")) return "SPORTS" as const;
   if (normalized.includes("liderazgo") || normalized.includes("leadership"))
-    return "LEADERSHIP";
+    return "LEADERSHIP" as const;
 
-  return "MONETARY";
+  return "MONETARY" as const;
 }
 
-function mapAcademicLevel(raw: string | null): string {
-  if (!raw) return "UNDERGRAD";
+function mapAcademicLevel(raw: string | null) {
+  if (!raw) return "UNDERGRAD" as const;
 
   const normalized = raw.toLowerCase();
   if (
@@ -444,24 +451,24 @@ function mapAcademicLevel(raw: string | null): string {
     normalized.includes("preparatoria") ||
     normalized.includes("media superior")
   )
-    return "HIGH_SCHOOL";
+    return "HIGH_SCHOOL" as const;
   if (
     normalized.includes("licenciatura") ||
     normalized.includes("undergraduate") ||
     normalized.includes("pregrado")
   )
-    return "UNDERGRAD";
+    return "UNDERGRAD" as const;
   if (
     normalized.includes("maestr") ||
     normalized.includes("master") ||
     normalized.includes("posgrado")
   )
-    return "GRAD";
-  if (normalized.includes("doctor")) return "PHD";
-  if (normalized.includes("posdoc")) return "POSTDOC";
-  if (normalized.includes("profesional")) return "PROFESSIONAL";
+    return "GRAD" as const;
+  if (normalized.includes("doctor")) return "PHD" as const;
+  if (normalized.includes("posdoc")) return "POSTDOC" as const;
+  if (normalized.includes("profesional")) return "PROFESSIONAL" as const;
 
-  return "UNDERGRAD";
+  return "UNDERGRAD" as const;
 }
 
 function extractAmount(raw: string | null): [number | null, number | null] {
