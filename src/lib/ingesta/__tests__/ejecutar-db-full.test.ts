@@ -223,16 +223,10 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
     // Test 3: validationErrors vuelve a null cuando se corrige
     it("Test 3: validationErrors debe ser null cuando no hay errores", async () => {
-      // Mock que responde 404 primero, luego 200
-      let fetchCallCount = 0;
-      global.fetch = vi.fn().mockImplementation(() => {
-        fetchCallCount++;
-        if (fetchCallCount <= 2) {
-          // Primera corrida: 2 llamadas (HEAD + GET fallback)
-          return Promise.resolve({ ok: false, status: 404 });
-        }
-        // Segunda corrida: OK
-        return Promise.resolve({ ok: true, status: 200 });
+      // Primera corrida: mock que responde 404
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
       }) as typeof fetch;
 
       // Lector con datos SIN suposiciones (nivel, cobertura y país explícitos)
@@ -278,8 +272,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
         true,
       );
 
-      // Segunda corrida: sin error
-      fetchCallCount = 0; // Reset para que la segunda corrida responda OK
+      // Segunda corrida: ahora mock responde OK
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+      }) as typeof fetch;
+
       await ejecutarIngesta(testSourceId1);
 
       const becaCorregida = await db.scholarship.findFirst({
