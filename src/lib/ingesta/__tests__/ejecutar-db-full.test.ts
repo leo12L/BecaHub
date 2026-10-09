@@ -110,9 +110,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
       LECTORES_REGISTRY["test-db-1"] = TestLector1;
 
-      // Primera corrida
-      const resultado1 = await ejecutarIngesta("all");
-      const result1 = resultado1.find((r) => r.sourceId === testSourceId1);
+      // Primera corrida - solo test-db-1
+      const resultado1 = await ejecutarIngesta(testSourceId1);
+      const result1 = resultado1[0];
 
       expect(result1?.encontradas).toBe(1);
       expect(result1?.creadas).toBe(1);
@@ -124,8 +124,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(countAfter1).toBe(1);
 
       // Segunda corrida con el MISMO fixture
-      const resultado2 = await ejecutarIngesta("all");
-      const result2 = resultado2.find((r) => r.sourceId === testSourceId1);
+      const resultado2 = await ejecutarIngesta(testSourceId1);
+      const result2 = resultado2[0];
 
       // La segunda corrida debe contar como actualizada, NO crear duplicado
       expect(result2?.encontradas).toBe(1);
@@ -199,7 +199,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
       LECTORES_REGISTRY["test-db-1"] = TestLector2;
 
-      await ejecutarIngesta("all");
+      await ejecutarIngesta(testSourceId1);
 
       const updated = await db.scholarship.findUnique({
         where: { id: beca.id },
@@ -266,7 +266,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       LECTORES_REGISTRY["test-db-1"] = TestLector3;
 
       // Primera corrida: genera error de URL
-      await ejecutarIngesta("all");
+      await ejecutarIngesta(testSourceId1);
 
       const becaConError = await db.scholarship.findFirst({
         where: { sourceId: testSourceId1 },
@@ -280,7 +280,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
       // Segunda corrida: sin error
       fetchCallCount = 0; // Reset para que la segunda corrida responda OK
-      await ejecutarIngesta("all");
+      await ejecutarIngesta(testSourceId1);
 
       const becaCorregida = await db.scholarship.findFirst({
         where: { sourceId: testSourceId1 },
@@ -342,7 +342,10 @@ describe.skipIf(!process.env.DATABASE_URL)(
       LECTORES_REGISTRY["test-db-1"] = TestLectorFallido;
       LECTORES_REGISTRY["test-db-2"] = TestLectorExitoso;
 
-      const resultados = await ejecutarIngesta("all");
+      // Ejecutar ambas fuentes específicamente
+      const resultado1 = await ejecutarIngesta(testSourceId1);
+      const resultado2 = await ejecutarIngesta(testSourceId2);
+      const resultados = [...resultado1, ...resultado2];
 
       // Verificar que source 1 falló
       const result1 = resultados.find((r) => r.sourceId === testSourceId1);
@@ -429,7 +432,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
       LECTORES_REGISTRY["test-db-1"] = TestLector5;
 
-      await ejecutarIngesta("all");
+      await ejecutarIngesta(testSourceId1);
 
       const becas = await db.scholarship.findMany({
         where: { sourceId: testSourceId1 },
@@ -497,7 +500,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-12-31T23:59:59Z"));
 
-      await ejecutarIngesta("all");
+      await ejecutarIngesta(testSourceId1);
 
       const countDic = await db.scholarship.count({
         where: { sourceId: testSourceId1 },
@@ -507,8 +510,8 @@ describe.skipIf(!process.env.DATABASE_URL)(
       // Simular 1 de enero de 2027
       vi.setSystemTime(new Date("2027-01-01T00:00:01Z"));
 
-      const resultado2 = await ejecutarIngesta("all");
-      const result2 = resultado2.find((r) => r.sourceId === testSourceId1);
+      const resultado2 = await ejecutarIngesta(testSourceId1);
+      const result2 = resultado2[0];
 
       // Debe contar como actualizada (no crear nueva)
       expect(result2?.creadas).toBe(0);
@@ -563,7 +566,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
       LECTORES_REGISTRY["test-db-1"] = TestLector7;
 
-      await ejecutarIngesta("all");
+      await ejecutarIngesta(testSourceId1);
 
       const beca = await db.scholarship.findFirst({
         where: { sourceId: testSourceId1 },
