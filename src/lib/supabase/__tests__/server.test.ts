@@ -1,7 +1,17 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "../server";
-import * as supabaseServer from "../server";
+
+// Mock getSupabaseServerClient para evitar el error de cookies()
+vi.mock("../server", async () => {
+  const actual = await vi.importActual("../server");
+  return {
+    ...actual,
+    getSupabaseServerClient: vi.fn(),
+  };
+});
+
+import { getSupabaseServerClient } from "../server";
 
 // Skip tests if DATABASE_URL is not set
 const shouldSkip = !process.env.DATABASE_URL;
