@@ -85,8 +85,8 @@ describe("API de favoritos", () => {
     vi.mocked(requireUser).mockResolvedValue(testUser);
   });
 
-  it("POST /api/favoritos crea un favorito", async () => {
-    const request = new NextRequest("http://localhost/api/favoritos", {
+  it("POST /api/v1/favoritos crea un favorito", async () => {
+    const request = new NextRequest("http://localhost/api/v1/favoritos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scholarshipId: TEST_SCHOLARSHIP_ID }),
@@ -112,7 +112,7 @@ describe("API de favoritos", () => {
     expect(favorite).not.toBeNull();
   });
 
-  it("GET /api/favoritos lista los favoritos del usuario", async () => {
+  it("GET /api/v1/favoritos lista los favoritos del usuario", async () => {
     // Crear un favorito primero
     await db.favorite.create({
       data: {
@@ -132,7 +132,7 @@ describe("API de favoritos", () => {
     expect(data.favorites[0].scholarship).toBeDefined();
   });
 
-  it("DELETE /api/favoritos elimina un favorito", async () => {
+  it("DELETE /api/v1/favoritos elimina un favorito", async () => {
     // Crear un favorito primero
     await db.favorite.create({
       data: {
@@ -141,7 +141,7 @@ describe("API de favoritos", () => {
       },
     });
 
-    const request = new NextRequest("http://localhost/api/favoritos", {
+    const request = new NextRequest("http://localhost/api/v1/favoritos", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scholarshipId: TEST_SCHOLARSHIP_ID }),
@@ -165,8 +165,8 @@ describe("API de favoritos", () => {
     expect(favorite).toBeNull();
   });
 
-  it("POST /api/favoritos sin scholarshipId retorna 400", async () => {
-    const request = new NextRequest("http://localhost/api/favoritos", {
+  it("POST /api/v1/favoritos sin scholarshipId retorna 400", async () => {
+    const request = new NextRequest("http://localhost/api/v1/favoritos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -177,8 +177,8 @@ describe("API de favoritos", () => {
     expect(response.status).toBe(400);
   });
 
-  it("POST /api/favoritos con scholarshipId inexistente retorna 404", async () => {
-    const request = new NextRequest("http://localhost/api/favoritos", {
+  it("POST /api/v1/favoritos con scholarshipId inexistente retorna 404", async () => {
+    const request = new NextRequest("http://localhost/api/v1/favoritos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scholarshipId: "nonexistent-id" }),

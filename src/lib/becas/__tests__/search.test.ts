@@ -115,4 +115,52 @@ describe("Búsqueda con unaccent", () => {
     expect(result.data).toEqual([]);
     expect(result.pagination.total).toBe(0);
   });
+
+  it("escapa % y _ del término de búsqueda para que no actúen como comodines", async () => {
+    // Crear una beca con título específico
+    const scholarshipWithSpecialChars = await db.scholarship.create({
+      data: {
+        title: "Beca 100% para estudiantes",
+        slug: "beca-100-percent-test-search",
+        description: "Cobertura del 100%",
+        status: "ACTIVE",
+        coverageType: "FULL",
+        countryDestination: "México",
+        academicLevel: "UNDERGRAD",
+        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        applyUrl: "https://example.com/apply-percent",
+        sourceId: TEST_SOURCE_ID,
+        isVerified: true,
+      },
+    });
+
+    // Buscar con % literal - debe encontrar solo las becas con "100%" y no todas
+    const resultWithPercent = await getBecas({
+      search: "100%",
+      page: 1,
+      limit: 10,
+    });
+
+    // Debe encontrar la beca específica
+    const foundSpecific = resultWithPercent.data.find(
+      (s) => s.id === scholarshipWithSpecialChars.id,
+    );
+    expect(foundSpecific).toBeDefined();
+
+    // Buscar con _ literal - no debe actuar como comodín de un solo carácter
+    const resultWithUnderscore = await getBecas({
+      search: "100_",
+      page: 1,
+      limit: 10,
+    });
+
+    // No debe encontrar la beca con "100%" ya que _ está escapado
+    const foundWithUnderscore = resultWithUnderscore.data.find(
+      (s) => s.id === scholarshipWithSpecialChars.id,
+    );
+    expect(foundWithUnderscore).toBeUndefined();
+
+    // Limpiar
+    await db.scholarship.delete({ where: { id: scholarshipWithSpecialChars.id } });
+  });
 });

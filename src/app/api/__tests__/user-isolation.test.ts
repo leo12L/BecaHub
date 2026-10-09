@@ -4,9 +4,10 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { GET as getFavorites } from "../favoritos/route";
-import { GET as getApplications } from "../postulaciones/route";
+import { GET as getFavorites, DELETE as deleteFavorite } from "../v1/favoritos/route";
+import { GET as getApplications, POST as postApplication } from "../v1/postulaciones/route";
 import { GET as getProfile } from "../perfil/me/route";
 import type { User } from "@/generated/prisma/client";
 
@@ -274,5 +275,66 @@ describe("Aislamiento de datos entre usuarios", () => {
     // No debe ver el perfil de A
     expect(data.profile.userId).not.toBe(USER_A_ID);
     expect(data.profile.fieldOfInterest).not.toBe("Ingeniería");
+  });
+
+  it("usuario A NO puede borrar favorito de B", async () => {
+    const { requireUser } = await import("@/lib/supabase/server");
+    
+    // Usuario A intenta borrar el favorito de B
+    vi.mocked(requireUser).mockResolvedValue(userA);
+
+    const request = new NextRequest("http://localhost/api/v1/favoritos", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scholarshipId: SCHOLARSHIP_B_ID }),
+    });
+
+    await deleteFavorite(request);
+
+    // Verificar que el favorito de B sigue existiendo
+    const favoriteB = await db.favorite.findUnique({
+      where: {
+        userId_scholarshipId: {
+          userId: USER_B_ID,
+          scholarshipId: SCHOLARSHIP_B_ID,
+        },
+      },
+    });
+
+    expect(favoriteB).not.toBeNull();
+    expect(favoriteB?.userId).toBe(USER_B_ID);
+  });
+
+  it("usuario A NO puede modificar postulación de B", async () => {
+    const { requireUser } = await import("@/lib/supabase/server");
+    
+    // Usuario A intenta modificar la postulación de B
+    vi.mocked(requireUser).mockResolvedValue(userA);
+
+    const request = new NextRequest("http://localhost/api/v1/postulaciones", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scholarshipId: SCHOLARSHIP_B_ID,
+        status: "REJECTED",
+        notes: "Intento de A de modificar postulación de B",
+      }),
+    });
+
+    await postApplication(request);
+
+    // Verificar que la postulación de B no cambió
+    const applicationB = await db.application.findUnique({
+      where: {
+        userId_scholarshipId: {
+          userId: USER_B_ID,
+          scholarshipId: SCHOLARSHIP_B_ID,
+        },
+      },
+    });
+
+    expect(applicationB).not.toBeNull();
+    expect(applicationB?.status).toBe("APPLIED"); // No cambió a REJECTED
+    expect(applicationB?.notes).not.toContain("Intento de A");
   });
 });

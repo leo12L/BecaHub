@@ -96,11 +96,13 @@ export async function getBecas(
   // unaccent(campo) ILIKE unaccent('%término%') permite buscar "mexico" y encontrar "México"
   if (query.search) {
     const searchTerm = query.search.trim();
+    // Escapar % y _ para que no actúen como comodines
+    const escapedTerm = searchTerm.replace(/[%_]/g, '\\$&');
     // Buscar IDs que coincidan con el término (con unaccent para ignorar acentos)
     const matchingIds = await db.$queryRaw<{ id: string }[]>`
       SELECT id FROM "Scholarship" 
-      WHERE unaccent(LOWER(title)) LIKE unaccent(LOWER(${'%' + searchTerm + '%'}))
-         OR unaccent(LOWER(description)) LIKE unaccent(LOWER(${'%' + searchTerm + '%'}))
+      WHERE unaccent(LOWER(title)) LIKE unaccent(LOWER(${'%' + escapedTerm + '%'}))
+         OR unaccent(LOWER(description)) LIKE unaccent(LOWER(${'%' + escapedTerm + '%'}))
     `;
     
     // Si no hay coincidencias, retornar vacío

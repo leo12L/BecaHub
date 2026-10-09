@@ -85,8 +85,8 @@ describe("API de postulaciones", () => {
     vi.mocked(requireUser).mockResolvedValue(testUser);
   });
 
-  it("POST /api/postulaciones crea una postulación con estado INTERESTED", async () => {
-    const request = new NextRequest("http://localhost/api/postulaciones", {
+  it("POST /api/v1/postulaciones crea una postulación con estado INTERESTED", async () => {
+    const request = new NextRequest("http://localhost/api/v1/postulaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -117,8 +117,8 @@ describe("API de postulaciones", () => {
     expect(application?.status).toBe("INTERESTED");
   });
 
-  it("POST /api/postulaciones con status APPLIED marca appliedAt", async () => {
-    const request = new NextRequest("http://localhost/api/postulaciones", {
+  it("POST /api/v1/postulaciones con status APPLIED marca appliedAt", async () => {
+    const request = new NextRequest("http://localhost/api/v1/postulaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -146,7 +146,7 @@ describe("API de postulaciones", () => {
     expect(application?.appliedAt).not.toBeNull();
   });
 
-  it("POST /api/postulaciones actualiza una postulación existente", async () => {
+  it("POST /api/v1/postulaciones actualiza una postulación existente", async () => {
     // Crear una postulación primero
     await db.application.create({
       data: {
@@ -157,7 +157,7 @@ describe("API de postulaciones", () => {
     });
 
     // Actualizar a APPLIED
-    const request = new NextRequest("http://localhost/api/postulaciones", {
+    const request = new NextRequest("http://localhost/api/v1/postulaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -184,7 +184,7 @@ describe("API de postulaciones", () => {
     expect(applications.length).toBe(1);
   });
 
-  it("GET /api/postulaciones lista las postulaciones del usuario", async () => {
+  it("GET /api/v1/postulaciones lista las postulaciones del usuario", async () => {
     // Crear una postulación primero
     await db.application.create({
       data: {
@@ -205,8 +205,8 @@ describe("API de postulaciones", () => {
     expect(data.applications[0].scholarship).toBeDefined();
   });
 
-  it("POST /api/postulaciones sin scholarshipId retorna 400", async () => {
-    const request = new NextRequest("http://localhost/api/postulaciones", {
+  it("POST /api/v1/postulaciones sin scholarshipId retorna 400", async () => {
+    const request = new NextRequest("http://localhost/api/v1/postulaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -217,8 +217,8 @@ describe("API de postulaciones", () => {
     expect(response.status).toBe(400);
   });
 
-  it("POST /api/postulaciones con status inválido retorna 400", async () => {
-    const request = new NextRequest("http://localhost/api/postulaciones", {
+  it("POST /api/v1/postulaciones con status inválido retorna 400", async () => {
+    const request = new NextRequest("http://localhost/api/v1/postulaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

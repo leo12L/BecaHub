@@ -17,9 +17,25 @@ export interface ProfileForRecommendation {
 const DEFAULT_LIMIT = 10;
 
 /**
+ * Retorna la fecha de hoy en zona horaria America/Mexico_City (inicio del día).
+ * Una beca que cierra hoy aún está vigente.
+ */
+function getTodayInMexicoCity(): Date {
+  const now = new Date();
+  const mexicoTimeString = now.toLocaleString("en-US", {
+    timeZone: "America/Mexico_City",
+  });
+  const mexicoDate = new Date(mexicoTimeString);
+  mexicoDate.setHours(0, 0, 0, 0);
+  return mexicoDate;
+}
+
+/**
  * Filtro básico de becas `ACTIVE` según el perfil del estudiante: nivel
  * académico, tipos de cobertura de interés y país de destino. Sin
  * autenticación necesaria — recibe el perfil directamente.
+ *
+ * Excluye becas vencidas (deadline < hoy en hora de México).
  *
  * Esto es una base intencionalmente simple; un matching más avanzado
  * (scoring por área de interés, idioma, situación socioeconómica, etc.) es
@@ -29,9 +45,13 @@ export async function recomendarBecas(
   profile: ProfileForRecommendation,
   limit = DEFAULT_LIMIT,
 ): Promise<Scholarship[]> {
+  const todayMexico = getTodayInMexicoCity();
+
   return db.scholarship.findMany({
     where: {
       status: ScholarshipStatus.ACTIVE,
+      // Excluir becas vencidas (igual que en getBecas)
+      OR: [{ deadline: { gte: todayMexico } }, { deadline: null }],
       ...(profile.academicLevel
         ? { academicLevel: profile.academicLevel as AcademicLevel }
         : {}),
