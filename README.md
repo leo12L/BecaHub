@@ -2,6 +2,8 @@
 
 Plataforma web para buscar y gestionar oportunidades de becas para estudiantes universitarios mexicanos.
 
+> **📖 [Documentación de Arquitectura](docs/ARQUITECTURA.md)** — visión general, decisiones técnicas, módulos del sistema, modelo de datos, flujos principales, infraestructura y fases de desarrollo.
+
 ## Stack
 
 - **Next.js 16** (App Router, React 19, TypeScript)
