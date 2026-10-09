@@ -14,5 +14,8 @@ export default defineConfig({
   // los comandos de migración de Prisma.
   datasource: {
     url: process.env["DIRECT_URL"],
+    // Shadow database para `prisma migrate diff` (validación de migraciones)
+    // En CI usamos una segunda base del mismo service container
+    shadowDatabaseUrl: process.env["SHADOW_DATABASE_URL"],
   },
 });

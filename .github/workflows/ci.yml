@@ -48,8 +48,23 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      - name: Create shadow database for migration validation
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d becahub_test -c "CREATE DATABASE becahub_shadow;"
+
       - name: Run database migrations
         run: npx prisma migrate deploy
+
+      - name: Validate migrations match schema
+        run: |
+          echo "Verificando que las migraciones coincidan con el schema..."
+          npx prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema prisma/schema.prisma \
+            --exit-code
+          echo "✅ Migraciones validadas correctamente"
 
       - name: Run type check
         run: npx tsc --noEmit
@@ -85,6 +100,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/becahub_test
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/becahub_test
+      SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/becahub_shadow
       NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
       NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key-for-ci-only
       NODE_ENV: test
