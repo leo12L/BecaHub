@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { GET, POST, DELETE } from "../route";
 import type { User } from "@/generated/prisma/client";
@@ -85,7 +86,7 @@ describe("API de favoritos", () => {
   });
 
   it("POST /api/favoritos crea un favorito", async () => {
-    const request = new Request("http://localhost/api/favoritos", {
+    const request = new NextRequest("http://localhost/api/favoritos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scholarshipId: TEST_SCHOLARSHIP_ID }),
@@ -140,7 +141,7 @@ describe("API de favoritos", () => {
       },
     });
 
-    const request = new Request("http://localhost/api/favoritos", {
+    const request = new NextRequest("http://localhost/api/favoritos", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scholarshipId: TEST_SCHOLARSHIP_ID }),
@@ -165,7 +166,7 @@ describe("API de favoritos", () => {
   });
 
   it("POST /api/favoritos sin scholarshipId retorna 400", async () => {
-    const request = new Request("http://localhost/api/favoritos", {
+    const request = new NextRequest("http://localhost/api/favoritos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -177,7 +178,7 @@ describe("API de favoritos", () => {
   });
 
   it("POST /api/favoritos con scholarshipId inexistente retorna 404", async () => {
-    const request = new Request("http://localhost/api/favoritos", {
+    const request = new NextRequest("http://localhost/api/favoritos", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ scholarshipId: "nonexistent-id" }),

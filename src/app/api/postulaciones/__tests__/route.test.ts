@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { GET, POST } from "../route";
 import type { User } from "@/generated/prisma/client";
@@ -85,7 +86,7 @@ describe("API de postulaciones", () => {
   });
 
   it("POST /api/postulaciones crea una postulación con estado INTERESTED", async () => {
-    const request = new Request("http://localhost/api/postulaciones", {
+    const request = new NextRequest("http://localhost/api/postulaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -117,7 +118,7 @@ describe("API de postulaciones", () => {
   });
 
   it("POST /api/postulaciones con status APPLIED marca appliedAt", async () => {
-    const request = new Request("http://localhost/api/postulaciones", {
+    const request = new NextRequest("http://localhost/api/postulaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -156,7 +157,7 @@ describe("API de postulaciones", () => {
     });
 
     // Actualizar a APPLIED
-    const request = new Request("http://localhost/api/postulaciones", {
+    const request = new NextRequest("http://localhost/api/postulaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -205,7 +206,7 @@ describe("API de postulaciones", () => {
   });
 
   it("POST /api/postulaciones sin scholarshipId retorna 400", async () => {
-    const request = new Request("http://localhost/api/postulaciones", {
+    const request = new NextRequest("http://localhost/api/postulaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -217,7 +218,7 @@ describe("API de postulaciones", () => {
   });
 
   it("POST /api/postulaciones con status inválido retorna 400", async () => {
-    const request = new Request("http://localhost/api/postulaciones", {
+    const request = new NextRequest("http://localhost/api/postulaciones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
