@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAdminScraperRequest } from "@/lib/admin-auth";
 import { tavilySearch } from "@/lib/discovery/tavily";
-import { perplexitySearch, PerplexityUnavailableError } from "@/lib/discovery/perplexity";
 import { TavilyUnavailableError } from "@/lib/discovery/tavily";
 import { checkUrlHealth } from "@/lib/validation/url-health";
 import { buildRawScholarship } from "@/scrapers/discovery/heuristics";
@@ -9,7 +9,6 @@ import { db } from "@/lib/db";
 
 const SOURCE_IDS = {
   tavily: "00000000-0000-0000-0000-000000000003",
-  perplexity: "00000000-0000-0000-0000-000000000005",
 } as const;
 
 const QUERIES_BY_TOPIC: Record<string, string[]> = {
@@ -34,23 +33,30 @@ const QUERIES_BY_TOPIC: Record<string, string[]> = {
 
 /**
  * POST /api/becas/discover
- * Corre descubrimiento con Tavily (y Perplexity si está configurado),
- * valida URLs, filtra con heurísticas y guarda las que pasen como
- * PENDING_REVIEW. Devuelve las recién guardadas para que el cliente
- * pueda mostrarlas sin reload.
- *
- * Body: { topic?: "default" | "posgrado" | "licenciatura" | "internacional" }
+ * Descubrimiento automático de becas. Requiere autenticación de admin.
  */
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({})) as { topic?: string };
-  const topic = (body.topic && QUERIES_BY_TOPIC[body.topic]) ? body.topic : "default";
+  // Verificar autenticación
+  if (!isAdminScraperRequest(req)) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const body = (await req.json().catch(() => ({}))) as { topic?: string };
+  const topic =
+    body.topic && QUERIES_BY_TOPIC[body.topic] ? body.topic : "default";
   const queries = QUERIES_BY_TOPIC[topic]!;
 
-  const existing = await db.scholarship.findMany({ select: { applyUrl: true } });
+  const existing = await db.scholarship.findMany({
+    select: { applyUrl: true },
+  });
   const existingUrls = new Set(existing.map((s) => s.applyUrl));
   const seen = new Set<string>();
 
-  interface Candidate { url: string; title: string; content: string }
+  interface Candidate {
+    url: string;
+    title: string;
+    content: string;
+  }
   const candidates: Candidate[] = [];
 
   // --- Tavily ---
@@ -63,14 +69,23 @@ export async function POST(req: NextRequest) {
           searchDepth: "basic",
           includeRawContent: true,
           includeDomains: [
-            "gob.mx", "secihti.mx", "sep.gob.mx", "bienestar.gob.mx",
-            "fulbright.edu.mx", "daad.de", "oas.org",
+            "gob.mx",
+            "secihti.mx",
+            "sep.gob.mx",
+            "bienestar.gob.mx",
+            "fulbright.edu.mx",
+            "daad.de",
+            "oas.org",
           ],
         });
         for (const r of results) {
           if (r.url && !seen.has(r.url) && !existingUrls.has(r.url)) {
             seen.add(r.url);
-            candidates.push({ url: r.url, title: r.title, content: r.rawContent || r.content });
+            candidates.push({
+              url: r.url,
+              title: r.title,
+              content: r.rawContent || r.content,
+            });
           }
         }
       } catch (err) {
@@ -79,24 +94,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // --- Perplexity (if available) ---
-  if (process.env.PERPLEXITY_API_KEY) {
-    for (const query of queries.slice(0, 2)) {
-      try {
-        const results = await perplexitySearch(query, 5);
-        for (const r of results) {
-          if (r.url && !seen.has(r.url) && !existingUrls.has(r.url)) {
-            seen.add(r.url);
-            candidates.push({ url: r.url, title: r.url, content: r.content });
-          }
-        }
-      } catch (err) {
-        if (err instanceof PerplexityUnavailableError) break;
-      }
-    }
-  }
-
-  const saved: { id: string; title: string; slug: string; status: string }[] = [];
+  const saved: { id: string; title: string; slug: string; status: string }[] =
+    [];
 
   for (const candidate of candidates) {
     try {
@@ -119,7 +118,12 @@ export async function POST(req: NextRequest) {
       await upsertScholarship(normalized);
       existingUrls.add(applyUrl);
 
-      saved.push({ id: normalized.slug, title: normalized.title, slug: normalized.slug, status: normalized.status });
+      saved.push({
+        id: normalized.slug,
+        title: normalized.title,
+        slug: normalized.slug,
+        status: normalized.status,
+      });
     } catch {
       // Skip individual failures
     }
@@ -128,9 +132,16 @@ export async function POST(req: NextRequest) {
   const newBecas = await db.scholarship.findMany({
     where: { slug: { in: saved.map((s) => s.slug) } },
     select: {
-      id: true, title: true, slug: true, status: true,
-      countryDestination: true, academicLevel: true,
-      coverageType: true, deadline: true, applyUrl: true, isVerified: true,
+      id: true,
+      title: true,
+      slug: true,
+      status: true,
+      countryDestination: true,
+      academicLevel: true,
+      coverageType: true,
+      deadline: true,
+      applyUrl: true,
+      isVerified: true,
     },
   });
 

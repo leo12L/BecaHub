@@ -5,6 +5,8 @@ import { SocialProof } from "@/components/landing/social-proof";
 import { getBecas, getLandingStats } from "@/lib/becas/queries";
 import { becasQuerySchema } from "@/validators/becas.validator";
 
+export const dynamic = "force-dynamic";
+
 export default async function LandingPage() {
   const [{ data: scholarships }, stats] = await Promise.all([
     getBecas(becasQuerySchema.parse({ limit: 50 }), { sort: "deadline" }),

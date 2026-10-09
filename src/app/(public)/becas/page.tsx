@@ -13,6 +13,8 @@ import {
   getFilterCountries,
   type SortOrder,
 } from "@/lib/becas/queries";
+
+export const dynamic = "force-dynamic";
 import { becasQuerySchema } from "@/validators/becas.validator";
 
 export const metadata: Metadata = {
