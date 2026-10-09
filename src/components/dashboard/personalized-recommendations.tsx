@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Sparkles, ExternalLink, RefreshCw } from "lucide-react";
@@ -21,9 +21,38 @@ const PROFILE_KEY = "becahub_profile_draft";
 
 export function PersonalizedRecommendations() {
   const { data: session } = useSession();
-  const [items, setItems]     = useState<BecaRecomendada[]>([]);
+  const [items, setItems] = useState<BecaRecomendada[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasProfile, setHasProfile] = useState(false);
+
+  const fetchRecommendations = useCallback(
+    async (profile: Record<string, unknown>) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (profile.academicLevel)
+          params.set("academicLevel", String(profile.academicLevel));
+        if (profile.countryInterest)
+          params.set("countryInterest", String(profile.countryInterest));
+        if (
+          Array.isArray(profile.scholarshipTypes) &&
+          profile.scholarshipTypes.length > 0
+        ) {
+          params.set("scholarshipTypes", profile.scholarshipTypes.join(","));
+        }
+        if (profile.language) params.set("language", String(profile.language));
+
+        const res = await fetch(`/api/recomendaciones?${params}`);
+        const json = await res.json();
+        if (res.ok && Array.isArray(json.data)) setItems(json.data);
+      } catch {
+        // silently ignore — not critical
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     async function loadProfile() {
@@ -46,36 +75,17 @@ export function PersonalizedRecommendations() {
       const raw = localStorage.getItem(PROFILE_KEY);
       if (!raw) return;
       let profile: Record<string, unknown>;
-      try { profile = JSON.parse(raw); }
-      catch { return; }
+      try {
+        profile = JSON.parse(raw);
+      } catch {
+        return;
+      }
       setHasProfile(true);
       fetchRecommendations(profile);
     }
 
     loadProfile();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.id]);
-
-  async function fetchRecommendations(profile: Record<string, unknown>) {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (profile.academicLevel) params.set("academicLevel", String(profile.academicLevel));
-      if (profile.countryInterest) params.set("countryInterest", String(profile.countryInterest));
-      if (Array.isArray(profile.scholarshipTypes) && profile.scholarshipTypes.length > 0) {
-        params.set("scholarshipTypes", profile.scholarshipTypes.join(","));
-      }
-      if (profile.language) params.set("language", String(profile.language));
-
-      const res  = await fetch(`/api/recomendaciones?${params}`);
-      const json = await res.json();
-      if (res.ok && Array.isArray(json.data)) setItems(json.data);
-    } catch {
-      // silently ignore — not critical
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [session?.user?.id, fetchRecommendations]);
 
   if (!hasProfile) return null;
 
@@ -88,7 +98,10 @@ export function PersonalizedRecommendations() {
           Basado en tu perfil
         </span>
         {loading && (
-          <RefreshCw size={14} className="ml-auto animate-spin text-slate-400" />
+          <RefreshCw
+            size={14}
+            className="ml-auto animate-spin text-slate-400"
+          />
         )}
       </div>
 
@@ -126,8 +139,15 @@ export function PersonalizedRecommendations() {
                   </p>
                 )}
                 <div className="mt-auto space-y-1 text-xs text-slate-500">
-                  <p>📍 <span className="font-semibold text-slate-700">{beca.country}</span></p>
-                  {beca.amount && <p className="font-bold text-slate-800">{beca.amount}</p>}
+                  <p>
+                    📍{" "}
+                    <span className="font-semibold text-slate-700">
+                      {beca.country}
+                    </span>
+                  </p>
+                  {beca.amount && (
+                    <p className="font-bold text-slate-800">{beca.amount}</p>
+                  )}
                   <p>⏰ {beca.deadline}</p>
                 </div>
               </div>

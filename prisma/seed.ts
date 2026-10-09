@@ -12,29 +12,8 @@ async function main() {
   // ---------------------------------------------------------------------
   // Fuentes
   // ---------------------------------------------------------------------
-  await db.source.upsert({
-    where: { id: "00000000-0000-0000-0000-000000000001" },
-    update: {},
-    create: {
-      id: "00000000-0000-0000-0000-000000000001",
-      name: "Becas Benito Juárez (gob.mx)",
-      url: "https://www.becasbenitojuarez.sep.gob.mx/",
-      type: SourceType.GOVERNMENT,
-      scraperAdapter: "becas-gob-mx",
-    },
-  });
-
-  await db.source.upsert({
-    where: { id: "00000000-0000-0000-0000-000000000002" },
-    update: {},
-    create: {
-      id: "00000000-0000-0000-0000-000000000002",
-      name: "Chevening Scholarships",
-      url: "https://www.chevening.org/",
-      type: SourceType.EDUCATIONAL,
-      scraperAdapter: "chevening",
-    },
-  });
+  // Fuente 1 y 2 desactivadas: becas-gob-mx devuelve 404, chevening sin adapter
+  // Se mantienen comentadas para referencia histórica
 
   await db.source.upsert({
     where: { id: "00000000-0000-0000-0000-000000000003" },
@@ -57,18 +36,6 @@ async function main() {
       url: "https://opbecaas.local/admin",
       type: SourceType.MANUAL,
       scraperAdapter: null,
-    },
-  });
-
-  await db.source.upsert({
-    where: { id: "00000000-0000-0000-0000-000000000005" },
-    update: {},
-    create: {
-      id: "00000000-0000-0000-0000-000000000005",
-      name: "Descubrimiento (Perplexity)",
-      url: "https://api.perplexity.ai/",
-      type: SourceType.DISCOVERY,
-      scraperAdapter: "perplexity-discovery",
     },
   });
 
@@ -123,7 +90,7 @@ async function main() {
   }
 
   console.log(
-    `Seed completado: ${categoriasData.length} categorías, 5 fuentes. Sin becas de ejemplo — cárgalas vía scraper o el panel de admin.`,
+    `Seed completado: ${categoriasData.length} categorías, 2 fuentes (Tavily + Manual). Sin becas de ejemplo — cárgalas vía scraper o el panel de admin.`,
   );
 }
 

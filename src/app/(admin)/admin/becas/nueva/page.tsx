@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { BecaForm } from "@/components/admin/beca-form";
 
+export const dynamic = "force-dynamic";
+
 export default async function NuevaBecaPage() {
   const [sources, categories] = await Promise.all([
     db.source.findMany({ orderBy: { name: "asc" } }),

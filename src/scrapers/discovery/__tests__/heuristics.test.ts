@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   extractDeadlineRaw,
   extractAmountRaw,
@@ -22,12 +22,14 @@ describe("extractDeadlineRaw", () => {
   });
 
   it("falls back to first date in text when no keyword found", () => {
-    const text = "Esta beca es para estudiantes mexicanos. Entrega antes del 15/03/2027.";
+    const text =
+      "Esta beca es para estudiantes mexicanos. Entrega antes del 15/03/2027.";
     expect(extractDeadlineRaw(text)).toBe("15/03/2027");
   });
 
   it("returns undefined when no date found", () => {
-    const text = "Esta beca es para estudiantes mexicanos interesados en ciencia.";
+    const text =
+      "Esta beca es para estudiantes mexicanos interesados en ciencia.";
     expect(extractDeadlineRaw(text)).toBeUndefined();
   });
 
@@ -151,7 +153,9 @@ describe("buildRawScholarship", () => {
       descriptionFallback: "Snippet corto de la búsqueda sobre esta beca.",
     });
     expect(result).not.toBeNull();
-    expect(result!.descriptionRaw).toBe("Snippet corto de la búsqueda sobre esta beca.");
+    expect(result!.descriptionRaw).toBe(
+      "Snippet corto de la búsqueda sobre esta beca.",
+    );
   });
 
   it("allows a beca with no detectable deadline (null deadline)", () => {
