@@ -146,7 +146,7 @@ model Scholarship {
   isVerified         Boolean           @default(false)
   isFeatured         Boolean           @default(false)
   scrapedAt          DateTime?
-  fingerprint        String            @unique
+  fingerprint        String?           @unique
   rawPayload         Json?
   validationErrors   Json?
   createdAt          DateTime          @default(now())
@@ -162,7 +162,6 @@ model Scholarship {
   @@index([status, deadline])
   @@index([countryDestination, academicLevel])
   @@index([createdAt])
-  @@index([fingerprint])
 }
 
 model ScholarshipCategory {

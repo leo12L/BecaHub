@@ -24,20 +24,40 @@ export function normalizeForFingerprint(text: string): string {
  * Genera un fingerprint único para deduplicación basado en:
  * - título normalizado (sin acentos, minúsculas, espacios colapsados)
  * - convocante normalizado
- * - año de la convocatoria (extraído de deadline si existe, o año actual)
+ * - año de la convocatoria
+ *
+ * Prioridad del año:
+ * 1. Año del deadline (si existe y es parseable)
+ * 2. Año de la fuente (rawData.year / conv_year de SECIHTI)
+ * 3. null (no se puede determinar - se buscará por título+convocante)
  */
-export function generateFingerprint(beca: BecaCandidata): string {
+export function generateFingerprint(
+  beca: BecaCandidata,
+  yearFromSource?: number,
+): string | null {
   const titleNorm = normalizeForFingerprint(beca.title);
   const convocanteNorm = beca.convocante
     ? normalizeForFingerprint(beca.convocante)
     : "";
 
-  let year = new Date().getFullYear();
+  let year: number | null = null;
+
+  // Prioridad 1: deadline
   if (beca.deadline) {
     const parsed = parseSpanishDate(beca.deadline);
     if (parsed) {
       year = parsed.getFullYear();
     }
+  }
+
+  // Prioridad 2: año de la fuente
+  if (!year && yearFromSource) {
+    year = yearFromSource;
+  }
+
+  // Si no hay año, retornar null - se buscará por título+convocante
+  if (!year) {
+    return null;
   }
 
   return `${titleNorm}|${convocanteNorm}|${year}`;
@@ -99,16 +119,27 @@ export function validateBecaCandidata(beca: unknown): ValidationResult {
 /**
  * Valida que una URL esté viva (responde 200).
  * Retorna un objeto con el estado de validación.
+ *
+ * Si HEAD responde 405 (método no permitido), reintenta con GET.
  */
 export async function validateUrlLiveness(
   url: string,
 ): Promise<{ valid: boolean; error?: string }> {
   try {
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method: "HEAD",
       redirect: "follow",
       signal: AbortSignal.timeout(10000),
     });
+
+    // Si HEAD responde 405, reintentar con GET
+    if (response.status === 405) {
+      response = await fetch(url, {
+        method: "GET",
+        redirect: "follow",
+        signal: AbortSignal.timeout(10000),
+      });
+    }
 
     if (!response.ok) {
       return {

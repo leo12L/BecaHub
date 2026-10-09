@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:unit": "vitest run src/__tests__/proxy.test.ts",
-    "test:db": "vitest run src/lib/becas/__tests__/queries.test.ts src/app/api/perfil/__tests__/route.test.ts src/lib/supabase/__tests__/server.test.ts src/lib/__tests__/user-roles.test.ts",
+    "test:db": "vitest run src/lib/becas/__tests__/queries.test.ts src/app/api/perfil/__tests__/route.test.ts src/lib/supabase/__tests__/server.test.ts src/lib/__tests__/user-roles.test.ts src/lib/ingesta/__tests__/ejecutar-db.test.ts",
     "ingesta": "tsx scripts/ingesta.ts",
     "prepare": "husky",
     "postinstall": "prisma generate"

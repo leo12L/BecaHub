@@ -6,13 +6,14 @@ import {
   generateFingerprint,
   validateBecaCandidata,
   validateUrlLiveness,
+  normalizeForFingerprint,
 } from "./utils";
 import { parseSpanishDate } from "@/scrapers/normalize";
 import { SECIHTILector } from "./fuentes/secihti";
 import { JinaLector } from "./fuentes/jina";
 
 /** Registro de lectores disponibles por slug */
-const LECTORES_REGISTRY: Record<string, new () => FuenteLector> = {
+export const LECTORES_REGISTRY: Record<string, new () => FuenteLector> = {
   "secihti-api": SECIHTILector,
   "jina-reader": JinaLector,
 };
@@ -62,21 +63,31 @@ async function procesarFuente(source: {
   const inicio = new Date();
   console.log(`[Ingesta] Iniciando: ${source.name}`);
 
-  // Crear log de scraper
-  const scraperLog = await db.scraperLog.create({
-    data: {
-      sourceId: source.id,
-      status: ScraperRunStatus.RUNNING,
-      startedAt: inicio,
-    },
-  });
-
   let encontradas = 0;
   let creadas = 0;
   let actualizadas = 0;
   let omitidas = 0;
   let error: string | undefined;
   let status: ResultadoIngesta["status"] = "SUCCESS";
+
+  // Crear log de scraper (E: con manejo de errores)
+  let scraperLogId: string | null = null;
+  try {
+    const scraperLog = await db.scraperLog.create({
+      data: {
+        sourceId: source.id,
+        status: ScraperRunStatus.RUNNING,
+        startedAt: inicio,
+      },
+    });
+    scraperLogId = scraperLog.id;
+  } catch (err) {
+    console.error(
+      `[Ingesta] Error creando ScraperLog para ${source.name}:`,
+      err,
+    );
+    // Continuar sin log
+  }
 
   try {
     const LectorClass = source.scraperAdapter
@@ -132,31 +143,47 @@ async function procesarFuente(source: {
   const fin = new Date();
   const duracionMs = fin.getTime() - inicio.getTime();
 
-  // Actualizar log de scraper
-  await db.scraperLog.update({
-    where: { id: scraperLog.id },
-    data: {
-      status:
-        status === "SUCCESS"
-          ? ScraperRunStatus.SUCCESS
-          : status === "PARTIAL"
-            ? ScraperRunStatus.PARTIAL
-            : ScraperRunStatus.FAILED,
-      itemsFound: encontradas,
-      itemsCreated: creadas,
-      itemsUpdated: actualizadas,
-      itemsSkipped: omitidas,
-      errorMessage: error,
-      finishedAt: fin,
-      durationMs: duracionMs,
-    },
-  });
+  // Actualizar log de scraper (E: con manejo de errores)
+  if (scraperLogId) {
+    try {
+      await db.scraperLog.update({
+        where: { id: scraperLogId },
+        data: {
+          status:
+            status === "SUCCESS"
+              ? ScraperRunStatus.SUCCESS
+              : status === "PARTIAL"
+                ? ScraperRunStatus.PARTIAL
+                : ScraperRunStatus.FAILED,
+          itemsFound: encontradas,
+          itemsCreated: creadas,
+          itemsUpdated: actualizadas,
+          itemsSkipped: omitidas,
+          errorMessage: error,
+          finishedAt: fin,
+          durationMs: duracionMs,
+        },
+      });
+    } catch (err) {
+      console.error(
+        `[Ingesta] Error actualizando ScraperLog para ${source.name}:`,
+        err,
+      );
+    }
+  }
 
-  // Actualizar lastScrapedAt de la fuente
-  await db.source.update({
-    where: { id: source.id },
-    data: { lastScrapedAt: fin },
-  });
+  // Actualizar lastScrapedAt de la fuente (con manejo de errores)
+  try {
+    await db.source.update({
+      where: { id: source.id },
+      data: { lastScrapedAt: fin },
+    });
+  } catch (err) {
+    console.error(
+      `[Ingesta] Error actualizando lastScrapedAt para ${source.name}:`,
+      err,
+    );
+  }
 
   console.log(
     `[Ingesta] ${source.name} completado: ${creadas} creadas, ${actualizadas} actualizadas, ${omitidas} omitidas`,
@@ -206,16 +233,142 @@ async function procesarBeca(
     validationErrors.push("Fecha de cierre ausente");
   }
 
-  // Generar fingerprint
-  const fingerprint = generateFingerprint(beca);
+  // Anotar suposiciones por defecto (F)
+  if (!beca.academicLevel) {
+    validationErrors.push(
+      "Suposición: nivel académico UNDERGRAD (no especificado)",
+    );
+  }
+  if (!beca.coverageType) {
+    validationErrors.push("Suposición: cobertura MONETARY (no especificada)");
+  }
+  if (!beca.countryDestination) {
+    validationErrors.push("Suposición: país México (no especificado)");
+  }
 
-  // Buscar si ya existe (por fingerprint)
-  const existing = await db.scholarship.findUnique({
-    where: { fingerprint },
-  });
+  // Extraer año de la fuente si existe (SECIHTI conv_year)
+  const yearFromSource = beca.rawData?.year as number | undefined;
 
-  const baseData = {
+  // Generar fingerprint con prioridad correcta (D)
+  let fingerprint = generateFingerprint(beca, yearFromSource);
+
+  // Buscar existente
+  let existing = null;
+
+  if (fingerprint) {
+    // Buscar por fingerprint
+    existing = await db.scholarship.findUnique({
+      where: { fingerprint },
+    });
+  } else {
+    // Sin año: buscar por título normalizado + convocante
+    const titleNorm = normalizeForFingerprint(beca.title);
+    const convocanteNorm = beca.convocante
+      ? normalizeForFingerprint(beca.convocante)
+      : "";
+
+    const candidates = await db.scholarship.findMany({
+      where: {
+        title: {
+          contains: titleNorm.split(" ")[0], // Buscar por primera palabra
+          mode: "insensitive",
+        },
+      },
+      select: {
+        id: true,
+        title: true,
+        fingerprint: true,
+        sourceId: true,
+      },
+    });
+
+    // Buscar coincidencia exacta de título+convocante normalizados
+    for (const candidate of candidates) {
+      const candTitleNorm = normalizeForFingerprint(candidate.title);
+      if (candTitleNorm === titleNorm) {
+        // Obtener source para verificar convocante
+        const source = await db.source.findUnique({
+          where: { id: candidate.sourceId },
+        });
+        const candConvocanteNorm = source?.name
+          ? normalizeForFingerprint(source.name)
+          : "";
+
+        if (candConvocanteNorm === convocanteNorm) {
+          existing = await db.scholarship.findUnique({
+            where: { id: candidate.id },
+          });
+          // Actualizar el fingerprint del existente si ahora tenemos año
+          if (existing && !existing.fingerprint && parsedDeadline) {
+            fingerprint = `${titleNorm}|${convocanteNorm}|${parsedDeadline.getFullYear()}`;
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  if (existing) {
+    // Actualizar solo campos permitidos (A)
+    const updateData: {
+      rawPayload?: unknown;
+      scrapedAt: Date;
+      validationErrors: unknown;
+      fingerprint?: string;
+    } = {
+      scrapedAt: new Date(),
+      validationErrors:
+        validationErrors.length > 0 ? (validationErrors as unknown) : null,
+    };
+
+    if (beca.rawData) {
+      updateData.rawPayload = beca.rawData as unknown;
+    }
+
+    if (fingerprint && fingerprint !== existing.fingerprint) {
+      updateData.fingerprint = fingerprint;
+    }
+
+    // Detectar cambios en deadline o applyUrl
+    if (existing.deadline && parsedDeadline) {
+      const existingDate = new Date(existing.deadline).getTime();
+      const newDate = parsedDeadline.getTime();
+      if (Math.abs(existingDate - newDate) > 86400000) {
+        // Diferencia >1 día
+        validationErrors.push(
+          `La fecha de cierre cambió: antes ${new Date(existing.deadline).toISOString().split("T")[0]}, ahora ${parsedDeadline.toISOString().split("T")[0]}`,
+        );
+        updateData.validationErrors = validationErrors as unknown;
+      }
+    }
+
+    if (existing.applyUrl !== beca.applyUrl) {
+      validationErrors.push(
+        `El link cambió: antes ${existing.applyUrl}, ahora ${beca.applyUrl}`,
+      );
+      updateData.validationErrors = validationErrors as unknown;
+    }
+
+    await db.scholarship.update({
+      where: { id: existing.id },
+      data: updateData as never,
+    });
+
+    return "updated";
+  }
+
+  // Crear nueva beca
+  let slug = slugify(beca.title);
+  let suffix = 1;
+
+  while (await db.scholarship.findUnique({ where: { slug } })) {
+    slug = `${slugify(beca.title)}-${suffix}`;
+    suffix += 1;
+  }
+
+  const createData = {
     title: beca.title,
+    slug,
     description: beca.description,
     status: ScholarshipStatus.PENDING_REVIEW,
     coverageType: mapCoverageType(beca.coverageType),
@@ -232,40 +385,13 @@ async function procesarBeca(
     isVerified: false,
     scrapedAt: new Date(),
     fingerprint,
-  };
-
-  const data = {
-    ...baseData,
     ...(beca.rawData && { rawPayload: beca.rawData as unknown }),
-    ...(validationErrors.length > 0 && {
-      validationErrors: validationErrors as unknown,
-    }),
+    validationErrors:
+      validationErrors.length > 0 ? (validationErrors as unknown) : null,
   };
-
-  if (existing) {
-    // Actualizar existente
-    await db.scholarship.update({
-      where: { id: existing.id },
-      data: {
-        ...data,
-        slug: existing.slug, // Mantener slug original
-      } as never,
-    });
-    return "updated";
-  }
-
-  // Crear nueva beca
-  let slug = slugify(beca.title);
-  let suffix = 1;
-
-  // Resolver colisiones de slug
-  while (await db.scholarship.findUnique({ where: { slug } })) {
-    slug = `${slugify(beca.title)}-${suffix}`;
-    suffix += 1;
-  }
 
   await db.scholarship.create({
-    data: { ...data, slug } as never,
+    data: createData as never,
   });
 
   return "created";
