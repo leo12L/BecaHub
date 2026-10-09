@@ -87,7 +87,7 @@ describe.skipIf(shouldSkip)("getCurrentUser - legacy user linking", () => {
     });
 
     // 2. Mockear Supabase Auth con email confirmado
-    vi.spyOn(supabaseServer, "getSupabaseServerClient").mockResolvedValueOnce({
+    const mockSupabaseClient = {
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: {
@@ -100,7 +100,8 @@ describe.skipIf(shouldSkip)("getCurrentUser - legacy user linking", () => {
           },
         }),
       },
-    } as never);
+    };
+    vi.mocked(getSupabaseServerClient).mockResolvedValueOnce(mockSupabaseClient as never);
 
     // 3. Llamar getCurrentUser (debe vincular)
     const linkedUser = await getCurrentUser();
@@ -143,7 +144,7 @@ describe.skipIf(shouldSkip)("getCurrentUser - legacy user linking", () => {
     });
 
     // 2. Mockear Supabase Auth SIN email confirmado
-    vi.spyOn(supabaseServer, "getSupabaseServerClient").mockResolvedValueOnce({
+    const mockSupabaseClient = {
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: {
@@ -156,7 +157,8 @@ describe.skipIf(shouldSkip)("getCurrentUser - legacy user linking", () => {
           },
         }),
       },
-    } as never);
+    };
+    vi.mocked(getSupabaseServerClient).mockResolvedValueOnce(mockSupabaseClient as never);
 
     // 3. getCurrentUser debe lanzar error solicitando confirmación
     await expect(getCurrentUser()).rejects.toThrow(
