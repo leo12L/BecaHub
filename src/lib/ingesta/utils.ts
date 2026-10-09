@@ -29,38 +29,35 @@ export function normalizeForFingerprint(text: string): string {
  * Prioridad del año:
  * 1. Año del deadline (si existe y es parseable)
  * 2. Año de la fuente (rawData.year / conv_year de SECIHTI)
- * 3. null (no se puede determinar - se buscará por título+convocante)
+ * 3. "sin-anio" (literal) si no se puede determinar
+ *
+ * NUNCA retorna null - siempre retorna un fingerprint válido.
  */
 export function generateFingerprint(
   beca: BecaCandidata,
   yearFromSource?: number,
-): string | null {
+): string {
   const titleNorm = normalizeForFingerprint(beca.title);
   const convocanteNorm = beca.convocante
     ? normalizeForFingerprint(beca.convocante)
     : "";
 
-  let year: number | null = null;
+  let yearStr = "sin-anio";
 
   // Prioridad 1: deadline
   if (beca.deadline) {
     const parsed = parseSpanishDate(beca.deadline);
     if (parsed) {
-      year = parsed.getFullYear();
+      yearStr = parsed.getFullYear().toString();
     }
   }
 
   // Prioridad 2: año de la fuente
-  if (!year && yearFromSource) {
-    year = yearFromSource;
+  if (yearStr === "sin-anio" && yearFromSource) {
+    yearStr = yearFromSource.toString();
   }
 
-  // Si no hay año, retornar null - se buscará por título+convocante
-  if (!year) {
-    return null;
-  }
-
-  return `${titleNorm}|${convocanteNorm}|${year}`;
+  return `${titleNorm}|${convocanteNorm}|${yearStr}`;
 }
 
 /**

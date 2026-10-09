@@ -458,14 +458,17 @@ describe.skipIf(!process.env.DATABASE_URL)(
       ).toBe(true);
     });
 
-    // Test 6: Año sin fecha ni conv_year - mismo fingerprint en dic/ene
-    it("Test 6: beca sin fecha en 31 dic y 1 ene genera una sola beca", async () => {
+    // Test 6: Año sin fecha ni conv_year - huella "sin-anio"
+    it("Test 6: beca sin fecha usa huella sin-anio y no duplica", async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
       }) as typeof fetch;
 
-      class TestLector6 implements FuenteLector {
+      // Convocante DISTINTO del nombre de la fuente
+      const convocante = "Fundación X";
+
+      class TestLector6A implements FuenteLector {
         readonly nombre = "Test DB 1";
         readonly sourceSlug = "test-db-1";
 
@@ -485,14 +488,14 @@ describe.skipIf(!process.env.DATABASE_URL)(
               academicLevel: "MASTERS",
               countryDestination: "México",
               language: null,
-              convocante: "Test DB Source 1",
+              convocante,
               // Sin rawData.year
             },
           ];
         }
       }
 
-      LECTORES_REGISTRY["test-db-1"] = TestLector6;
+      LECTORES_REGISTRY["test-db-1"] = TestLector6A;
 
       // Simular 31 de diciembre de 2026
       vi.useFakeTimers();
@@ -504,6 +507,12 @@ describe.skipIf(!process.env.DATABASE_URL)(
         where: { sourceId: testSourceId1 },
       });
       expect(countDic).toBe(1);
+
+      // Verificar huella sin-anio
+      const becaDic = await db.scholarship.findFirst({
+        where: { sourceId: testSourceId1 },
+      });
+      expect(becaDic?.fingerprint).toContain("sin-anio");
 
       // Simular 1 de enero de 2027
       vi.setSystemTime(new Date("2027-01-01T00:00:01Z"));
@@ -519,6 +528,69 @@ describe.skipIf(!process.env.DATABASE_URL)(
         where: { sourceId: testSourceId1 },
       });
       expect(countEne).toBe(1); // Sigue siendo solo 1
+
+      // Simular un día normal
+      vi.setSystemTime(new Date("2027-02-15T12:00:00Z"));
+
+      const resultado3 = await ejecutarIngesta(testSourceId1);
+      const result3 = resultado3[0];
+
+      // Debe contar como actualizada (no crear nueva)
+      expect(result3?.creadas).toBe(0);
+      expect(result3?.actualizadas).toBe(1);
+
+      const countFeb = await db.scholarship.count({
+        where: { sourceId: testSourceId1 },
+      });
+      expect(countFeb).toBe(1); // Sigue siendo solo 1
+
+      // Caso adicional: ahora la beca trae fecha
+      class TestLector6B implements FuenteLector {
+        readonly nombre = "Test DB 1";
+        readonly sourceSlug = "test-db-1";
+
+        async obtener() {
+          return Promise.resolve([]);
+        }
+
+        normalizar(): BecaCandidata[] {
+          return [
+            {
+              title: "Beca Sin Fecha Test",
+              description: "Ahora con fecha",
+              applyUrl: "https://example.com/sin-fecha",
+              deadline: "2027-12-31", // AHORA tiene fecha
+              amount: "$10,000 MXN",
+              coverageType: "MONETARY",
+              academicLevel: "MASTERS",
+              countryDestination: "México",
+              language: null,
+              convocante,
+            },
+          ];
+        }
+      }
+
+      LECTORES_REGISTRY["test-db-1"] = TestLector6B;
+
+      const resultado4 = await ejecutarIngesta(testSourceId1);
+      const result4 = resultado4[0];
+
+      // Debe actualizar la beca existente (no crear nueva)
+      expect(result4?.creadas).toBe(0);
+      expect(result4?.actualizadas).toBe(1);
+
+      const countFinal = await db.scholarship.count({
+        where: { sourceId: testSourceId1 },
+      });
+      expect(countFinal).toBe(1); // SIGUE siendo solo 1
+
+      // Verificar que la huella se actualizó con el año
+      const becaFinal = await db.scholarship.findFirst({
+        where: { sourceId: testSourceId1 },
+      });
+      expect(becaFinal?.fingerprint).toContain("2027");
+      expect(becaFinal?.fingerprint).not.toContain("sin-anio");
 
       vi.useRealTimers();
     });

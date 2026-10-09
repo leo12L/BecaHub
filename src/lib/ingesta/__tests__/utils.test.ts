@@ -51,7 +51,7 @@ describe("Ingesta Utils", () => {
       expect(fingerprint).toContain("2026");
     });
 
-    it("debe retornar null si no hay deadline ni año de fuente", () => {
+    it("debe usar 'sin-anio' si no hay deadline ni año de fuente", () => {
       const beca: BecaCandidata = {
         title: "Beca Sin Fecha",
         description: "Test",
@@ -62,11 +62,14 @@ describe("Ingesta Utils", () => {
         academicLevel: null,
         countryDestination: null,
         language: null,
-        convocante: null,
+        convocante: "Fundación",
       };
 
       const fingerprint = generateFingerprint(beca);
-      expect(fingerprint).toBeNull();
+      expect(fingerprint).toContain("beca sin fecha");
+      expect(fingerprint).toContain("fundacion");
+      expect(fingerprint).toContain("sin-anio");
+      expect(fingerprint).toBe("beca sin fecha|fundacion|sin-anio");
     });
 
     it("debe incluir convocante normalizado en fingerprint con año de fuente", () => {

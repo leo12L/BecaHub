@@ -257,62 +257,30 @@ async function procesarBeca(
   // Extraer año de la fuente si existe (SECIHTI conv_year)
   const yearFromSource = beca.rawData?.year as number | undefined;
 
-  // Generar fingerprint con prioridad correcta (D)
-  let fingerprint = generateFingerprint(beca, yearFromSource);
+  // Generar fingerprint (siempre retorna string, nunca null)
+  const fingerprint = generateFingerprint(beca, yearFromSource);
 
-  // Buscar existente
-  let existing = null;
+  // Buscar por fingerprint
+  let existing = await db.scholarship.findUnique({
+    where: { fingerprint },
+  });
 
-  if (fingerprint) {
-    // Buscar por fingerprint
-    existing = await db.scholarship.findUnique({
-      where: { fingerprint },
-    });
-  } else {
-    // Sin año: buscar por título normalizado + convocante
+  // Si no existe con el fingerprint actual pero la beca ahora tiene año,
+  // buscar la variante "sin-anio" para actualizar
+  if (!existing && !fingerprint.endsWith("|sin-anio")) {
     const titleNorm = normalizeForFingerprint(beca.title);
     const convocanteNorm = beca.convocante
       ? normalizeForFingerprint(beca.convocante)
       : "";
+    const fingerprintSinAnio = `${titleNorm}|${convocanteNorm}|sin-anio`;
 
-    const candidates = await db.scholarship.findMany({
-      where: {
-        title: {
-          contains: titleNorm.split(" ")[0], // Buscar por primera palabra
-          mode: "insensitive",
-        },
-      },
-      select: {
-        id: true,
-        title: true,
-        fingerprint: true,
-        sourceId: true,
-      },
+    const existingSinAnio = await db.scholarship.findUnique({
+      where: { fingerprint: fingerprintSinAnio },
     });
 
-    // Buscar coincidencia exacta de título+convocante normalizados
-    for (const candidate of candidates) {
-      const candTitleNorm = normalizeForFingerprint(candidate.title);
-      if (candTitleNorm === titleNorm) {
-        // Obtener source para verificar convocante
-        const source = await db.source.findUnique({
-          where: { id: candidate.sourceId },
-        });
-        const candConvocanteNorm = source?.name
-          ? normalizeForFingerprint(source.name)
-          : "";
-
-        if (candConvocanteNorm === convocanteNorm) {
-          existing = await db.scholarship.findUnique({
-            where: { id: candidate.id },
-          });
-          // Actualizar el fingerprint del existente si ahora tenemos año
-          if (existing && !existing.fingerprint && parsedDeadline) {
-            fingerprint = `${titleNorm}|${convocanteNorm}|${parsedDeadline.getFullYear()}`;
-          }
-          break;
-        }
-      }
+    if (existingSinAnio) {
+      existing = existingSinAnio;
+      // El fingerprint se actualizará abajo en updateData
     }
   }
 
