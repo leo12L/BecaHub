@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { profileAssistantRequestSchema } from "@/validators/profile-assistant.validator";
 import {
   chatWithAssistant,
@@ -13,10 +15,17 @@ import {
  * asistente, más el perfil estructurado propuesto cuando ya hay suficiente
  * información (`profileReady: true`).
  *
- * No requiere sesión: la conversación no se persiste aquí (ver
- * `POST /api/perfil` para guardar el perfil resultante).
+ * Requiere sesión de usuario autenticado.
  */
 export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { error: "Se requiere autenticación" },
+      { status: 401 },
+    );
+  }
   let body;
   try {
     const json = await request.json().catch(() => ({}));
