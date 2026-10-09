@@ -64,7 +64,7 @@ export async function recomendarBecas(
               {
                 countryDestination: {
                   contains: profile.countryInterest,
-                  mode: "insensitive",
+                  mode: "insensitive" as const,
                 },
               },
             ]
