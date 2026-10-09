@@ -1,112 +1,203 @@
 # BecaHub
 
-Plataforma web que agrega, categoriza y permite buscar oportunidades de becas.
+Plataforma web para buscar y gestionar oportunidades de becas para estudiantes universitarios mexicanos.
 
 ## Stack
 
-- Next.js 16 (App Router, `src/`)
-- TypeScript estricto
-- Tailwind CSS + shadcn/ui
-- Prisma + PostgreSQL
-- Redis (Upstash, opcional en desarrollo)
-- Zod
+- **Next.js 16** (App Router, React 19, TypeScript)
+- **Tailwind CSS 4** + shadcn/ui
+- **Prisma 7** + PostgreSQL (Supabase)
+- **Redis** (Upstash, opcional en desarrollo)
+- **NextAuth v4** (autenticación)
+- **Zod** (validación)
+- **Vitest** (pruebas)
 
-## Configuración rápida
+## Requisitos
 
-### 1. Prerrequisitos
+- Node.js 20 o superior
+- Git
+- Una cuenta de Supabase (Postgres) o PostgreSQL local
 
-```bash
-node --version  # v20 o superior
-git --version
-```
+## Configuración local (Windows PowerShell)
 
-### 2. Clonar el proyecto
+### 1. Clonar el repositorio
 
-```bash
+```powershell
 git clone https://github.com/leo12L/BecaHub.git
 cd BecaHub
 ```
 
-### 3. Instalar dependencias
+### 2. Instalar dependencias
 
-```bash
+```powershell
 npm install
 ```
 
-### 4. Variables de entorno
+### 3. Configurar variables de entorno
 
-Crea un archivo `.env.local` en la raíz del proyecto (o renombra `.env.example` si existe):
+Crea un archivo `.env` en la raíz del proyecto copiando `.env.example`:
 
-```env
-# Base de datos
-DATABASE_URL="postgres://..."      # conexión pooled (Supavisor)
-DIRECT_URL="postgres://..."        # conexión directa para migraciones
-
-# Redis (opcional — sin esto la caché y rate-limiting se desactivan)
-REDIS_URL=
-REDIS_TOKEN=
-
-# NextAuth
-NEXTAUTH_SECRET=                   # genera con: openssl rand -base64 32
-NEXTAUTH_URL=http://localhost:3000
-
-# OAuth de Google
-GOOGLE_CLIENT_ID=                  # opcional hasta habilitar login con Google
-GOOGLE_CLIENT_SECRET=              # opcional hasta habilitar login con Google
-
-# Emails transaccionales
-RESEND_API_KEY=                    # opcional, fase posterior
-
-# IA
-GROQ_API_KEY=
-GROQ_MODEL=llama-3.3-70b-versatile
-TAVILY_API_KEY=
-
-# Admin
-ADMIN_SCRAPER_TOKEN=               # token para /api/admin/scraper/* y /api/admin/ai/*
-ADMIN_PASSWORD=                    # contraseña del panel /admin
+```powershell
+Copy-Item .env.example .env
 ```
 
-> Los valores reales te los comparte el mantenedor del proyecto por privado.
+Edita `.env` y configura al menos estas variables obligatorias:
 
-### 5. Generar el cliente de Prisma
+```env
+# Base de datos (obtén estos valores de tu proyecto de Supabase)
+DATABASE_URL="postgresql://..."
+DIRECT_URL="postgresql://..."
 
-```bash
+# NextAuth (genera NEXTAUTH_SECRET con el comando de abajo)
+NEXTAUTH_SECRET="..."
+NEXTAUTH_URL="http://localhost:3000"
+
+# Admin (crea una contraseña segura)
+ADMIN_PASSWORD="..."
+ADMIN_SCRAPER_TOKEN="..."
+```
+
+Para generar `NEXTAUTH_SECRET` en PowerShell:
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+**Nota:** Las claves de Groq (`GROQ_API_KEY`) y Tavily (`TAVILY_API_KEY`) son opcionales. Sin ellas, el asistente de perfil y el descubrimiento automático no funcionarán, pero el resto de la aplicación sí.
+
+### 4. Configurar la base de datos
+
+Genera el cliente de Prisma:
+
+```powershell
 npx prisma generate
 ```
 
-### 6. Levantar el servidor de desarrollo
+Aplica las migraciones:
 
-```bash
+```powershell
+npx prisma migrate deploy
+```
+
+Carga los datos iniciales (categorías y fuentes):
+
+```powershell
+npx prisma db seed
+```
+
+### 5. Iniciar el servidor de desarrollo
+
+```powershell
 npm run dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000). Para detener: `Ctrl + C`.
+La aplicación estará disponible en [http://localhost:3000](http://localhost:3000).
 
-> **Windows**: puedes usar el archivo `start.bat` incluido en la raíz para levantar el servidor con doble clic.
+Para detener el servidor, presiona `Ctrl + C` en la terminal.
 
-### 7. Crear tu rama de trabajo
+## Scripts disponibles
 
-```bash
+```powershell
+npm run dev           # Inicia el servidor de desarrollo
+npm run build         # Compila la aplicación para producción
+npm start             # Inicia el servidor de producción
+npm run lint          # Ejecuta el linter
+npm test              # Ejecuta las pruebas
+npm run scrape        # Ejecuta el scraper manual (requiere sourceId)
+npm run discover      # Ejecuta el descubrimiento automático con Tavily
+```
+
+## Estructura del proyecto
+
+```
+├── src/
+│   ├── app/              # Rutas de Next.js
+│   │   ├── (public)/     # Rutas públicas (home, listado de becas)
+│   │   ├── (auth)/       # Rutas protegidas (dashboard, perfil)
+│   │   ├── (admin)/      # Panel de administración
+│   │   └── api/          # Endpoints de la API
+│   ├── components/       # Componentes React
+│   │   ├── ui/           # Componentes base de shadcn
+│   │   ├── scholarships/ # Componentes de becas
+│   │   ├── layout/       # Header, footer, etc.
+│   │   └── dashboard/    # Componentes del dashboard
+│   ├── lib/              # Utilidades y configuración
+│   │   ├── becas/        # Lógica de negocio de becas
+│   │   ├── ai/           # Integración con Groq (asistente)
+│   │   ├── discovery/    # Integración con Tavily
+│   │   └── validation/   # Validación de URLs
+│   ├── scrapers/         # Sistema de scraping
+│   │   ├── adapters/     # Adaptadores por fuente
+│   │   └── discovery/    # Heurísticas de extracción
+│   ├── validators/       # Esquemas de validación (Zod)
+│   └── types/            # Tipos compartidos de TypeScript
+├── prisma/               # Esquema y migraciones de base de datos
+├── public/               # Archivos estáticos
+└── scripts/              # Scripts de utilidad
+```
+
+## Desarrollo
+
+### Flujo de trabajo con Git
+
+1. Crea una rama para tu tarea:
+
+```powershell
 git checkout -b feat/nombre-de-tu-tarea
 ```
 
-### 8. Subir cambios
+2. Realiza tus cambios y haz commits descriptivos:
 
-```bash
+```powershell
 git add .
-git commit -m "feat: descripcion corta"
+git commit -m "feat: descripción corta del cambio"
+```
+
+3. Sube tu rama:
+
+```powershell
 git push origin feat/nombre-de-tu-rama
 ```
 
-Luego abre un Pull Request en [github.com/leo12L/BecaHub](https://github.com/leo12L/BecaHub).
+4. Abre un Pull Request en GitHub.
 
-## Estructura
+### Convenciones de commits
 
-- `src/app/` — rutas (App Router): `(public)`, `(auth)`, `(admin)`, `api`
-- `src/components/` — componentes UI (`ui/`, `scholarships/`, `layout/`)
-- `src/lib/` — utilidades y clientes (DB, Redis, etc.)
-- `src/scrapers/` — adaptadores y orquestador para extraer becas de fuentes externas
-- `src/validators/` — esquemas de validación (Zod)
-- `src/types/` — tipos compartidos de TypeScript
-- `prisma/` — esquema y migraciones de base de datos
+- `feat:` - Nueva funcionalidad
+- `fix:` - Corrección de errores
+- `chore:` - Tareas de mantenimiento
+- `docs:` - Cambios en documentación
+- `refactor:` - Refactorización de código
+- `test:` - Añadir o modificar pruebas
+- `style:` - Cambios de formato (no afectan la lógica)
+
+## Estado del proyecto
+
+Este proyecto está en **Fase 0** (limpieza) tras un período de inactividad. Las siguientes funcionalidades están implementadas:
+
+- ✅ Listado y búsqueda de becas
+- ✅ Sistema de scraping con adaptadores
+- ✅ Panel de administración básico
+- ✅ Descubrimiento automático con Tavily (requiere clave)
+- ✅ Asistente de perfil con Groq (requiere clave)
+- ⚠️ Autenticación (provisoria, pendiente de migrar a NextAuth)
+- ⚠️ Dashboard (esqueleto, no conectado a datos reales)
+
+### Servicios desactivados
+
+Los siguientes servicios fueron desactivados porque el propietario ya no tiene acceso:
+
+- ❌ Perplexity (descubrimiento alternativo)
+- ❌ Scraper de gob.mx/becasbenitojuarez (URL da 404)
+
+## Contribuir
+
+1. Revisa los issues abiertos o crea uno nuevo
+2. Haz fork del repositorio
+3. Crea una rama para tu contribución
+4. Realiza tus cambios
+5. Abre un Pull Request
+
+## Licencia
+
+Este proyecto es privado. Todos los derechos reservados.

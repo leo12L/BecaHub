@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { BecasTable } from "@/components/admin/becas-table";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_FILTERS = [
   { value: undefined, label: "Todas" },
   { value: "ACTIVE", label: "Activas" },

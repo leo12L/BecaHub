@@ -94,23 +94,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // --- Perplexity (if available) ---
-  if (process.env.PERPLEXITY_API_KEY) {
-    for (const query of queries.slice(0, 2)) {
-      try {
-        const results = await perplexitySearch(query, 5);
-        for (const r of results) {
-          if (r.url && !seen.has(r.url) && !existingUrls.has(r.url)) {
-            seen.add(r.url);
-            candidates.push({ url: r.url, title: r.url, content: r.content });
-          }
-        }
-      } catch (err) {
-        if (err instanceof PerplexityUnavailableError) break;
-      }
-    }
-  }
-
   const saved: { id: string; title: string; slug: string; status: string }[] =
     [];
 
