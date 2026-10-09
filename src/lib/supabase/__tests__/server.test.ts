@@ -1,17 +1,21 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { db } from "@/lib/db";
+
+// Mock de cookies() de Next.js y createServerClient de Supabase
+const mockCookies = vi.fn();
+vi.mock("next/headers", () => ({
+  cookies: () => mockCookies(),
+}));
+
+const mockCreateServerClient = vi.fn();
+vi.mock("@supabase/ssr", () => ({
+  createServerClient: (...args: unknown[]) => mockCreateServerClient(...args),
+  parseCookieHeader: vi.fn(),
+  serializeCookieHeader: vi.fn(),
+}));
+
+// Ahora importamos getCurrentUser con los mocks aplicados
 import { getCurrentUser } from "../server";
-
-// Mock getSupabaseServerClient para evitar el error de cookies()
-vi.mock("../server", async () => {
-  const actual = await vi.importActual("../server");
-  return {
-    ...actual,
-    getSupabaseServerClient: vi.fn(),
-  };
-});
-
-import { getSupabaseServerClient } from "../server";
 
 // Skip tests if DATABASE_URL is not set
 const shouldSkip = !process.env.DATABASE_URL;
@@ -26,6 +30,18 @@ describe.skipIf(shouldSkip)("getCurrentUser - legacy user linking", () => {
     await db.favorite.deleteMany({ where: { userId: { in: [legacyUserId, supabaseUserId] } } });
     await db.profile.deleteMany({ where: { userId: { in: [legacyUserId, supabaseUserId] } } });
     await db.user.deleteMany({ where: { id: { in: [legacyUserId, supabaseUserId] } } });
+    
+    // Reset mocks
+    mockCookies.mockClear();
+    mockCreateServerClient.mockClear();
+    
+    // Setup default mock for cookies
+    mockCookies.mockReturnValue({
+      get: vi.fn(),
+      getAll: vi.fn().mockReturnValue([]),
+      set: vi.fn(),
+      delete: vi.fn(),
+    });
   });
 
   afterAll(async () => {
@@ -87,7 +103,7 @@ describe.skipIf(shouldSkip)("getCurrentUser - legacy user linking", () => {
     });
 
     // 2. Mockear Supabase Auth con email confirmado
-    const mockSupabaseClient = {
+    mockCreateServerClient.mockReturnValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: {
@@ -100,8 +116,7 @@ describe.skipIf(shouldSkip)("getCurrentUser - legacy user linking", () => {
           },
         }),
       },
-    };
-    vi.mocked(getSupabaseServerClient).mockResolvedValueOnce(mockSupabaseClient as never);
+    });
 
     // 3. Llamar getCurrentUser (debe vincular)
     const linkedUser = await getCurrentUser();
@@ -144,7 +159,7 @@ describe.skipIf(shouldSkip)("getCurrentUser - legacy user linking", () => {
     });
 
     // 2. Mockear Supabase Auth SIN email confirmado
-    const mockSupabaseClient = {
+    mockCreateServerClient.mockReturnValue({
       auth: {
         getUser: vi.fn().mockResolvedValue({
           data: {
@@ -157,8 +172,7 @@ describe.skipIf(shouldSkip)("getCurrentUser - legacy user linking", () => {
           },
         }),
       },
-    };
-    vi.mocked(getSupabaseServerClient).mockResolvedValueOnce(mockSupabaseClient as never);
+    });
 
     // 3. getCurrentUser debe lanzar error solicitando confirmación
     await expect(getCurrentUser()).rejects.toThrow(
