@@ -1,15 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Search, Bot, LogOut, LogIn } from "lucide-react";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export function DashboardTopbar() {
-  const { data: session } = useSession();
+  const { user } = useSupabaseAuth();
+  const router = useRouter();
+
   const userName =
-    session?.user?.name ??
-    session?.user?.email?.split("@")[0] ??
+    user?.user_metadata?.name ??
+    user?.email?.split("@")[0] ??
     "estudiante";
+
+  async function handleSignOut() {
+    const supabase = getSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    router.push("/");
+  }
 
   return (
     <header className="border-border bg-card flex shrink-0 flex-col gap-4 border-b px-4 py-4 shadow-sm sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
@@ -38,7 +48,7 @@ export function DashboardTopbar() {
         <div className="text-left lg:text-right">
           <p className="text-foreground text-sm font-bold">Hola, {userName}</p>
           <p className="text-muted-foreground text-xs">
-            {session ? "Sesión activa" : "Convocatorias verificadas"}
+            {user ? "Sesión activa" : "Convocatorias verificadas"}
           </p>
         </div>
 
@@ -54,10 +64,10 @@ export function DashboardTopbar() {
         </Link>
 
         {/* Auth button */}
-        {session ? (
+        {user ? (
           <button
             type="button"
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={handleSignOut}
             className="border-border text-muted-foreground hover:text-primary flex items-center gap-1.5 rounded-xl border bg-white px-3 py-2 text-xs font-semibold transition-all"
             title="Cerrar sesión"
           >

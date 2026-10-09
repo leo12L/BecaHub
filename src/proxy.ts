@@ -1,33 +1,125 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { isAdminSessionRequest } from "@/lib/admin-auth";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
-/**
- * TODO: reemplazar por autenticación real (NextAuth).
- *
- * Gate provisional para el panel `/admin` y sus endpoints de datos
- * (`/api/admin/becas/*`). Las páginas sin sesión válida se redirigen a
- * `/admin/login`; los endpoints de API responden 401 JSON.
- */
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname === "/admin/login") {
-    return NextResponse.next();
+  // Proteger /dashboard - requiere autenticación
+  if (pathname.startsWith("/dashboard")) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json(
+        { error: "Supabase configuration missing" },
+        { status: 500 },
+      );
+    }
+
+    let response = NextResponse.next({ request });
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(
+          cookiesToSet: Array<{ name: string; value: string; options?: unknown }>,
+        ) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value),
+          );
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2]),
+          );
+        },
+      },
+    });
+
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    return response;
   }
 
-  if (isAdminSessionRequest(request)) {
-    return NextResponse.next();
+  // Proteger rutas /admin y /api/admin (excepto /admin/login)
+  if (
+    (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) &&
+    !pathname.startsWith("/admin/login")
+  ) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json(
+        { error: "Supabase configuration missing" },
+        { status: 500 },
+      );
+    }
+
+    let response = NextResponse.next({
+      request,
+    });
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(
+          cookiesToSet: Array<{ name: string; value: string; options?: unknown }>,
+        ) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value),
+          );
+          response = NextResponse.next({
+            request,
+          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2]),
+          );
+        },
+      },
+    });
+
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (!authUser) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      return NextResponse.redirect(new URL("/admin/login", request.url));
+    }
+
+    // Verificar rol en Prisma
+    const { db } = await import("@/lib/db");
+    const user = await db.user.findUnique({
+      where: { id: authUser.id },
+      select: { role: true },
+    });
+
+    if (!user || (user.role !== "ADMIN" && user.role !== "MODERATOR")) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    return response;
   }
 
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  const loginUrl = new URL("/admin/login", request.url);
-  loginUrl.searchParams.set("from", pathname);
-  return NextResponse.redirect(loginUrl);
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/becas/:path*", "/dashboard/:path*"],
+  matcher: ["/admin/:path*", "/api/admin/:path*", "/dashboard/:path*"],
 };

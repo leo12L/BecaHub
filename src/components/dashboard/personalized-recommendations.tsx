@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Sparkles, ExternalLink, RefreshCw } from "lucide-react";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
 
 interface BecaRecomendada {
   id: string;
@@ -20,7 +20,7 @@ interface BecaRecomendada {
 const PROFILE_KEY = "becahub_profile_draft";
 
 export function PersonalizedRecommendations() {
-  const { data: session } = useSession();
+  const { user } = useSupabaseAuth();
   const [items, setItems] = useState<BecaRecomendada[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasProfile, setHasProfile] = useState(false);
@@ -57,7 +57,7 @@ export function PersonalizedRecommendations() {
   useEffect(() => {
     async function loadProfile() {
       // 1. Try DB profile if logged in
-      if (session?.user?.id) {
+      if (user?.id) {
         try {
           const res = await fetch("/api/perfil/me");
           const json = await res.json();
@@ -85,7 +85,7 @@ export function PersonalizedRecommendations() {
     }
 
     loadProfile();
-  }, [session?.user?.id, fetchRecommendations]);
+  }, [user?.id, fetchRecommendations]);
 
   if (!hasProfile) return null;
 

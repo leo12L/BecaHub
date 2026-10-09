@@ -1,0 +1,15 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[context.production.environment]
+  # La aplicación usa el pooler de Supabase (puerto 6543) para conexiones pooled
+  # DATABASE_URL debe apuntar al pooler con ?pgbouncer=true
+  # DIRECT_URL debe apuntar a la conexión directa (puerto 5432) para migraciones
+  NEXT_RUNTIME = "nodejs"

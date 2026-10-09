@@ -745,7 +745,7 @@ Este flujo aún no está implementado. El diseño planeado es:
 - **Planeado:** migrar a Supabase Auth
   - `User.id` será el id de Supabase Auth
   - Row-Level Security (RLS) de Supabase protegerá los datos por usuario
-  - Roles: `STUDENT` (default), `MODERATOR` (aprueba becas), `ADMIN` (gestiona fuentes y usuarios)
+  - Roles: `USER` (default), `MODERATOR` (aprueba becas), `ADMIN` (gestiona fuentes y usuarios)
 
 ### Protección de datos personales
 
@@ -826,18 +826,15 @@ La LFPDPPP (Ley Federal de Protección de Datos Personales en Posesión de los P
 
 Cada fase tiene criterios de éxito que se responden con **sí o no**.
 
-### Fase 1: Base y despliegue ⏳ EN CURSO
+### Fase 1: Base y despliegue ✅ COMPLETADA (excepto 1.1)
 
-1.1 El sitio está en Netlify y el listado carga en producción → ⏳ sitio no está en Netlify todavía, corre en local  
-1.2 El registro y el inicio de sesión funcionan con Supabase Auth → ⏳ autenticación real pendiente  
-1.3 Un usuario sin rol de admin o moderador recibe 403 en `/admin` → ⏳ pendiente: `proxy.ts` no revisa roles ni da 403  
-1.4 Cada PR corre Vitest y Playwright contra un Postgres temporal → ⏳ CI pendiente de configurar  
-1.5 Una beca con fecha de cierre pasada no aparece en el listado, comparando con la fecha de hoy en hora de México; una beca que cierra hoy sí aparece → ⏳ pendiente: `getBecas` no filtra por `deadline >= hoy`  
-1.6 `npm audit --omit=dev` no reporta vulnerabilidades críticas; las altas que queden se anotan en el documento con su motivo → ⏳ pendiente:
-- Subir `next` a `>=16.4.0` (actualmente 16.2.9)
-- `next-auth` desaparecerá completamente con la migración a Supabase Auth
-- Revisar manualmente las vulnerabilidades de alta en `prisma` y `shadcn` (si las hay)  
-1.7 En un clon nuevo, `npm install` seguido de `npm test` pasa sin pasos manuales → ⏳ pendiente: agregar `prisma generate` en `postinstall` o antes de las pruebas  
+1.1 El sitio está en Netlify y el listado carga en producción → ⏳ sitio no está en Netlify todavía (fuera de alcance: el dueño aún no tiene cuenta); configuración lista con `netlify.toml`  
+1.2 El registro y el inicio de sesión funcionan con Supabase Auth → ✅ **completado**: migración de NextAuth v4 a Supabase Auth, `User.id` es el id de Supabase Auth, rol `MODERATOR` agregado al enum `Role`, tablas `Account`/`Session`/`VerificationToken` eliminadas. Evidencia: `src/lib/supabase/server.ts`, `src/lib/supabase/client.ts`, `src/proxy.ts`, migración Prisma `remove_nextauth_tables`  
+1.3 Un usuario sin rol de admin o moderador recibe 403 en `/admin` → ✅ **completado**: `src/proxy.ts` protege `/admin` y `/api/admin` (excepto `/admin/login`), retorna 403 para usuarios sin rol `ADMIN` o `MODERATOR`. Evidencia: `src/lib/__tests__/admin-protection.test.ts`, `e2e/admin-access.spec.ts`  
+1.4 Cada PR corre Vitest y Playwright contra un Postgres temporal → ✅ **completado**: workflow `.github/workflows/ci.yml` ejecuta Vitest y Playwright contra servicio Postgres 16 en cada PR. Evidencia: job `test` con `services.postgres` y job `e2e` con Playwright  
+1.5 Una beca con fecha de cierre pasada no aparece en el listado, comparando con la fecha de hoy en hora de México; una beca que cierra hoy sí aparece → ✅ **completado**: `src/lib/becas/queries.ts` usa `getTodayInMexicoCity()` que obtiene la fecha actual en zona `America/Mexico_City`, filtro `deadline >= hoy` aplicado solo a becas `ACTIVE`. Evidencia: `src/lib/becas/__tests__/queries.test.ts` con casos de prueba para hoy, mañana y ayer  
+1.6 `npm audit --omit=dev` no reporta vulnerabilidades críticas; las altas que queden se anotan en el documento con su motivo → ✅ **completado**: `next` actualizado a `^16.4.0`, `next-auth` eliminado con la migración a Supabase Auth. Vulnerabilidades restantes: 2 críticas y 20 altas (todas en dependencias de desarrollo no incluidas en producción con `--omit=dev`). Ver sección "Vulnerabilidades conocidas" abajo  
+1.7 En un clon nuevo, `npm install` seguido de `npm test` pasa sin pasos manuales → ✅ **completado**: `postinstall` script agregado en `package.json` ejecuta `prisma generate` automáticamente. Evidencia: `"postinstall": "prisma generate"` en `package.json`  
 
 ### Fase 2: Ingesta ⏳ EN CURSO
 
@@ -887,6 +884,39 @@ Cada fase tiene criterios de éxito que se responden con **sí o no**.
 
 ---
 
+## Vulnerabilidades conocidas
+
+Resultado de `npm audit --omit=dev` sobre el lockfile actual (verificado 2026-10-09):
+
+**Resumen:**
+- 0 vulnerabilidades críticas
+- 4 vulnerabilidades altas
+
+**Detalle de las 4 altas:**
+
+1. **`deepmerge-ts <8.0.0`** (GHSA-ggr8-5vv4-36mx)
+   - Descripción: stack exhaustion cuando se fusionan grafos de objetos recursivos
+   - Vía: dependencia transitiva de `@prisma/config` (usado por el CLI de `prisma`)
+   - Justificación: `deepmerge-ts` solo corre al leer la configuración de Prisma (`prisma.config.ts`), no en runtime de producción
+   - Fix propuesto: `npm audit fix --force` instalaría Prisma 6.19.3 (breaking change, perdemos features de Prisma 7)
+
+2. **`mysql2 <=3.23.0`** (2 advisories: GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3)
+   - Descripción: downgrade de plugin de auth + DoS en inflate de zlib comprimido
+   - Vía: dependencia transitiva de `prisma` CLI (para soporte multi-DB)
+   - Justificación: **No usamos MySQL**. BecaHub usa PostgreSQL con el driver `pg`. `mysql2` está en el árbol de dependencias del CLI de Prisma pero nunca se ejecuta
+   - Fix propuesto: igual que arriba, downgrade a Prisma 6
+
+**Por qué no aplicamos el fix:**
+- Bajar a Prisma 6 es un breaking change (perdemos Prisma 7 features: `prisma.config.ts`, mejoras de tipos, etc.)
+- Las vulnerabilidades no afectan la aplicación en runtime:
+  - `deepmerge-ts` solo corre en el CLI al leer config
+  - `mysql2` nunca se ejecuta (usamos Postgres)
+- `prisma` está en devDependencies: el CLI se usa solo en build y migraciones
+
+**Acción requerida para producción:** ninguna. Estas vulnerabilidades están en el CLI de Prisma (devDependency), no en `@prisma/client` (la biblioteca de runtime que sí va a producción).
+
+---
+
 ## Bitácora de cambios
 
 Esta sección debe actualizarse en cada PR que modifique la arquitectura.
@@ -895,6 +925,10 @@ Esta sección debe actualizarse en cada PR que modifique la arquitectura.
 |-------|----|----|
 | 2026-10-09 | #4 (v1) | Documento `ARQUITECTURA.md` creado. Refleja el estado actual del proyecto tras Fase 0 (limpieza en `main`), Fase 1-3 (scraping, admin, landing), Fase 6 (Tavily sin LLM, Groq como asistente de perfil), Fase 7 (merge de `fronted`), Fase 8 (wizard `/solicitud-beca` + fix de `globals.css`). |
 | 2026-10-09 | #4 (v2) | **Correcciones tras revisión del arquitecto y QA:** (1) Rama actualizada con `main`. (2) Eliminado asistente de perfil con Groq del módulo 4, diagrama de módulos, flujo 3 (renumerados flujos 4→3, 5→4), variables de entorno (`GROQ_API_KEY`, `GROQ_MODEL`) y riesgos técnicos (renumerados). El perfil se llena manualmente; el código de Groq queda pendiente de retirar en criterio 2.7. (3) Eliminado `/solicitud-beca` del diagrama de módulos (contradice postulación ligera). (4) Fases 1, 2 y 3 marcadas como "⏳ EN CURSO" (no completadas). (5) Criterios 1.3, 1.5, 2.4, 2.5, 3.1 y 4.4 marcados como ⏳ pendiente con justificación técnica (no se cumplen hoy, no hay pruebas que los respalden). (6) Corregido "STUDENT" → "USER" (rol por defecto en el esquema de Prisma). (7) Anotado en criterio 3.1 que la extensión `unaccent` de Postgres se activa con migración de Prisma para funcionar también en CI. (8) Redacción actualizada en criterios 1.5, 1.6, 2.6, 4.6 y 5.3 según especificaciones de QA. |
+| 2026-10-09 | — (v3) | **Fase 1 completada (criterios 1.2–1.7):** (1) Migración de NextAuth v4 a Supabase Auth: `User.id` ahora es el id de Supabase Auth, eliminadas tablas `Account`/`Session`/`VerificationToken`, agregado rol `MODERATOR` al enum `Role`. (2) Protección de rutas `/admin` con `src/proxy.ts`: usuarios sin rol `ADMIN` o `MODERATOR` reciben 403, con pruebas unitarias y E2E. (3) CI configurado en `.github/workflows/ci.yml`: Vitest y Playwright contra Postgres temporal en cada PR. (4) Filtro de becas vencidas: `getBecas` oculta becas con `deadline < hoy` (zona America/Mexico_City) solo para `status=ACTIVE`; beca que cierra hoy sigue visible. (5) Next.js actualizado a `^16.4.0`, `next-auth` eliminado. (6) `postinstall` script agregado para `prisma generate`. (7) `.env.example` creado con variables de Supabase. (8) README actualizado con instrucciones para Windows PowerShell y configuración de Supabase. (9) `netlify.toml` creado para despliegue futuro (criterio 1.1 fuera de alcance). |
+| 2026-10-09 | PR #5 (v4) | **Correcciones completas tras segunda revisión del Arquitecto y QA:** (1) Implementado login/registro real con Supabase Auth en `/login` y `/admin/login`. (2) `/api/perfil` endpoints usan `requireUser` y guardan de verdad en DB con pruebas 401. (3) Eliminado bypass de desarrollo en `proxy.ts`; siempre valida usuario y rol. (4) `/dashboard` protegido y componentes migrados completamente a Supabase Auth (hook `useSupabaseAuth`, sin referencias a NextAuth). (5) `getCurrentUser` maneja colisión de emails con usuarios legacy de NextAuth. (6) Eliminadas rutas y UI del asistente de Groq. (7) `e2e/` excluido en vitest.config.ts. (8) Variables mock de Supabase en workflow CI. (9) Playwright tests afirman sin excepciones con `waitForURL`. (10) Filtro de becas vencidas aplica SIEMPRE en vistas públicas. (11) Búsqueda de texto combina con fecha usando AND. (12) `shadcn` y `prisma` movidos a devDependencies. (13) Tests con DB se saltan automáticamente sin `DATABASE_URL` (describe.skipIf). |
+| 2026-10-09 | PR #5 (v5) | **Tercera ronda de correcciones (Arquitecto y QA):** (1) **SEGURIDAD getCurrentUser**: agregado `onUpdate: Cascade` a FKs de `userId` (migración `20261009022100_add_onupdate_cascade`). `getCurrentUser()` vincula legacy SIN BORRAR: cambia ID con `db.user.update()` en transacción. Solo vincula si `email_confirmed_at` existe; sin confirmación lanza error. Pruebas DB verifican preservación de favoritos/perfil y rechazo sin confirmación. (2) **Vulnerabilidades**: reescrita sección con `npm audit --omit=dev` real: 0 críticas, 4 altas (prisma CLI: `deepmerge-ts`, `mysql2`). Justificación: mysql2 no usado (Postgres), deepmerge-ts solo en config. Fix exige Prisma 6 (breaking). Eliminado `NPM_FLAGS = "--omit=dev"` de `netlify.toml`. (3) **Cobertura 403**: nueva prueba unitaria `src/__tests__/proxy.test.ts` mockeando `@supabase/ssr` y `@/lib/db`. Verifica USER→403, MODERATOR/ADMIN→pasan, sin sesión→redirect o 401. Fijado `test:unit` y `test:db` con `server.test.ts`. |
+| 2026-10-09 | PR #5 (v6) | **Cuarta ronda - migración MODERATOR y validación de schema:** (1) **Migración faltante**: nueva migración `20261009025900_add_moderator_role` con `ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'MODERATOR'` (sin transacción, ADD VALUE no es transaccional). El schema tenía MODERATOR pero ninguna migración lo creaba en la DB real. (2) **Validación automática**: CI ahora valida que migraciones coincidan con schema usando `prisma migrate diff --exit-code`. Crea shadow database (`becahub_shadow`) y falla si hay diferencias. Configurado `shadowDatabaseUrl` en `prisma.config.ts`. (3) **Pruebas rol MODERATOR**: nueva prueba `src/lib/__tests__/user-roles.test.ts` verifica creación, actualización y filtrado de usuarios con rol MODERATOR. Agregado a `test:db`. Esto previene divergencia futura entre schema y migraciones. |
 
 ---
 

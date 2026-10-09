@@ -1,62 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ZodError } from "zod";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireUser } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
-import type { AcademicLevel, CoverageType } from "@/generated/prisma/enums";
-import { savePerfilSchema } from "@/validators/profile.validator";
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-
-  let body;
   try {
-    const json = await request.json().catch(() => ({}));
-    body = savePerfilSchema.parse(json);
+    const user = await requireUser();
+    const body = await request.json();
+
+    const profile = await db.profile.upsert({
+      where: { userId: user.id },
+      update: {
+        academicLevel: body.academicLevel || null,
+        fieldOfInterest: body.fieldOfInterest || null,
+        countryOrigin: body.countryOrigin || null,
+        countryInterest: body.countryInterest || null,
+        scholarshipTypes: body.scholarshipTypes || [],
+        language: body.language || null,
+        situation: body.situation || null,
+        goals: body.goals || null,
+        updatedAt: new Date(),
+      },
+      create: {
+        userId: user.id,
+        academicLevel: body.academicLevel || null,
+        fieldOfInterest: body.fieldOfInterest || null,
+        countryOrigin: body.countryOrigin || null,
+        countryInterest: body.countryInterest || null,
+        scholarshipTypes: body.scholarshipTypes || [],
+        language: body.language || null,
+        situation: body.situation || null,
+        goals: body.goals || null,
+      },
+    });
+
+    return NextResponse.json({ success: true, profile });
   } catch (error) {
-    if (error instanceof ZodError) {
-      return NextResponse.json(
-        { error: "Cuerpo inválido", details: error.issues },
-        { status: 400 },
-      );
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    throw error;
-  }
-
-  // Session userId is required - no fallback to body userId
-  const userId = session?.user?.id;
-  if (!userId) {
+    console.error(error);
     return NextResponse.json(
-      { error: "Se requiere autenticación" },
-      { status: 401 },
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
-
-  const user = await db.user.findUnique({ where: { id: userId } });
-  if (!user) {
-    return NextResponse.json(
-      { error: "Usuario no encontrado" },
-      { status: 404 },
-    );
-  }
-
-  const { profile } = body;
-  const data = {
-    academicLevel: profile.academicLevel as AcademicLevel | null,
-    fieldOfInterest: profile.fieldOfInterest,
-    countryOrigin: profile.countryOrigin,
-    countryInterest: profile.countryInterest,
-    scholarshipTypes: profile.scholarshipTypes as CoverageType[],
-    language: profile.language,
-    situation: profile.situation,
-    goals: profile.goals,
-  };
-
-  const saved = await db.profile.upsert({
-    where: { userId },
-    update: data,
-    create: { userId, ...data },
-  });
-
-  return NextResponse.json({ profile: saved });
 }

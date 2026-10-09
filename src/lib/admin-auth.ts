@@ -2,8 +2,7 @@ import type { NextRequest } from "next/server";
 
 /**
  * Verificación provisional para endpoints de admin del scraper: compara el
- * header `x-admin-scraper-token` contra `ADMIN_SCRAPER_TOKEN`. Se migrará a
- * la autenticación real (NextAuth) en una fase posterior.
+ * header `x-admin-scraper-token` contra `ADMIN_SCRAPER_TOKEN`.
  */
 export function isAdminScraperRequest(request: NextRequest): boolean {
   const expected = process.env.ADMIN_SCRAPER_TOKEN;
@@ -14,7 +13,7 @@ export function isAdminScraperRequest(request: NextRequest): boolean {
 }
 
 /**
- * TODO: reemplazar por autenticación real (NextAuth) cuando esté disponible.
+ * TODO: eliminar en favor de Supabase Auth cuando se complete la migración del panel admin.
  *
  * Nombre de la cookie que guarda la sesión interina del panel `/admin`. Su
  * valor es directamente `ADMIN_PASSWORD` — suficiente como gate provisional
@@ -23,7 +22,7 @@ export function isAdminScraperRequest(request: NextRequest): boolean {
 export const ADMIN_SESSION_COOKIE = "becahub_admin_session";
 
 /**
- * TODO: reemplazar por autenticación real (NextAuth).
+ * TODO: eliminar en favor de Supabase Auth cuando se complete la migración del panel admin.
  *
  * Verifica la cookie de sesión interina del panel `/admin` contra
  * `ADMIN_PASSWORD`. Si `ADMIN_PASSWORD` no está configurada, el panel queda
