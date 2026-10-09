@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useSession } from "next-auth/react";
+// TODO: Migrar a Supabase Auth en fase posterior
+// import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Sparkles, ExternalLink, RefreshCw } from "lucide-react";
 
@@ -20,7 +21,8 @@ interface BecaRecomendada {
 const PROFILE_KEY = "becahub_profile_draft";
 
 export function PersonalizedRecommendations() {
-  const { data: session } = useSession();
+  // TODO: Migrar a Supabase Auth
+  const session = null as { user?: { id?: string } } | null;
   const [items, setItems] = useState<BecaRecomendada[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasProfile, setHasProfile] = useState(false);

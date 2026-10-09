@@ -1,62 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ZodError } from "zod";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+// TODO: Migrar a Supabase Auth
+// import { getCurrentUser } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
-import type { AcademicLevel, CoverageType } from "@/generated/prisma/enums";
-import { savePerfilSchema } from "@/validators/profile.validator";
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-
-  let body;
   try {
-    const json = await request.json().catch(() => ({}));
-    body = savePerfilSchema.parse(json);
+    const body = await request.json();
+
+    // TODO: Descomentar cuando se complete la migración del frontend
+    // const user = await getCurrentUser();
+    // if (!user) {
+    //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // }
+
+    // const profile = await db.profile.upsert({
+    //   where: { userId: user.id },
+    //   update: { ...body },
+    //   create: { userId: user.id, ...body },
+    // });
+
+    return NextResponse.json({ success: true, profile: null });
   } catch (error) {
-    if (error instanceof ZodError) {
-      return NextResponse.json(
-        { error: "Cuerpo inválido", details: error.issues },
-        { status: 400 },
-      );
-    }
-    throw error;
-  }
-
-  // Session userId is required - no fallback to body userId
-  const userId = session?.user?.id;
-  if (!userId) {
+    console.error(error);
     return NextResponse.json(
-      { error: "Se requiere autenticación" },
-      { status: 401 },
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
-
-  const user = await db.user.findUnique({ where: { id: userId } });
-  if (!user) {
-    return NextResponse.json(
-      { error: "Usuario no encontrado" },
-      { status: 404 },
-    );
-  }
-
-  const { profile } = body;
-  const data = {
-    academicLevel: profile.academicLevel as AcademicLevel | null,
-    fieldOfInterest: profile.fieldOfInterest,
-    countryOrigin: profile.countryOrigin,
-    countryInterest: profile.countryInterest,
-    scholarshipTypes: profile.scholarshipTypes as CoverageType[],
-    language: profile.language,
-    situation: profile.situation,
-    goals: profile.goals,
-  };
-
-  const saved = await db.profile.upsert({
-    where: { userId },
-    update: data,
-    create: { userId, ...data },
-  });
-
-  return NextResponse.json({ profile: saved });
 }

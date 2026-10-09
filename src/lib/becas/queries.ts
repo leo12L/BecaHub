@@ -38,7 +38,23 @@ function flattenCategories<T extends { categories: { category: unknown }[] }>(
 }
 
 /**
+ * Retorna la fecha de hoy en zona horaria America/Mexico_City (inicio del día).
+ * Una beca que cierra hoy aún está vigente.
+ */
+function getTodayInMexicoCity(): Date {
+  const now = new Date();
+  const mexicoTimeString = now.toLocaleString("en-US", {
+    timeZone: "America/Mexico_City",
+  });
+  const mexicoDate = new Date(mexicoTimeString);
+  mexicoDate.setHours(0, 0, 0, 0);
+  return mexicoDate;
+}
+
+/**
  * Catalogo completo por defecto. Si no llega `status`, no se filtra por estado.
+ * Las becas con deadline < hoy (en zona America/Mexico_City) se ocultan automáticamente
+ * si el status es ACTIVE.
  */
 export async function getBecas(
   query: BecasQuery,
@@ -47,6 +63,12 @@ export async function getBecas(
   const where: Prisma.ScholarshipWhereInput = {};
   if (query.status) {
     where.status = query.status;
+  }
+
+  // Ocultar becas vencidas si se solicitan becas ACTIVE
+  if (query.status === "ACTIVE") {
+    const todayMexico = getTodayInMexicoCity();
+    where.OR = [{ deadline: { gte: todayMexico } }, { deadline: null }];
   }
 
   if (query.country) {

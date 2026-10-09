@@ -10,7 +10,7 @@ Plataforma web para buscar y gestionar oportunidades de becas para estudiantes u
 - **Tailwind CSS 4** + shadcn/ui
 - **Prisma 7** + PostgreSQL (Supabase)
 - **Redis** (Upstash, opcional en desarrollo)
-- **NextAuth v4** (autenticación)
+- **Supabase Auth** (autenticación)
 - **Zod** (validación)
 - **Vitest** (pruebas)
 
@@ -37,33 +37,13 @@ npm install
 
 ### 3. Configurar variables de entorno
 
-Crea un archivo `.env` en la raíz del proyecto copiando `.env.example`:
+Crea un archivo `.env.local` en la raíz del proyecto copiando `.env.example`:
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item .env.example .env.local
 ```
 
-Edita `.env` y configura al menos estas variables obligatorias:
-
-```env
-# Base de datos (obtén estos valores de tu proyecto de Supabase)
-DATABASE_URL="postgresql://..."
-DIRECT_URL="postgresql://..."
-
-# NextAuth (genera NEXTAUTH_SECRET con el comando de abajo)
-NEXTAUTH_SECRET="..."
-NEXTAUTH_URL="http://localhost:3000"
-
-# Admin (crea una contraseña segura)
-ADMIN_PASSWORD="..."
-ADMIN_SCRAPER_TOKEN="..."
-```
-
-Para generar `NEXTAUTH_SECRET` en PowerShell:
-
-```powershell
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-```
+Edita `.env.local` y configura las variables necesarias. Consulta la sección [Configurar Supabase](#configurar-supabase-para-desarrollo-local) más abajo para obtener las llaves de tu proyecto.
 
 **Nota:** Las claves de Groq (`GROQ_API_KEY`) y Tavily (`TAVILY_API_KEY`) son opcionales. Sin ellas, el asistente de perfil y el descubrimiento automático no funcionarán, pero el resto de la aplicación sí.
 
@@ -96,6 +76,89 @@ npm run dev
 La aplicación estará disponible en [http://localhost:3000](http://localhost:3000).
 
 Para detener el servidor, presiona `Ctrl + C` en la terminal.
+
+---
+
+## Configurar Supabase para desarrollo local
+
+### 1. Crear un proyecto en Supabase
+
+1. Ve a [supabase.com](https://supabase.com) y crea una cuenta gratuita
+2. Crea un nuevo proyecto (elige la región más cercana, por ejemplo `us-east-1`)
+3. Espera a que el proyecto termine de configurarse (1-2 minutos)
+
+### 2. Obtener las credenciales de conexión
+
+**Para `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`:**
+
+1. En el dashboard de Supabase, ve a **Project Settings** → **API**
+2. Copia `URL` → pégalo en `NEXT_PUBLIC_SUPABASE_URL` en tu `.env.local`
+3. Copia `anon public` → pégalo en `NEXT_PUBLIC_SUPABASE_ANON_KEY` en tu `.env.local`
+
+**Para `DATABASE_URL` y `DIRECT_URL`:**
+
+1. En el dashboard de Supabase, ve a **Project Settings** → **Database**
+2. Busca la sección **Connection string** → selecciona **URI** y copia el string
+3. Reemplaza `[YOUR-PASSWORD]` con la contraseña de tu base de datos
+
+4. Para `DATABASE_URL` (conexión pooled para la aplicación):
+   - Cambia el puerto `:5432` por `:6543`
+   - Agrega `?pgbouncer=true` al final
+   - Ejemplo final:
+     ```
+     postgresql://postgres.abc123:tu-password@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+     ```
+
+5. Para `DIRECT_URL` (conexión directa para migraciones):
+   - Usa el puerto `:5432` (sin cambios)
+   - No agregues `?pgbouncer=true`
+   - Ejemplo final:
+     ```
+     postgresql://postgres.abc123:tu-password@db.abc123.supabase.co:5432/postgres
+     ```
+
+**Si necesitas rotar la contraseña de la base de datos:**
+
+1. Ve a **Project Settings** → **Database** → **Database Password**
+2. Haz clic en **Reset database password**
+3. Copia la nueva contraseña
+4. Actualiza `DATABASE_URL` y `DIRECT_URL` en tu `.env.local` con la nueva contraseña
+
+### 3. Configurar autenticación por email
+
+1. En el dashboard de Supabase, ve a **Authentication** → **Providers**
+2. Habilita **Email** (debe estar activado por defecto)
+3. Ve a **Authentication** → **URL Configuration**
+4. En **Redirect URLs**, agrega:
+   ```
+   http://localhost:3000
+   ```
+5. Guarda los cambios
+
+### 4. Probar el login
+
+Después de configurar las variables de entorno y ejecutar las migraciones (paso 4 arriba):
+
+1. Inicia el servidor de desarrollo:
+   ```powershell
+   npm run dev
+   ```
+
+2. Ve a [http://localhost:3000/admin/login](http://localhost:3000/admin/login)
+
+3. Crea una cuenta de prueba con tu email
+
+4. Revisa tu bandeja de entrada para confirmar el email (revisa spam si no llega)
+
+5. Una vez confirmado, actualiza el rol de tu usuario a `ADMIN`:
+   - Ve al dashboard de Supabase → **Table Editor** → tabla `User`
+   - Busca tu usuario por email
+   - Cambia el campo `role` de `USER` a `ADMIN`
+   - Guarda los cambios
+
+6. Ahora puedes acceder a `/admin` con tu cuenta
+
+---
 
 ## Scripts disponibles
 
@@ -182,7 +245,7 @@ Este proyecto está en **Fase 0** (limpieza) tras un período de inactividad. La
 - ✅ Panel de administración básico
 - ✅ Descubrimiento automático con Tavily (requiere clave)
 - ✅ Asistente de perfil con Groq (requiere clave)
-- ⚠️ Autenticación (provisoria, pendiente de migrar a NextAuth)
+- ✅ Autenticación con Supabase Auth
 - ⚠️ Dashboard (esqueleto, no conectado a datos reales)
 
 ### Servicios desactivados

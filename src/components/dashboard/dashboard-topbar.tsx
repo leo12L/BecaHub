@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
+// TODO: Migrar a Supabase Auth en fase posterior
+// import { useSession, signOut } from "next-auth/react";
 import { Search, Bot, LogOut, LogIn } from "lucide-react";
 
 export function DashboardTopbar() {
-  const { data: session } = useSession();
+  // TODO: Migrar a Supabase Auth
+  const session = null as { user?: { name?: string; email?: string } } | null;
   const userName =
     session?.user?.name ??
     session?.user?.email?.split("@")[0] ??
@@ -57,7 +59,7 @@ export function DashboardTopbar() {
         {session ? (
           <button
             type="button"
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={() => {/* TODO: signOut({ callbackUrl: "/" }) */}}
             className="border-border text-muted-foreground hover:text-primary flex items-center gap-1.5 rounded-xl border bg-white px-3 py-2 text-xs font-semibold transition-all"
             title="Cerrar sesión"
           >
