@@ -886,15 +886,34 @@ Cada fase tiene criterios de éxito que se responden con **sí o no**.
 
 ## Vulnerabilidades conocidas
 
-Resultado de `npm audit --omit=dev` tras completar criterio 1.6:
+Resultado de `npm audit --omit=dev` sobre el lockfile actual (verificado 2026-10-09):
 
-**Vulnerabilidades críticas (2):**
-- `@modelcontextprotocol/sdk`: OAuth client could send credentials to an authorization server chosen by the MCP server (GHSA-6qxp-vccf-f47h) — **justificación**: dependencia de desarrollo usada solo en herramientas de CLI, no incluida en el bundle de producción
+**Resumen:**
+- 0 vulnerabilidades críticas
+- 4 vulnerabilidades altas
 
-**Vulnerabilidades altas (20):**
-- `@hono/node-server`, `@prisma/dev`, `baseline-browser-mapping`, `body-parser`, `brace-expansion`, `braces` — **justificación**: todas son dependencias transitivas de herramientas de desarrollo (Prisma CLI, Playwright, Vitest). No están incluidas en el bundle de producción con `--omit=dev`. Las vulnerabilidades de `prisma` CLI no afectan `@prisma/client` (la biblioteca de runtime).
+**Detalle de las 4 altas:**
 
-**Acción requerida para producción:** ninguna. Todas las vulnerabilidades críticas y altas están en devDependencies y no se incluyen en el despliegue (`npm install --omit=dev` en Netlify).
+1. **`deepmerge-ts <8.0.0`** (GHSA-ggr8-5vv4-36mx)
+   - Descripción: stack exhaustion cuando se fusionan grafos de objetos recursivos
+   - Vía: dependencia transitiva de `@prisma/config` (usado por el CLI de `prisma`)
+   - Justificación: `deepmerge-ts` solo corre al leer la configuración de Prisma (`prisma.config.ts`), no en runtime de producción
+   - Fix propuesto: `npm audit fix --force` instalaría Prisma 6.19.3 (breaking change, perdemos features de Prisma 7)
+
+2. **`mysql2 <=3.23.0`** (2 advisories: GHSA-3f6p-5ww8-9rcr, GHSA-rgwj-5xj2-c3m3)
+   - Descripción: downgrade de plugin de auth + DoS en inflate de zlib comprimido
+   - Vía: dependencia transitiva de `prisma` CLI (para soporte multi-DB)
+   - Justificación: **No usamos MySQL**. BecaHub usa PostgreSQL con el driver `pg`. `mysql2` está en el árbol de dependencias del CLI de Prisma pero nunca se ejecuta
+   - Fix propuesto: igual que arriba, downgrade a Prisma 6
+
+**Por qué no aplicamos el fix:**
+- Bajar a Prisma 6 es un breaking change (perdemos Prisma 7 features: `prisma.config.ts`, mejoras de tipos, etc.)
+- Las vulnerabilidades no afectan la aplicación en runtime:
+  - `deepmerge-ts` solo corre en el CLI al leer config
+  - `mysql2` nunca se ejecuta (usamos Postgres)
+- `prisma` está en devDependencies: el CLI se usa solo en build y migraciones
+
+**Acción requerida para producción:** ninguna. Estas vulnerabilidades están en el CLI de Prisma (devDependency), no en `@prisma/client` (la biblioteca de runtime que sí va a producción).
 
 ---
 

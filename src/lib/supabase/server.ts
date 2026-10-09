@@ -39,8 +39,10 @@ export async function getSupabaseServerClient() {
  * Retorna null si no hay sesión activa.
  * 
  * Maneja colisión de emails con usuarios legacy de NextAuth:
- * - Si existe un usuario con el mismo email pero diferente ID, lo actualiza con el ID de Supabase
- * - Si no existe, crea uno nuevo con el ID de Supabase
+ * - SOLO vincula si el email está confirmado (email_confirmed_at)
+ * - Cambia el ID del usuario legacy al ID de Supabase Auth en una transacción
+ * - Preserva favoritos, perfil y postulaciones gracias a onUpdate: Cascade
+ * - Si el email no está confirmado, no toca al usuario legacy y lanza error
  */
 export async function getCurrentUser(): Promise<PrismaUser | null> {
   const supabase = await getSupabaseServerClient();
@@ -77,23 +79,29 @@ export async function getCurrentUser(): Promise<PrismaUser | null> {
 
   if (legacyUser) {
     // Encontramos un usuario legacy con este email pero diferente ID
-    // Lo migramos actualizando su ID al de Supabase Auth
-    // Primero eliminamos el legacy (cascade eliminará relaciones)
-    await db.user.delete({ where: { id: legacyUser.id } });
-    
-    // Ahora creamos con el ID correcto de Supabase
-    user = await db.user.create({
-      data: {
-        id: authUser.id,
-        email: authUser.email!,
-        name: authUser.user_metadata.name || legacyUser.name || null,
-        image: authUser.user_metadata.avatar_url || legacyUser.image || null,
-        emailVerified: authUser.email_confirmed_at
-          ? new Date(authUser.email_confirmed_at)
-          : legacyUser.emailVerified,
-        role: legacyUser.role, // Preservar el rol existente
-      },
+    // SEGURIDAD: Solo vincular si el email está confirmado
+    if (!authUser.email_confirmed_at) {
+      throw new Error(
+        "Debes confirmar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.",
+      );
+    }
+
+    // Vincular el usuario legacy actualizando su ID en una transacción
+    // Las FKs con onUpdate: Cascade preservan favoritos, perfil y postulaciones
+    user = await db.$transaction(async (tx) => {
+      return tx.user.update({
+        where: { email: authUser.email! },
+        data: {
+          id: authUser.id,
+          name: authUser.user_metadata.name || legacyUser.name || null,
+          image: authUser.user_metadata.avatar_url || legacyUser.image || null,
+          emailVerified: new Date(authUser.email_confirmed_at!),
+          updatedAt: new Date(),
+          // role se preserva del usuario legacy (no se hereda sin confirmación)
+        },
+      });
     });
+
     return user;
   }
 
