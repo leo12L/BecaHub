@@ -3,12 +3,9 @@ import { db } from "@/lib/db";
 import { ScraperRunStatus } from "@/generated/prisma/enums";
 import { normalize, upsertScholarship } from "./normalize";
 import type { ScraperAdapter, ScraperRunResult } from "./types";
-import { TavilyDiscoveryAdapter } from "./adapters/tavily-discovery.adapter";
 
 /** Mapa de `Source.scraperAdapter` -> clase de adapter concreta. */
-const ADAPTER_REGISTRY: Record<string, new () => ScraperAdapter> = {
-  "tavily-discovery": TavilyDiscoveryAdapter,
-};
+const ADAPTER_REGISTRY: Record<string, new () => ScraperAdapter> = {};
 
 /** Cuántas fuentes distintas se procesan en paralelo (el throttle de
  * 1 req/seg por dominio dentro de cada adapter sigue aplicando). */

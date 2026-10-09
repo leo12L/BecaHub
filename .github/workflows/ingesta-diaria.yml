@@ -1,0 +1,53 @@
+name: Ingesta Diaria de Becas
+
+on:
+  # Cron diario a las 2:00 AM UTC (8:00 PM hora de México)
+  schedule:
+    - cron: '0 2 * * *'
+  # Permitir ejecución manual desde GitHub UI
+  workflow_dispatch:
+
+jobs:
+  ingesta:
+    name: Ejecutar ingesta automática
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Verificar DATABASE_URL
+        id: check_db
+        run: |
+          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "⚠️ DATABASE_URL no está configurado - saltando ingesta"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generar cliente de Prisma
+        if: steps.check_db.outputs.skip == 'false'
+        run: npx prisma generate
+
+      - name: Ejecutar ingesta
+        if: steps.check_db.outputs.skip == 'false'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: npm run ingesta
+
+      - name: Saltar limpiamente si no hay DATABASE_URL
+        if: steps.check_db.outputs.skip == 'true'
+        run: |
+          echo "✓ Job saltado exitosamente (DATABASE_URL no configurado)"
+          exit 0

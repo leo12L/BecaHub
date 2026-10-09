@@ -5,6 +5,8 @@ import { slugify } from "@/scrapers/normalize";
 import { assertCanPublish } from "@/lib/becas/admin";
 import { adminBecaInputSchema } from "@/validators/admin-becas.validator";
 import type { CoverageType, AcademicLevel } from "@/generated/prisma/enums";
+import { generateFingerprint } from "@/lib/ingesta/utils";
+import type { BecaCandidata } from "@/lib/ingesta/types";
 
 /** Resuelve colisiones de slug agregando un sufijo numérico. */
 async function resolveSlug(base: string): Promise<string> {
@@ -80,6 +82,21 @@ export async function POST(request: NextRequest) {
 
   const slug = await resolveSlug(slugify(body.title));
 
+  // Generar fingerprint para deduplicación
+  const becaCandidata: BecaCandidata = {
+    title: body.title,
+    description: body.description,
+    applyUrl: body.applyUrl,
+    deadline: body.deadline ?? null,
+    amount: null,
+    coverageType: body.coverageType,
+    academicLevel: body.academicLevel,
+    countryDestination: body.countryDestination,
+    language: body.language ?? null,
+    convocante: source.name,
+  };
+  const fingerprint = generateFingerprint(becaCandidata);
+
   const scholarship = await db.scholarship.create({
     data: {
       title: body.title,
@@ -99,6 +116,7 @@ export async function POST(request: NextRequest) {
       sourceId: body.sourceId,
       isVerified: body.status === "ACTIVE",
       scrapedAt: null,
+      fingerprint,
       categories: {
         create: body.categoryIds.map((categoryId) => ({ categoryId })),
       },

@@ -12,18 +12,28 @@ async function main() {
   // ---------------------------------------------------------------------
   // Fuentes
   // ---------------------------------------------------------------------
-  // Fuente 1 y 2 desactivadas: becas-gob-mx devuelve 404, chevening sin adapter
-  // Se mantienen comentadas para referencia histórica
 
   await db.source.upsert({
-    where: { id: "00000000-0000-0000-0000-000000000003" },
+    where: { id: "00000000-0000-0000-0000-000000000001" },
     update: {},
     create: {
-      id: "00000000-0000-0000-0000-000000000003",
-      name: "Descubrimiento (Tavily)",
-      url: "https://tavily.com/",
+      id: "00000000-0000-0000-0000-000000000001",
+      name: "SECIHTI (API JSON)",
+      url: "https://secihti.mx/",
+      type: SourceType.GOVERNMENT,
+      scraperAdapter: "secihti-api",
+    },
+  });
+
+  await db.source.upsert({
+    where: { id: "00000000-0000-0000-0000-000000000002" },
+    update: {},
+    create: {
+      id: "00000000-0000-0000-0000-000000000002",
+      name: "Jina Reader (HTML)",
+      url: "https://r.jina.ai/",
       type: SourceType.DISCOVERY,
-      scraperAdapter: "tavily-discovery",
+      scraperAdapter: "jina-reader",
     },
   });
 
@@ -33,7 +43,7 @@ async function main() {
     create: {
       id: "00000000-0000-0000-0000-000000000004",
       name: "Curación manual (admin)",
-      url: "https://opbecaas.local/admin",
+      url: "https://becahub.local/admin",
       type: SourceType.MANUAL,
       scraperAdapter: null,
     },
@@ -90,7 +100,7 @@ async function main() {
   }
 
   console.log(
-    `Seed completado: ${categoriasData.length} categorías, 2 fuentes (Tavily + Manual). Sin becas de ejemplo — cárgalas vía scraper o el panel de admin.`,
+    `Seed completado: ${categoriasData.length} categorías, 3 fuentes (SECIHTI, Jina Reader, Manual). Sin becas de ejemplo — cárgalas vía ingesta (npm run ingesta) o el panel de admin.`,
   );
 }
 

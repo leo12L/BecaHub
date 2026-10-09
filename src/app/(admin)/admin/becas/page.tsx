@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { BecasTable } from "@/components/admin/becas-table";
+import { AlertTriangle } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,20 @@ export default async function GestionarBecasPage({ searchParams }: PageProps) {
     },
   });
 
+  // Verificar si hubo una corrida exitosa en las últimas 48 horas
+  const fortyEightHoursAgo = new Date();
+  fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
+
+  const recentSuccessfulRun = await db.scraperLog.findFirst({
+    where: {
+      status: "SUCCESS",
+      finishedAt: { gte: fortyEightHoursAgo },
+    },
+    orderBy: { finishedAt: "desc" },
+  });
+
+  const showIngestaWarning = !recentSuccessfulRun;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -49,6 +64,22 @@ export default async function GestionarBecasPage({ searchParams }: PageProps) {
           <Link href="/admin/becas/nueva">Agregar beca</Link>
         </Button>
       </div>
+
+      {showIngestaWarning && (
+        <div className="flex items-start gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm dark:border-yellow-800 dark:bg-yellow-950">
+          <AlertTriangle className="size-5 shrink-0 text-yellow-600 dark:text-yellow-500" />
+          <div>
+            <p className="font-semibold text-yellow-900 dark:text-yellow-100">
+              Sin ingesta automática reciente
+            </p>
+            <p className="mt-1 text-yellow-800 dark:text-yellow-200">
+              No se ha detectado ninguna corrida exitosa de ingesta en las
+              últimas 48 horas. Verifica que el job de GitHub Actions esté
+              configurado correctamente.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {STATUS_FILTERS.map((filter) => {

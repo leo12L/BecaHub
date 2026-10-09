@@ -6,7 +6,6 @@ import { SearchBar } from "@/components/scholarships/search-bar";
 import { FilterPanel } from "@/components/scholarships/filter-panel";
 import { ScholarshipCard } from "@/components/scholarships/scholarship-card";
 import { Pagination } from "@/components/scholarships/pagination";
-import { DiscoverButton } from "@/components/scholarships/discover-button";
 import {
   getBecas,
   getFilterCategories,
@@ -71,7 +70,6 @@ export default async function BecasPage({
           </div>
 
           <div className="flex items-center gap-2">
-            <DiscoverButton />
             <Link
               href="/perfil/asistente"
               className="border-border bg-secondary text-secondary-foreground hover:border-primary/40 hover:text-primary inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors"
