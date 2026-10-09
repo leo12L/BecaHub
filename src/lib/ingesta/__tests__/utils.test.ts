@@ -32,9 +32,28 @@ describe("Ingesta Utils", () => {
   });
 
   describe("generateFingerprint", () => {
-    it("debe generar fingerprint con título normalizado", () => {
+    it("debe generar fingerprint con título normalizado cuando hay año", () => {
       const beca: BecaCandidata = {
         title: "Beca de Investigación",
+        description: "Test",
+        applyUrl: "https://example.com",
+        deadline: "2026-12-31",
+        amount: null,
+        coverageType: null,
+        academicLevel: null,
+        countryDestination: null,
+        language: null,
+        convocante: null,
+      };
+
+      const fingerprint = generateFingerprint(beca);
+      expect(fingerprint).toContain("beca de investigacion");
+      expect(fingerprint).toContain("2026");
+    });
+
+    it("debe retornar null si no hay deadline ni año de fuente", () => {
+      const beca: BecaCandidata = {
+        title: "Beca Sin Fecha",
         description: "Test",
         applyUrl: "https://example.com",
         deadline: null,
@@ -47,10 +66,10 @@ describe("Ingesta Utils", () => {
       };
 
       const fingerprint = generateFingerprint(beca);
-      expect(fingerprint).toContain("beca de investigacion");
+      expect(fingerprint).toBeNull();
     });
 
-    it("debe incluir convocante normalizado en fingerprint", () => {
+    it("debe incluir convocante normalizado en fingerprint con año de fuente", () => {
       const beca: BecaCandidata = {
         title: "Beca Nacional",
         description: "Test",
@@ -64,8 +83,9 @@ describe("Ingesta Utils", () => {
         convocante: "SECIHTI",
       };
 
-      const fingerprint = generateFingerprint(beca);
+      const fingerprint = generateFingerprint(beca, 2026);
       expect(fingerprint).toContain("secihti");
+      expect(fingerprint).toContain("2026");
     });
 
     it("debe incluir año en fingerprint", () => {
