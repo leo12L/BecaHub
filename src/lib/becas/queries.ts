@@ -92,15 +92,32 @@ export async function getBecas(
     where.deadline = { lte: query.deadlineBefore };
   }
 
-  // Búsqueda de texto - combinar con AND usando el where.AND que ya existe
+  // Búsqueda de texto - usa la extensión unaccent de Postgres para ignorar acentos
+  // unaccent(campo) ILIKE unaccent('%término%') permite buscar "mexico" y encontrar "México"
   if (query.search) {
-    where.AND = where.AND || [];
-    (where.AND as Prisma.ScholarshipWhereInput[]).push({
-      OR: [
-        { title: { contains: query.search, mode: "insensitive" } },
-        { description: { contains: query.search, mode: "insensitive" } },
-      ],
-    });
+    const searchTerm = query.search.trim();
+    // Buscar IDs que coincidan con el término (con unaccent para ignorar acentos)
+    const matchingIds = await db.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "Scholarship" 
+      WHERE unaccent(LOWER(title)) LIKE unaccent(LOWER(${'%' + searchTerm + '%'}))
+         OR unaccent(LOWER(description)) LIKE unaccent(LOWER(${'%' + searchTerm + '%'}))
+    `;
+    
+    // Si no hay coincidencias, retornar vacío
+    if (matchingIds.length === 0) {
+      return {
+        data: [],
+        pagination: {
+          page: query.page,
+          limit: query.limit,
+          total: 0,
+          totalPages: 0,
+        },
+      };
+    }
+    
+    // Filtrar por los IDs que coinciden
+    where.id = { in: matchingIds.map(r => r.id) };
   }
 
   const categoryFilters: Prisma.ScholarshipCategoryWhereInput[] = [];

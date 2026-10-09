@@ -35,8 +35,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, profile });
   } catch (error) {
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error instanceof Error) {
+      if (error.message === "Unauthorized") {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      if ((error as Error & { code?: string }).code === "EMAIL_NOT_CONFIRMED") {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 403 },
+        );
+      }
     }
     console.error(error);
     return NextResponse.json(
