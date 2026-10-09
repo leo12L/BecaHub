@@ -174,10 +174,17 @@ async function procesarFuente(source: {
 
   // Actualizar lastScrapedAt de la fuente (con manejo de errores)
   try {
-    await db.source.update({
+    // Verificar que la fuente aún existe
+    const sourceExists = await db.source.findUnique({
       where: { id: source.id },
-      data: { lastScrapedAt: fin },
     });
+
+    if (sourceExists) {
+      await db.source.update({
+        where: { id: source.id },
+        data: { lastScrapedAt: fin },
+      });
+    }
   } catch (err) {
     console.error(
       `[Ingesta] Error actualizando lastScrapedAt para ${source.name}:`,

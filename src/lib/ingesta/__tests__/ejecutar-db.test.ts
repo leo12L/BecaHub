@@ -10,18 +10,28 @@ describe.skipIf(!process.env.DATABASE_URL)("Ingesta - Tests con BD", () => {
   let testSourceId2: string;
 
   beforeEach(async () => {
-    // Limpiar datos de test
-    await db.scholarship.deleteMany({
-      where: {
-        source: {
-          scraperAdapter: { in: ["test-source-1", "test-source-2"] },
-        },
-      },
-    });
-
-    await db.source.deleteMany({
+    // Limpiar datos de test solo si existen sources
+    const existingSources = await db.source.findMany({
       where: { scraperAdapter: { in: ["test-source-1", "test-source-2"] } },
     });
+
+    if (existingSources.length > 0) {
+      await db.scholarship.deleteMany({
+        where: {
+          sourceId: { in: existingSources.map((s) => s.id) },
+        },
+      });
+
+      await db.scraperLog.deleteMany({
+        where: {
+          sourceId: { in: existingSources.map((s) => s.id) },
+        },
+      });
+
+      await db.source.deleteMany({
+        where: { scraperAdapter: { in: ["test-source-1", "test-source-2"] } },
+      });
+    }
 
     // Crear fuentes de test
     const source1 = await db.source.create({
