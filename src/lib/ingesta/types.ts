@@ -16,7 +16,7 @@ export const BecaCandidataSchema = z.object({
   countryDestination: z.string().nullable(),
   language: z.string().nullable(),
   convocante: z.string().nullable(),
-  rawData: z.record(z.unknown()).optional(),
+  rawData: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type BecaCandidata = z.infer<typeof BecaCandidataSchema>;

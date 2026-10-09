@@ -32,6 +32,9 @@ export interface NormalizedScholarship {
   sourceId: string;
   isVerified: boolean;
   scrapedAt: Date;
+  fingerprint: string;
+  rawPayload: Record<string, unknown> | null;
+  validationErrors: string[] | null;
 }
 
 const MONTHS_ES: Record<string, number> = {
@@ -187,6 +190,10 @@ export function normalize(
   const [amountMin, amountMax] = parseAmountRange(raw.amountRaw);
   const deadline = raw.deadlineRaw ? parseSpanishDate(raw.deadlineRaw) : null;
 
+  // Generar fingerprint básico (título + sourceId + año)
+  const year = deadline?.getFullYear() ?? new Date().getFullYear();
+  const fingerprint = `${stripAccents(title).toLowerCase().replace(/\s+/g, " ")}|${sourceId}|${year}`;
+
   return {
     title,
     slug: slugify(title),
@@ -213,13 +220,16 @@ export function normalize(
     sourceId,
     isVerified: false,
     scrapedAt: new Date(),
+    fingerprint,
+    rawPayload: null,
+    validationErrors: null,
   };
 }
 
 export type UpsertResult = "created" | "updated";
 
 /**
- * Inserta o actualiza una beca normalizada. Usa `applyUrl` como clave de
+ * Inserta o actualiza una beca normalizada. Usa `fingerprint` como clave de
  * deduplicación (estable entre corridas); si es nueva, resuelve colisiones
  * de `slug` agregando un sufijo numérico.
  */
@@ -227,13 +237,13 @@ export async function upsertScholarship(
   normalized: NormalizedScholarship,
 ): Promise<UpsertResult> {
   const existing = await db.scholarship.findFirst({
-    where: { applyUrl: normalized.applyUrl },
+    where: { fingerprint: normalized.fingerprint },
   });
 
   if (existing) {
     await db.scholarship.update({
       where: { id: existing.id },
-      data: { ...normalized, slug: existing.slug },
+      data: { ...normalized, slug: existing.slug } as never,
     });
     return "updated";
   }
@@ -245,6 +255,6 @@ export async function upsertScholarship(
     suffix += 1;
   }
 
-  await db.scholarship.create({ data: { ...normalized, slug } });
+  await db.scholarship.create({ data: { ...normalized, slug } as never });
   return "created";
 }

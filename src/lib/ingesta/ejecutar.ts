@@ -214,7 +214,7 @@ async function procesarBeca(
     where: { fingerprint },
   });
 
-  const data = {
+  const baseData = {
     title: beca.title,
     description: beca.description,
     status: ScholarshipStatus.PENDING_REVIEW,
@@ -232,8 +232,14 @@ async function procesarBeca(
     isVerified: false,
     scrapedAt: new Date(),
     fingerprint,
-    rawPayload: beca.rawData ?? {},
-    validationErrors: validationErrors.length > 0 ? validationErrors : null,
+  };
+
+  const data = {
+    ...baseData,
+    ...(beca.rawData && { rawPayload: beca.rawData as unknown }),
+    ...(validationErrors.length > 0 && {
+      validationErrors: validationErrors as unknown,
+    }),
   };
 
   if (existing) {
@@ -243,7 +249,7 @@ async function procesarBeca(
       data: {
         ...data,
         slug: existing.slug, // Mantener slug original
-      },
+      } as never,
     });
     return "updated";
   }
@@ -259,7 +265,7 @@ async function procesarBeca(
   }
 
   await db.scholarship.create({
-    data: { ...data, slug },
+    data: { ...data, slug } as never,
   });
 
   return "created";
