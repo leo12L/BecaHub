@@ -435,6 +435,17 @@ model Scholarship {
 - `LEADERSHIP` — liderazgo
 - `FULL` — todo incluido
 
+**Regla importante sobre `deadline`:**
+
+La fecha de cierre (`deadline`) es el **último día en hora de México** (`America/Mexico_City`, UTC-6 constante sin horario de verano) y se guarda como **medianoche con offset `-06:00`**. Una beca que cierra el 15 de octubre está vigente hasta las 23:59:59 del 15 de octubre hora de México.
+
+Toda fecha de cierre debe crearse usando las funciones de `src/lib/fechas.ts`:
+- `getTodayInMexicoCity()`: obtiene la fecha de hoy en México como `Date` con offset `-06:00`
+- `dateToMexicoMidnight(fechaYYYYMMDD)`: convierte `YYYY-MM-DD` a medianoche de México
+- `componentsToMexicoMidnight(year, month, day)`: convierte componentes (año, mes 1-12, día) a medianoche de México
+
+Esta regla garantiza que el filtro de becas vencidas funcione correctamente independientemente de la zona horaria del servidor (UTC en CI/Netlify). El sistema nunca debe usar `new Date(año, mes, día)` ni `new Date("YYYY-MM-DD")` directamente para fechas de cierre, ya que estos constructores dependen de la zona horaria del servidor.
+
 ---
 
 #### Profile

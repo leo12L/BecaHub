@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import type { Scholarship } from "@/generated/prisma/client";
 import { ScholarshipStatus } from "@/generated/prisma/enums";
 import type { AcademicLevel, CoverageType } from "@/generated/prisma/enums";
+import { getTodayInMexicoCity } from "@/lib/fechas";
 
 /**
  * Subconjunto de `ProfileDraft`/`Profile` usado para recomendar becas. Acepta
@@ -15,20 +16,6 @@ export interface ProfileForRecommendation {
 }
 
 const DEFAULT_LIMIT = 10;
-
-/**
- * Retorna la fecha de hoy en zona horaria America/Mexico_City (inicio del día).
- * Una beca que cierra hoy aún está vigente.
- */
-function getTodayInMexicoCity(): Date {
-  const now = new Date();
-  const mexicoTimeString = now.toLocaleString("en-US", {
-    timeZone: "America/Mexico_City",
-  });
-  const mexicoDate = new Date(mexicoTimeString);
-  mexicoDate.setHours(0, 0, 0, 0);
-  return mexicoDate;
-}
 
 /**
  * Filtro básico de becas `ACTIVE` según el perfil del estudiante: nivel

@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import type { BecasQuery } from "@/validators/becas.validator";
+import { getTodayInMexicoCity } from "@/lib/fechas";
 
 const LIST_INCLUDE = {
   source: { select: { id: true, name: true, type: true } },
@@ -35,20 +36,6 @@ function flattenCategories<T extends { categories: { category: unknown }[] }>(
   } as Omit<T, "categories"> & {
     categories: T["categories"][number]["category"][];
   };
-}
-
-/**
- * Retorna la fecha de hoy en zona horaria America/Mexico_City (inicio del día).
- * Una beca que cierra hoy aún está vigente.
- */
-function getTodayInMexicoCity(): Date {
-  const now = new Date();
-  const mexicoTimeString = now.toLocaleString("en-US", {
-    timeZone: "America/Mexico_City",
-  });
-  const mexicoDate = new Date(mexicoTimeString);
-  mexicoDate.setHours(0, 0, 0, 0);
-  return mexicoDate;
 }
 
 /**

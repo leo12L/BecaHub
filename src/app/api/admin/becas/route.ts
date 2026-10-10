@@ -58,8 +58,10 @@ export async function POST(request: NextRequest) {
 
   let deadline: Date | null = null;
   if (body.deadline) {
-    deadline = new Date(body.deadline);
-    if (Number.isNaN(deadline.getTime())) {
+    try {
+      // El input type="date" envía YYYY-MM-DD; convertir a medianoche de México
+      deadline = dateToMexicoMidnight(body.deadline);
+    } catch {
       return NextResponse.json({ error: "deadline inválido" }, { status: 400 });
     }
   }

@@ -13,5 +13,8 @@ export default defineConfig({
     environment: "node",
     globals: true,
     exclude: ["**/node_modules/**", "**/dist/**", "**/e2e/**"],
+    env: {
+      TZ: "UTC",
+    },
   },
 });
