@@ -1,9 +1,13 @@
 import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
+import type { Role } from "@/generated/prisma/enums";
 import type { BecasQuery } from "@/validators/becas.validator";
-import { getTodayInMexicoCity } from "@/lib/fechas";
-import { filtroBecaPublica } from "@/lib/becas/publica";
+import {
+  filtroBecaDetallePublico,
+  filtroBecaPublica,
+  puedePedirEstadoNoPublico,
+} from "@/lib/becas/publica";
 
 const LIST_INCLUDE = {
   source: { select: { id: true, name: true, type: true } },
@@ -39,33 +43,23 @@ function flattenCategories<T extends { categories: { category: unknown }[] }>(
   };
 }
 
+export type GetBecasOptions = {
+  sort?: SortOrder;
+  /** Solo ADMIN y MODERATOR pueden pedir un status distinto de ACTIVE. */
+  viewerRole?: Role;
+};
+
 /**
- * Catálogo de becas con filtrado automático de vencidas.
- *
- * Por defecto, muestra solo becas ACTIVE no vencidas (seguridad: evita exponer
- * DRAFT/PENDING_REVIEW). Otros estados solo son accesibles si se especifica
- * explícitamente `query.status` (reservado para admin/moderador).
+ * Catálogo de becas. Por defecto (y para cualquier caller que no sea
+ * admin/moderador) aplica `filtroBecaPublica()`: ACTIVE y no vencida.
  */
-export async function getBecas(
-  query: BecasQuery,
-  options?: { sort?: SortOrder },
-) {
-  const where: Prisma.ScholarshipWhereInput = {};
-
-  // Filtro de status: ACTIVE por defecto (seguridad)
-  // Si se especifica explícitamente otro status, se respeta (solo admin/moderador)
-  const status = query.status ?? "ACTIVE";
-  where.status = status;
-
-  // Ocultar becas vencidas para status ACTIVE (vistas públicas)
-  // Para otros estados (admin), se muestran incluso si están vencidas
-  if (status === "ACTIVE") {
-    const todayMexico = getTodayInMexicoCity();
-    where.AND = where.AND || [];
-    (where.AND as Prisma.ScholarshipWhereInput[]).push({
-      OR: [{ deadline: { gte: todayMexico } }, { deadline: null }],
-    });
-  }
+export async function getBecas(query: BecasQuery, options?: GetBecasOptions) {
+  const where: Prisma.ScholarshipWhereInput =
+    puedePedirEstadoNoPublico(options?.viewerRole) &&
+    query.status &&
+    query.status !== "ACTIVE"
+      ? { status: query.status }
+      : { ...filtroBecaPublica() };
 
   if (query.country) {
     where.countryDestination = {
@@ -151,8 +145,8 @@ export async function getBecas(
 }
 
 export async function getBecaBySlug(slug: string) {
-  const scholarship = await db.scholarship.findUnique({
-    where: { slug },
+  const scholarship = await db.scholarship.findFirst({
+    where: { slug, ...filtroBecaDetallePublico() },
     include: DETAIL_INCLUDE,
   });
 
@@ -213,22 +207,19 @@ export const getFilterCountries = unstable_cache(
 export async function getLandingStats() {
   const filtroPublico = filtroBecaPublica();
 
-  const [totalCount, activeCount, countries, verifiedCount] = await Promise.all(
-    [
-      db.scholarship.count(),
-      db.scholarship.count({ where: filtroPublico }),
-      db.scholarship.findMany({
-        where: filtroPublico,
-        select: { countryDestination: true },
-        distinct: ["countryDestination"],
-      }),
-      db.scholarship.count({ where: { ...filtroPublico, isVerified: true } }),
-    ],
-  );
+  const [totalCount, countries, verifiedCount] = await Promise.all([
+    db.scholarship.count({ where: filtroPublico }),
+    db.scholarship.findMany({
+      where: filtroPublico,
+      select: { countryDestination: true },
+      distinct: ["countryDestination"],
+    }),
+    db.scholarship.count({ where: { ...filtroPublico, isVerified: true } }),
+  ]);
 
   return {
     totalCount,
-    activeCount,
+    activeCount: totalCount,
     countriesCount: countries.length,
     verifiedPercentage:
       totalCount > 0 ? Math.round((verifiedCount / totalCount) * 100) : 0,

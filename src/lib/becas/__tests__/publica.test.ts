@@ -1,202 +1,179 @@
 /**
- * Tests de seguridad para visibilidad pública de becas.
+ * Tests de visibilidad pública de becas (BD real).
  *
- * Verifica que:
- * - Becas DRAFT/PENDING_REVIEW no se exponen en ninguna vista pública
- * - El detalle da 404 para DRAFT/PENDING_REVIEW, muestra CLOSED con aviso
- * - No se pueden crear favoritos/postulaciones a becas no públicas
- * - Los favoritos/postulaciones existentes persisten aunque la beca se cierre
+ * Si se quita el default ACTIVE de getBecas / filtroBecaPublica, varios de
+ * estos casos fallan: PENDING_REVIEW aparecería en portada, recomendaciones,
+ * sitemap y contadores.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { db } from "@/lib/db";
-import {
-  getBecas,
-  getLandingStats,
-  getFilterCountries,
-} from "@/lib/becas/queries";
+import { getBecaBySlug, getBecas, getLandingStats } from "@/lib/becas/queries";
 import { recomendarBecas } from "@/lib/becas/recommend";
 import {
-  filtroBecaPublica,
-  esVisibleEnDetalle,
+  AVISO_CONVOCATORIA_CERRADA,
   esCerrada,
+  esVisibleEnDetalle,
+  estadoDetallePublico,
+  filtroBecaPublica,
+  puedePedirEstadoNoPublico,
 } from "@/lib/becas/publica";
 import { componentsToMexicoMidnight } from "@/lib/fechas";
+import sitemap from "@/app/sitemap";
 
-const shouldSkip = !process.env.DATABASE_URL;
+const SOURCE_ID = "test-source-visibilidad-publica";
+const ACTIVE_ID = "test-beca-vis-active";
+const DRAFT_ID = "test-beca-vis-draft";
+const PENDING_ID = "test-beca-vis-pending";
+const CLOSED_ID = "test-beca-vis-closed";
+const VENCIDA_ID = "test-beca-vis-vencida";
 
-describe.skipIf(shouldSkip)("Visibilidad pública de becas", () => {
-  let sourceId: string;
-  let becaActiveId: string;
-  let becaDraftId: string;
-  let becaPendingId: string;
-  let becaClosedId: string;
-  let becaVencidaId: string;
+const ACTIVE_SLUG = "test-beca-vis-active";
+const DRAFT_SLUG = "test-beca-vis-draft";
+const PENDING_SLUG = "test-beca-vis-pending";
+const CLOSED_SLUG = "test-beca-vis-closed";
+const VENCIDA_SLUG = "test-beca-vis-vencida";
 
+const PAIS_PENDING = "PaísInéditoVisibilidadXYZ";
+
+describe("Visibilidad pública de becas", () => {
   beforeAll(async () => {
-    const source = await db.source.create({
-      data: {
-        name: "Test Source Publica",
-        url: "https://example.com",
+    await db.source.upsert({
+      where: { id: SOURCE_ID },
+      create: {
+        id: SOURCE_ID,
+        name: "Fuente visibilidad pública",
+        url: "https://example.com/vis-publica",
         type: "MANUAL",
       },
+      update: {},
     });
-    sourceId = source.id;
 
     const futureDate = componentsToMexicoMidnight(2027, 12, 31);
     const pastDate = componentsToMexicoMidnight(2020, 1, 1);
 
-    // Beca ACTIVE vigente (la única que debe verse públicamente)
-    const active = await db.scholarship.create({
-      data: {
-        title: "Beca ACTIVE Test",
-        slug: "beca-active-test-publica",
-        description: "Solo esta debe ser visible",
+    await db.scholarship.upsert({
+      where: { id: ACTIVE_ID },
+      create: {
+        id: ACTIVE_ID,
+        title: "Beca ACTIVE visibilidad",
+        slug: ACTIVE_SLUG,
+        description: "Solo esta debe salir en listados",
         status: "ACTIVE",
         coverageType: "MONETARY",
         countryDestination: "México",
         academicLevel: "UNDERGRAD",
-        applyUrl: "https://example.com/active",
-        sourceId,
+        applyUrl: "https://example.com/active-vis",
+        sourceId: SOURCE_ID,
         deadline: futureDate,
+        isVerified: true,
+      },
+      update: {
+        status: "ACTIVE",
+        deadline: futureDate,
+        countryDestination: "México",
       },
     });
-    becaActiveId = active.id;
 
-    // Beca DRAFT (nunca debe verse públicamente)
-    const draft = await db.scholarship.create({
-      data: {
-        title: "Beca DRAFT Test",
-        slug: "beca-draft-test-publica",
+    await db.scholarship.upsert({
+      where: { id: DRAFT_ID },
+      create: {
+        id: DRAFT_ID,
+        title: "Beca DRAFT visibilidad",
+        slug: DRAFT_SLUG,
         description: "No debe verse",
         status: "DRAFT",
         coverageType: "MONETARY",
         countryDestination: "México",
         academicLevel: "UNDERGRAD",
-        applyUrl: "https://example.com/draft",
-        sourceId,
+        applyUrl: "https://example.com/draft-vis",
+        sourceId: SOURCE_ID,
         deadline: futureDate,
       },
+      update: { status: "DRAFT", deadline: futureDate },
     });
-    becaDraftId = draft.id;
 
-    // Beca PENDING_REVIEW (nunca debe verse públicamente)
-    const pending = await db.scholarship.create({
-      data: {
-        title: "Beca PENDING_REVIEW Test",
-        slug: "beca-pending-test-publica",
+    await db.scholarship.upsert({
+      where: { id: PENDING_ID },
+      create: {
+        id: PENDING_ID,
+        title: "Beca PENDING_REVIEW visibilidad",
+        slug: PENDING_SLUG,
         description: "No debe verse",
         status: "PENDING_REVIEW",
         coverageType: "MONETARY",
-        countryDestination: "México",
+        countryDestination: PAIS_PENDING,
         academicLevel: "UNDERGRAD",
-        applyUrl: "https://example.com/pending",
-        sourceId,
+        applyUrl: "https://example.com/pending-vis",
+        sourceId: SOURCE_ID,
         deadline: futureDate,
       },
+      update: {
+        status: "PENDING_REVIEW",
+        deadline: futureDate,
+        countryDestination: PAIS_PENDING,
+      },
     });
-    becaPendingId = pending.id;
 
-    // Beca CLOSED (visible en detalle con aviso, no en listados)
-    const closed = await db.scholarship.create({
-      data: {
-        title: "Beca CLOSED Test",
-        slug: "beca-closed-test-publica",
-        description: "Cerrada",
+    await db.scholarship.upsert({
+      where: { id: CLOSED_ID },
+      create: {
+        id: CLOSED_ID,
+        title: "Beca CLOSED visibilidad",
+        slug: CLOSED_SLUG,
+        description: "Cerrada, detalle con aviso",
         status: "CLOSED",
         coverageType: "MONETARY",
         countryDestination: "México",
         academicLevel: "UNDERGRAD",
-        applyUrl: "https://example.com/closed",
-        sourceId,
+        applyUrl: "https://example.com/closed-vis",
+        sourceId: SOURCE_ID,
         deadline: futureDate,
       },
+      update: { status: "CLOSED", deadline: futureDate },
     });
-    becaClosedId = closed.id;
 
-    // Beca ACTIVE pero vencida (no debe verse en listados)
-    const vencida = await db.scholarship.create({
-      data: {
-        title: "Beca Vencida Test",
-        slug: "beca-vencida-test-publica",
-        description: "Vencida",
+    await db.scholarship.upsert({
+      where: { id: VENCIDA_ID },
+      create: {
+        id: VENCIDA_ID,
+        title: "Beca vencida visibilidad",
+        slug: VENCIDA_SLUG,
+        description: "ACTIVE pero vencida",
         status: "ACTIVE",
         coverageType: "MONETARY",
         countryDestination: "México",
         academicLevel: "UNDERGRAD",
-        applyUrl: "https://example.com/vencida",
-        sourceId,
+        applyUrl: "https://example.com/vencida-vis",
+        sourceId: SOURCE_ID,
         deadline: pastDate,
       },
+      update: { status: "ACTIVE", deadline: pastDate },
     });
-    becaVencidaId = vencida.id;
   });
 
   afterAll(async () => {
     await db.scholarship.deleteMany({
       where: {
-        id: {
-          in: [
-            becaActiveId,
-            becaDraftId,
-            becaPendingId,
-            becaClosedId,
-            becaVencidaId,
-          ],
-        },
+        id: { in: [ACTIVE_ID, DRAFT_ID, PENDING_ID, CLOSED_ID, VENCIDA_ID] },
       },
     });
-    await db.source.delete({ where: { id: sourceId } });
+    await db.source.deleteMany({ where: { id: SOURCE_ID } });
   });
 
-  describe("filtroBecaPublica()", () => {
-    it("debe retornar solo becas ACTIVE no vencidas", async () => {
-      const becas = await db.scholarship.findMany({
-        where: filtroBecaPublica(),
-        select: { id: true },
-      });
-      const ids = becas.map((b) => b.id);
-
-      expect(ids).toContain(becaActiveId);
-      expect(ids).not.toContain(becaDraftId);
-      expect(ids).not.toContain(becaPendingId);
-      expect(ids).not.toContain(becaClosedId);
-      expect(ids).not.toContain(becaVencidaId);
-    });
-  });
-
-  describe("getBecas()", () => {
-    it("sin status debe mostrar solo ACTIVE no vencida (seguridad por defecto)", async () => {
+  describe("filtroBecaPublica / getBecas (listados y portada)", () => {
+    it("PENDING_REVIEW no aparece en getBecas sin status (falla si se quita el default ACTIVE)", async () => {
       const result = await getBecas({ page: 1, limit: 100 });
       const ids = result.data.map((b) => b.id);
 
-      expect(ids).toContain(becaActiveId);
-      expect(ids).not.toContain(becaDraftId);
-      expect(ids).not.toContain(becaPendingId);
-      expect(ids).not.toContain(becaClosedId);
-      expect(ids).not.toContain(becaVencidaId);
+      expect(ids).toContain(ACTIVE_ID);
+      expect(ids).not.toContain(PENDING_ID);
+      expect(ids).not.toContain(DRAFT_ID);
+      expect(ids).not.toContain(CLOSED_ID);
+      expect(ids).not.toContain(VENCIDA_ID);
     });
 
-    it("con status=ACTIVE debe mostrar solo ACTIVE no vencida", async () => {
-      const result = await getBecas({ status: "ACTIVE", page: 1, limit: 100 });
-      const ids = result.data.map((b) => b.id);
-
-      expect(ids).toContain(becaActiveId);
-      expect(ids).not.toContain(becaDraftId);
-      expect(ids).not.toContain(becaPendingId);
-      expect(ids).not.toContain(becaClosedId);
-      expect(ids).not.toContain(becaVencidaId);
-    });
-
-    it("con status=DRAFT debe mostrar DRAFT (admin)", async () => {
-      const result = await getBecas({ status: "DRAFT", page: 1, limit: 100 });
-      const ids = result.data.map((b) => b.id);
-
-      expect(ids).toContain(becaDraftId);
-      expect(ids).not.toContain(becaActiveId);
-    });
-
-    it("con status=PENDING_REVIEW debe mostrar PENDING_REVIEW (admin)", async () => {
+    it("PENDING_REVIEW no aparece ni pidiendo status=PENDING_REVIEW sin rol admin", async () => {
       const result = await getBecas({
         status: "PENDING_REVIEW",
         page: 1,
@@ -204,89 +181,138 @@ describe.skipIf(shouldSkip)("Visibilidad pública de becas", () => {
       });
       const ids = result.data.map((b) => b.id);
 
-      expect(ids).toContain(becaPendingId);
-      expect(ids).not.toContain(becaActiveId);
+      expect(ids).not.toContain(PENDING_ID);
+      expect(ids).toContain(ACTIVE_ID);
     });
-  });
 
-  describe("getLandingStats()", () => {
-    it("debe contar solo becas públicas", async () => {
-      const stats = await getLandingStats();
+    it("ADMIN sí puede listar PENDING_REVIEW y DRAFT", async () => {
+      const pending = await getBecas(
+        { status: "PENDING_REVIEW", page: 1, limit: 100 },
+        { viewerRole: "ADMIN" },
+      );
+      const draft = await getBecas(
+        { status: "DRAFT", page: 1, limit: 100 },
+        { viewerRole: "MODERATOR" },
+      );
 
-      // activeCount debe contar solo ACTIVE no vencida
-      const becasPublicas = await db.scholarship.count({
+      expect(pending.data.map((b) => b.id)).toContain(PENDING_ID);
+      expect(draft.data.map((b) => b.id)).toContain(DRAFT_ID);
+    });
+
+    it("filtroBecaPublica solo trae ACTIVE no vencidas", async () => {
+      const becas = await db.scholarship.findMany({
         where: filtroBecaPublica(),
+        select: { id: true },
       });
-
-      expect(stats.activeCount).toBeGreaterThanOrEqual(1);
-      expect(stats.activeCount).toBeLessThanOrEqual(becasPublicas);
-    });
-  });
-
-  describe("getFilterCountries()", () => {
-    it("debe listar países solo de becas públicas", async () => {
-      const countries = await getFilterCountries();
-
-      // Debe incluir México (beca ACTIVE)
-      expect(countries).toContain("México");
-
-      // No debe romper con becas no públicas
-      expect(Array.isArray(countries)).toBe(true);
-    });
-  });
-
-  describe("recomendarBecas()", () => {
-    it("debe recomendar solo becas públicas", async () => {
-      const becas = await recomendarBecas({ countryInterest: "México" });
       const ids = becas.map((b) => b.id);
 
-      expect(ids).toContain(becaActiveId);
-      expect(ids).not.toContain(becaDraftId);
-      expect(ids).not.toContain(becaPendingId);
-      expect(ids).not.toContain(becaClosedId);
-      expect(ids).not.toContain(becaVencidaId);
+      expect(ids).toContain(ACTIVE_ID);
+      expect(ids).not.toContain(PENDING_ID);
+      expect(ids).not.toContain(DRAFT_ID);
+      expect(ids).not.toContain(CLOSED_ID);
+      expect(ids).not.toContain(VENCIDA_ID);
     });
   });
 
-  describe("esVisibleEnDetalle()", () => {
-    it("debe retornar true para ACTIVE", () => {
-      expect(esVisibleEnDetalle({ status: "ACTIVE", deadline: null })).toBe(
-        true,
-      );
+  describe("recomendaciones, sitemap y contadores", () => {
+    it("recomendarBecas no incluye PENDING_REVIEW (falla si se quita ACTIVE)", async () => {
+      const becas = await recomendarBecas({});
+      const ids = becas.map((b) => b.id);
+
+      expect(ids).toContain(ACTIVE_ID);
+      expect(ids).not.toContain(PENDING_ID);
+      expect(ids).not.toContain(DRAFT_ID);
+      expect(ids).not.toContain(CLOSED_ID);
+      expect(ids).not.toContain(VENCIDA_ID);
     });
 
-    it("debe retornar true para CLOSED", () => {
-      expect(esVisibleEnDetalle({ status: "CLOSED", deadline: null })).toBe(
-        true,
-      );
+    it("sitemap no incluye PENDING_REVIEW, DRAFT, CLOSED ni vencidas", async () => {
+      const entries = await sitemap();
+      const urls = entries.map((e) => e.url);
+
+      expect(urls.some((u) => u.includes(ACTIVE_SLUG))).toBe(true);
+      expect(urls.some((u) => u.includes(PENDING_SLUG))).toBe(false);
+      expect(urls.some((u) => u.includes(DRAFT_SLUG))).toBe(false);
+      expect(urls.some((u) => u.includes(CLOSED_SLUG))).toBe(false);
+      expect(urls.some((u) => u.includes(VENCIDA_SLUG))).toBe(false);
     });
 
-    it("debe retornar false para DRAFT", () => {
+    it("getLandingStats no cuenta PENDING_REVIEW ni su país (falla si se quita el filtro)", async () => {
+      const before = await getLandingStats();
+
+      const extraId = "test-beca-vis-pending-extra";
+      await db.scholarship.create({
+        data: {
+          id: extraId,
+          title: "PENDING extra para contadores",
+          slug: "test-beca-vis-pending-extra",
+          description: "No debe mover contadores",
+          status: "PENDING_REVIEW",
+          coverageType: "MONETARY",
+          countryDestination: "NarniaContadorXYZ",
+          academicLevel: "UNDERGRAD",
+          applyUrl: "https://example.com/pending-extra",
+          sourceId: SOURCE_ID,
+          deadline: componentsToMexicoMidnight(2027, 12, 31),
+        },
+      });
+
+      try {
+        const after = await getLandingStats();
+        expect(after.totalCount).toBe(before.totalCount);
+        expect(after.activeCount).toBe(before.activeCount);
+        expect(after.countriesCount).toBe(before.countriesCount);
+      } finally {
+        await db.scholarship.delete({ where: { id: extraId } });
+      }
+    });
+  });
+
+  describe("detalle /becas/[slug]", () => {
+    it("DRAFT y PENDING_REVIEW no son visibles (404)", async () => {
+      expect(await getBecaBySlug(DRAFT_SLUG)).toBeNull();
+      expect(await getBecaBySlug(PENDING_SLUG)).toBeNull();
+      expect(estadoDetallePublico({ status: "DRAFT", deadline: null })).toBe(
+        "not_found",
+      );
+      expect(
+        estadoDetallePublico({ status: "PENDING_REVIEW", deadline: null }),
+      ).toBe("not_found");
       expect(esVisibleEnDetalle({ status: "DRAFT", deadline: null })).toBe(
         false,
       );
-    });
-
-    it("debe retornar false para PENDING_REVIEW", () => {
       expect(
         esVisibleEnDetalle({ status: "PENDING_REVIEW", deadline: null }),
       ).toBe(false);
     });
+
+    it("CLOSED y vencida se pueden abrir con aviso de convocatoria cerrada", async () => {
+      const closed = await getBecaBySlug(CLOSED_SLUG);
+      const vencida = await getBecaBySlug(VENCIDA_SLUG);
+
+      expect(closed).not.toBeNull();
+      expect(vencida).not.toBeNull();
+      expect(estadoDetallePublico(closed!)).toBe("cerrada");
+      expect(estadoDetallePublico(vencida!)).toBe("cerrada");
+      expect(esCerrada(closed!)).toBe(true);
+      expect(esCerrada(vencida!)).toBe(true);
+      expect(AVISO_CONVOCATORIA_CERRADA).toMatch(/cerrado/i);
+    });
+
+    it("ACTIVE vigente se abre sin aviso", async () => {
+      const active = await getBecaBySlug(ACTIVE_SLUG);
+      expect(active).not.toBeNull();
+      expect(estadoDetallePublico(active!)).toBe("abierta");
+      expect(esCerrada(active!)).toBe(false);
+    });
   });
 
-  describe("esCerrada()", () => {
-    it("debe retornar true para status CLOSED", () => {
-      expect(esCerrada({ status: "CLOSED", deadline: null })).toBe(true);
-    });
-
-    it("debe retornar true para beca vencida", () => {
-      const pastDate = componentsToMexicoMidnight(2020, 1, 1);
-      expect(esCerrada({ status: "ACTIVE", deadline: pastDate })).toBe(true);
-    });
-
-    it("debe retornar false para beca ACTIVE vigente", () => {
-      const futureDate = componentsToMexicoMidnight(2027, 12, 31);
-      expect(esCerrada({ status: "ACTIVE", deadline: futureDate })).toBe(false);
+  describe("roles", () => {
+    it("solo ADMIN y MODERATOR pueden pedir estados no públicos", () => {
+      expect(puedePedirEstadoNoPublico("ADMIN")).toBe(true);
+      expect(puedePedirEstadoNoPublico("MODERATOR")).toBe(true);
+      expect(puedePedirEstadoNoPublico("USER")).toBe(false);
+      expect(puedePedirEstadoNoPublico(undefined)).toBe(false);
     });
   });
 });

@@ -40,7 +40,9 @@ export default async function BecasPage({
 }) {
   const raw = toRecord(await searchParams);
   const parsed = becasQuerySchema.safeParse(raw);
-  const query = parsed.success ? parsed.data : becasQuerySchema.parse({});
+  const parsedQuery = parsed.success ? parsed.data : becasQuerySchema.parse({});
+  // El listado público nunca acepta status distinto de ACTIVE.
+  const query = { ...parsedQuery, status: undefined };
   const sort: SortOrder = raw.sort === "recent" ? "recent" : "deadline";
 
   const [{ data, pagination }, categories, countries] = await Promise.all([
@@ -64,8 +66,8 @@ export default async function BecasPage({
               Explorar becas
             </h1>
             <p className="text-muted-foreground mt-2 max-w-2xl text-sm leading-6">
-              Mostrando todas las convocatorias disponibles en la API, sin
-              ocultar cerradas, borradores o registros pendientes.
+              Solo convocatorias vigentes. Borradores, pendientes de revisión y
+              vencidas no aparecen en este listado.
             </p>
           </div>
 

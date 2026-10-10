@@ -1,39 +1,28 @@
 /**
  * Reglas de visibilidad pública de becas.
  *
- * Centraliza qué becas ve un usuario público (no admin/moderador) en listados,
- * detalles, favoritos, postulaciones, sitemap, contadores, etc.
+ * Único lugar donde vive qué ve un usuario que no es admin/moderador.
+ * Ninguna consulta pública debe armar su propio filtro de estado: usa estas
+ * funciones, igual que las fechas pasan por `src/lib/fechas.ts`.
  *
- * REGLA PRINCIPAL: Solo becas ACTIVE no vencidas son públicamente visibles en
- * listados. El detalle puede mostrar CLOSED/vencidas con aviso, pero DRAFT y
- * PENDING_REVIEW siempre dan 404.
+ * - Listados, portada, recomendaciones, sitemap, contadores y alta de
+ *   favorito/postulación: `filtroBecaPublica()` (ACTIVE y no vencida).
+ * - Detalle `/becas/[slug]`: `filtroBecaDetallePublico()` / `estadoDetallePublico()`.
+ *   ACTIVE, CLOSED y vencidas se muestran; DRAFT y PENDING_REVIEW dan 404.
  */
 
 import type { Prisma } from "@/generated/prisma/client";
+import type { Role } from "@/generated/prisma/enums";
 import { getTodayInMexicoCity } from "@/lib/fechas";
 
+export const AVISO_CONVOCATORIA_CERRADA =
+  "Esta convocatoria ha cerrado y ya no acepta postulaciones.";
+
 /**
- * Filtro WHERE de Prisma para becas públicamente visibles en listados.
+ * Filtro WHERE de Prisma para becas visibles en listados públicos.
  *
- * - Estado: ACTIVE únicamente
- * - Vigencia: deadline >= hoy (zona México) o sin deadline
- *
- * Usar en:
- * - Portada
- * - `/becas` (listado)
- * - Dashboard (recomendaciones, próximas)
- * - `/api/becas` (API pública)
- * - Sitemap
- * - Contadores de la portada
- * - Validación al CREAR favoritos o postulaciones
- *
- * @example
- * ```ts
- * await db.scholarship.findMany({
- *   where: filtroBecaPublica(),
- *   // ... resto de filtros
- * });
- * ```
+ * - Estado: ACTIVE
+ * - Vigencia: deadline >= hoy (America/Mexico_City) o sin deadline
  */
 export function filtroBecaPublica(): Prisma.ScholarshipWhereInput {
   const todayMexico = getTodayInMexicoCity();
@@ -45,54 +34,28 @@ export function filtroBecaPublica(): Prisma.ScholarshipWhereInput {
 }
 
 /**
- * Verifica si una beca es visible en su página de detalle `/becas/[slug]`.
+ * Filtro WHERE de Prisma para la ficha pública `/becas/[slug]`.
  *
- * - ACTIVE: siempre visible
- * - CLOSED o vencida: visible con aviso de "convocatoria cerrada"
- * - DRAFT o PENDING_REVIEW: no visible (debe devolver 404)
- *
- * @param scholarship - La beca a verificar (debe incluir `status` y `deadline`)
- * @returns `true` si debe mostrarse (aunque sea con aviso), `false` si debe dar 404
- *
- * @example
- * ```ts
- * const beca = await getBecaBySlug(slug);
- * if (!beca || !esVisibleEnDetalle(beca)) {
- *   return notFound();
- * }
- * ```
+ * ACTIVE y CLOSED (incluidas las vencidas). DRAFT y PENDING_REVIEW quedan fuera
+ * y el caller debe responder 404.
  */
+export function filtroBecaDetallePublico(): Prisma.ScholarshipWhereInput {
+  return {
+    status: { in: ["ACTIVE", "CLOSED"] },
+  };
+}
+
+export function puedePedirEstadoNoPublico(role?: Role | null): boolean {
+  return role === "ADMIN" || role === "MODERATOR";
+}
+
 export function esVisibleEnDetalle(scholarship: {
   status: string;
   deadline: Date | null;
 }): boolean {
-  // DRAFT y PENDING_REVIEW nunca son visibles
-  if (
-    scholarship.status === "DRAFT" ||
-    scholarship.status === "PENDING_REVIEW"
-  ) {
-    return false;
-  }
-
-  // ACTIVE y CLOSED son visibles (aunque CLOSED/vencidas mostrarán aviso)
   return scholarship.status === "ACTIVE" || scholarship.status === "CLOSED";
 }
 
-/**
- * Determina si una beca debe mostrar aviso de "convocatoria cerrada" en su detalle.
- *
- * @param scholarship - La beca a verificar
- * @returns `true` si debe mostrarse el aviso de cierre
- *
- * @example
- * ```ts
- * {esCerrada(beca) && (
- *   <Alert variant="warning">
- *     Esta convocatoria ha cerrado
- *   </Alert>
- * )}
- * ```
- */
 export function esCerrada(scholarship: {
   status: string;
   deadline: Date | null;
@@ -103,4 +66,21 @@ export function esCerrada(scholarship: {
     scholarship.status === "CLOSED" ||
     (scholarship.deadline !== null && scholarship.deadline < todayMexico)
   );
+}
+
+/**
+ * Resultado de la regla de detalle público.
+ *
+ * - `not_found`: DRAFT / PENDING_REVIEW (o estado desconocido) → 404
+ * - `abierta`: ACTIVE vigente
+ * - `cerrada`: CLOSED o vencida → 200 con aviso
+ */
+export function estadoDetallePublico(scholarship: {
+  status: string;
+  deadline: Date | null;
+}): "not_found" | "abierta" | "cerrada" {
+  if (!esVisibleEnDetalle(scholarship)) {
+    return "not_found";
+  }
+  return esCerrada(scholarship) ? "cerrada" : "abierta";
 }

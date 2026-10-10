@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getBecaBySlug } from "@/lib/becas/queries";
 import { getCached, setCached } from "@/lib/cache";
+import { estadoDetallePublico } from "@/lib/becas/publica";
 
 const DETAIL_CACHE_TTL = 3600; // 1 hora
 
@@ -22,7 +23,7 @@ export async function GET(
 
   const data = await getBecaBySlug(slug);
 
-  if (!data) {
+  if (!data || estadoDetallePublico(data) === "not_found") {
     return NextResponse.json({ error: "Beca no encontrada" }, { status: 404 });
   }
 

@@ -23,7 +23,10 @@ import {
   formatDate,
   statusLabels,
 } from "@/lib/becas/format";
-import { esVisibleEnDetalle, esCerrada } from "@/lib/becas/publica";
+import {
+  AVISO_CONVOCATORIA_CERRADA,
+  estadoDetallePublico,
+} from "@/lib/becas/publica";
 
 type Params = Promise<{ slug: string }>;
 
@@ -35,7 +38,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const beca = await getBecaBySlug(slug);
 
-  if (!beca) {
+  if (!beca || estadoDetallePublico(beca) === "not_found") {
     return { title: "Beca no encontrada" };
   }
 
@@ -60,13 +63,13 @@ export async function generateMetadata({
 export default async function BecaDetailPage({ params }: { params: Params }) {
   const { slug } = await params;
   const beca = await getBecaBySlug(slug);
+  const estadoDetalle = beca ? estadoDetallePublico(beca) : "not_found";
 
-  // 404 si no existe o no es visible públicamente (DRAFT/PENDING_REVIEW)
-  if (!beca || !esVisibleEnDetalle(beca)) {
+  if (!beca || estadoDetalle === "not_found") {
     notFound();
   }
 
-  const becaCerrada = esCerrada(beca);
+  const becaCerrada = estadoDetalle === "cerrada";
 
   const amount = formatAmount(beca.amountMin, beca.amountMax, beca.currency);
   const publishedDate = formatDate(beca.createdAt);
@@ -111,7 +114,7 @@ export default async function BecaDetailPage({ params }: { params: Params }) {
         {becaCerrada && (
           <div className="mt-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
             <p className="text-sm font-semibold">
-              ⚠️ Esta convocatoria ha cerrado y ya no acepta postulaciones.
+              {AVISO_CONVOCATORIA_CERRADA}
             </p>
           </div>
         )}
