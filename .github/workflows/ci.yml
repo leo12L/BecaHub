@@ -141,6 +141,10 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+      - name: Seed screenshots test data
+        continue-on-error: true
+        run: npx tsx scripts/seed-screenshots-data.ts
+
       - name: Capture visual screenshots
         continue-on-error: true
         env:
@@ -157,14 +161,19 @@ jobs:
           path: screenshots/
           retention-days: 30
 
+      - name: Install wait-on
+        continue-on-error: true
+        run: npm install -g wait-on
+
       - name: Run Lighthouse audit
         continue-on-error: true
         run: |
           mkdir -p lighthouse-results
           npm run build
-          npm run start &
+          npm run start > /tmp/server.log 2>&1 &
           SERVER_PID=$!
-          sleep 10
+          echo "Server PID: $SERVER_PID"
+          npx wait-on http://localhost:3000 --timeout 30000 || (echo "Server failed to start:"; cat /tmp/server.log; exit 1)
           npx lighthouse http://localhost:3000/ \
             --preset=mobile \
             --only-categories=performance,accessibility \
