@@ -30,7 +30,7 @@ export function LandingNavbar() {
           <summary className="lf-pill lf-pill-nav cursor-pointer list-none">
             Menú
           </summary>
-          <ul className="absolute top-full right-0 z-30 mt-2 w-48 border border-[var(--lf-line)] bg-white p-2 shadow-lg">
+          <ul className="absolute top-full right-0 z-30 mt-2 w-48 rounded-none border border-[var(--lf-line)] bg-white p-2 shadow-lg">
             {LANDING_NAV_LINKS.map((link) => (
               <li key={link.href}>
                 <Link

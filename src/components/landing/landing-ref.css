@@ -48,7 +48,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  border-radius: 999px;
+  border-radius: 0;
   padding: 0.72rem 1.2rem;
   font-size: 0.875rem;
   font-weight: 600;
@@ -93,7 +93,7 @@
 .lf-tag {
   position: absolute;
   z-index: 1;
-  border-radius: 999px;
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.94);
   padding: 0.28rem 0.7rem;
   font-size: 0.68rem;
@@ -110,7 +110,7 @@
 .lf-photo {
   position: relative;
   overflow: hidden;
-  border-radius: 0.9rem;
+  border-radius: 0;
   background: #e7e9e4;
 }
 
@@ -140,6 +140,10 @@
   text-decoration: none;
   font-weight: 700;
   letter-spacing: -0.03em;
+}
+
+.lf-nav .lf-pill {
+  border-radius: 999px;
 }
 
 .lf-nav-pill {
@@ -397,6 +401,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid var(--lf-line);
+  border-radius: 0;
   background: #fff;
   color: var(--lf-ink);
 }
@@ -443,6 +448,7 @@
   height: 1.9rem;
   align-items: center;
   justify-content: center;
+  border-radius: 0;
   background: var(--lf-green);
   color: #fff;
   font-size: 0.68rem;

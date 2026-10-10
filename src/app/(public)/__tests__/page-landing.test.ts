@@ -93,6 +93,11 @@ describe("portada: diseño de referencia y consulta pública", () => {
     expect(hero).not.toContain("getLandingStats");
     expect(css).toContain("lf-hero-wash");
     expect(css).toContain("column-count: 5");
+    expect(css).toMatch(/\.lf-photo\s*\{[^}]*border-radius:\s*0/);
+    expect(css).toMatch(/\.lf-tag\s*\{[^}]*border-radius:\s*0/);
+    expect(css).toMatch(/\.lf-pill\s*\{[^}]*border-radius:\s*0/);
+    expect(css).toMatch(/\.lf-nav \.lf-pill\s*\{[^}]*border-radius:\s*999px/);
+    expect(css).toMatch(/\.lf-nav-links\s*\{[^}]*border-radius:\s*999px/);
   });
 
   it("la barra y las secciones usan las rutas y copys de la referencia", () => {
