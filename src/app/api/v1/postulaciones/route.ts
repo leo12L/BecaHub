@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { ApplicationStatus } from "@/generated/prisma/client";
+import { filtroBecaPublica } from "@/lib/becas/publica";
 
 /**
  * GET /api/postulaciones - Listar postulaciones del usuario autenticado
@@ -30,10 +31,7 @@ export async function GET() {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       if ((error as Error & { code?: string }).code === "EMAIL_NOT_CONFIRMED") {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 403 },
-        );
+        return NextResponse.json({ error: error.message }, { status: 403 });
       }
     }
     console.error(error);
@@ -70,15 +68,16 @@ export async function POST(request: NextRequest) {
       "REJECTED",
     ];
     if (status && !validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: "status inválido" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "status inválido" }, { status: 400 });
     }
 
-    // Verificar que la beca existe
-    const scholarship = await db.scholarship.findUnique({
-      where: { id: scholarshipId },
+    // Verificar que la beca existe y es públicamente visible
+    // (ACTIVE no vencida). No se permite crear postulación a DRAFT/PENDING_REVIEW/CLOSED.
+    const scholarship = await db.scholarship.findFirst({
+      where: {
+        id: scholarshipId,
+        ...filtroBecaPublica(),
+      },
     });
 
     if (!scholarship) {
@@ -121,10 +120,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       if ((error as Error & { code?: string }).code === "EMAIL_NOT_CONFIRMED") {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 403 },
-        );
+        return NextResponse.json({ error: error.message }, { status: 403 });
       }
     }
     console.error(error);

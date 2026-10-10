@@ -24,20 +24,12 @@ const SORT_OPTIONS = [
   { value: "recent", label: "Más recientes" },
 ];
 
-const STATUS_OPTIONS = [
-  { value: "ACTIVE", label: "Activas" },
-  { value: "CLOSED", label: "Cerradas" },
-  { value: "DRAFT", label: "Borrador" },
-  { value: "PENDING_REVIEW", label: "En revisión" },
-];
-
 const ALL = "__all__";
 const FILTER_KEYS = [
   "type",
   "area",
   "country",
   "level",
-  "status",
   "sort",
   "deadlineBefore",
 ] as const;
@@ -116,26 +108,6 @@ export function FilterPanel({
       </div>
 
       <Divider />
-
-      <div>
-        <Label>Estado</Label>
-        <Select
-          value={valueFor("status")}
-          onValueChange={(value) => updateParam("status", value)}
-        >
-          <SelectTrigger className={selectClass}>
-            <SelectValue placeholder="Todos los estados" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Todos los estados</SelectItem>
-            {STATUS_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
       <div>
         <Label>Tipo de beca</Label>

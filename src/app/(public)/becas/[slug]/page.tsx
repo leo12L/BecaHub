@@ -23,6 +23,10 @@ import {
   formatDate,
   statusLabels,
 } from "@/lib/becas/format";
+import {
+  AVISO_CONVOCATORIA_CERRADA,
+  estadoDetallePublico,
+} from "@/lib/becas/publica";
 
 type Params = Promise<{ slug: string }>;
 
@@ -34,7 +38,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const beca = await getBecaBySlug(slug);
 
-  if (!beca) {
+  if (!beca || estadoDetallePublico(beca) === "not_found") {
     return { title: "Beca no encontrada" };
   }
 
@@ -59,10 +63,13 @@ export async function generateMetadata({
 export default async function BecaDetailPage({ params }: { params: Params }) {
   const { slug } = await params;
   const beca = await getBecaBySlug(slug);
+  const estadoDetalle = beca ? estadoDetallePublico(beca) : "not_found";
 
-  if (!beca) {
+  if (!beca || estadoDetalle === "not_found") {
     notFound();
   }
+
+  const becaCerrada = estadoDetalle === "cerrada";
 
   const amount = formatAmount(beca.amountMin, beca.amountMax, beca.currency);
   const publishedDate = formatDate(beca.createdAt);
@@ -103,6 +110,14 @@ export default async function BecaDetailPage({ params }: { params: Params }) {
             <DeadlineBadge deadline={beca.deadline} status={beca.status} />
           </div>
         </header>
+
+        {becaCerrada && (
+          <div className="mt-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
+            <p className="text-sm font-semibold">
+              {AVISO_CONVOCATORIA_CERRADA}
+            </p>
+          </div>
+        )}
 
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[2fr_1fr]">
           <div className="flex flex-col gap-6">

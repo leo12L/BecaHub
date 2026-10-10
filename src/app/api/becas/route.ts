@@ -38,6 +38,18 @@ export async function GET(request: NextRequest) {
     throw error;
   }
 
+  // La API pública solo permite becas ACTIVE (seguridad: no exponer DRAFT/PENDING_REVIEW)
+  // Admin/moderador usa la API admin, no esta
+  if (query.status && query.status !== "ACTIVE") {
+    return NextResponse.json(
+      {
+        error:
+          "Esta API solo muestra becas activas. Para otros estados, usa la API admin.",
+      },
+      { status: 400 },
+    );
+  }
+
   const cacheKey = `becas:list:${JSON.stringify(query)}`;
   const cached = await getCached<unknown>(cacheKey);
   if (cached) {
