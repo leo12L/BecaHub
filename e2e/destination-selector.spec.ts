@@ -9,13 +9,19 @@ test.describe("Destination Selector and Globe", () => {
       page.getByRole("heading", { name: /¿A dónde quieres ir\?/i }),
     ).toBeVisible();
 
-    // Check for destination chips
-    await expect(page.getByRole("button", { name: "México" })).toBeVisible();
+    // Check for destination chips (use exact match to avoid conflicts with category buttons)
     await expect(
-      page.getByRole("button", { name: "Estados Unidos" }),
+      page.getByRole("button", { name: "México", exact: true }),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "España" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Europa" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Estados Unidos", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "España", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Europa", exact: true }),
+    ).toBeVisible();
   });
 
   test("should show initial message when no destination selected", async ({
