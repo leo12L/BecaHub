@@ -137,7 +137,7 @@ model Scholarship {
   amountMax            Decimal?
   currency             String            @default("MXN")
   countryOrigin        String?
-  destinationCountries String[]
+  destinationCountries String[]         @default([])
   academicLevel        AcademicLevel
   language             String?
   deadline             DateTime?
