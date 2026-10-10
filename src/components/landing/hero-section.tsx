@@ -8,10 +8,8 @@ export function HeroSection() {
         <div className="lf-hero-copy">
           <p className="lf-eyebrow">El mundo está lleno de oportunidades</p>
           <h1 className="lf-hero-title">
-            Encuentra las becas
-            <br />
-            de las que <em>no te has</em>
-            <br />
+            Encuentra las becas <br />
+            de las que <em>no te has</em> <br />
             <em>enterado.</em>
           </h1>
           <p className="lf-hero-lead">
