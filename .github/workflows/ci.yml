@@ -140,3 +140,43 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+      - name: Capture visual screenshots
+        continue-on-error: true
+        env:
+          SCREENSHOTS: "1"
+        run: |
+          mkdir -p screenshots
+          npx playwright test e2e/screenshots.spec.ts --reporter=list
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-pr
+          path: screenshots/
+          retention-days: 30
+
+      - name: Run Lighthouse audit
+        continue-on-error: true
+        run: |
+          mkdir -p lighthouse-results
+          npm run build
+          npm run start &
+          SERVER_PID=$!
+          sleep 10
+          npx lighthouse http://localhost:3000/ \
+            --preset=mobile \
+            --only-categories=performance,accessibility \
+            --output=json,html \
+            --output-path=./lighthouse-results/lighthouse-mobile \
+            --chrome-flags="--headless=new --no-sandbox --disable-gpu"
+          kill $SERVER_PID || true
+
+      - name: Upload Lighthouse results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse
+          path: lighthouse-results/
+          retention-days: 30
