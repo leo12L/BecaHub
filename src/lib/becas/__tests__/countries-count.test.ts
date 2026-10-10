@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { db } from "@/lib/db";
 import { getLandingStats } from "@/lib/becas/queries";
+import { filtroBecaPublica } from "@/lib/becas/publica";
 
 describe("Contador de países", () => {
   const testSourceId = "00000000-0000-0000-0000-000000000004";
@@ -116,7 +117,7 @@ describe("Contador de países", () => {
     // México debe contarse una sola vez, no tres veces
     // Para verificar esto, contamos manualmente los países únicos
     const allScholarships = await db.scholarship.findMany({
-      where: { status: "ACTIVE" },
+      where: filtroBecaPublica(),
       select: { destinationCountries: true },
     });
 
@@ -190,7 +191,7 @@ describe("Contador de países", () => {
     // Países únicos: MX, US, ES, FR = 4
     // US aparece en dos becas pero debe contarse una vez
     const allScholarships = await db.scholarship.findMany({
-      where: { status: "ACTIVE" },
+      where: filtroBecaPublica(),
       select: { destinationCountries: true },
     });
 
