@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { HERO_TILES } from "@/components/landing/landing-photos";
+import { HeroCollage } from "@/components/landing/hero-collage";
 
 export function HeroSection() {
   return (
     <section className="lf-hero" data-testid="landing-hero">
-      <div className="lf-hero-grid">
+      <HeroCollage>
         <div className="lf-hero-copy">
           <p className="lf-eyebrow">El mundo está lleno de oportunidades</p>
           <h1 className="lf-display lf-hero-title mt-5">
@@ -16,39 +16,14 @@ export function HeroSection() {
           </p>
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
             <Link href="/becas" className="lf-pill lf-pill-green">
-              Encuentra tu beca →
+              Encuentra tu beca ↗
             </Link>
             <Link href="#como-funciona" className="lf-pill lf-pill-ghost">
               Conoce cómo funciona
             </Link>
           </div>
         </div>
-
-        {HERO_TILES.map((tile) => (
-          <figure
-            key={tile.slot}
-            className="lf-hero-tile lf-photo"
-            data-slot={tile.slot}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={tile.src}
-              alt={tile.alt}
-              width={1200}
-              height={800}
-              loading="eager"
-              decoding="async"
-              fetchPriority={
-                tile.slot === "a" || tile.slot === "d" ? "high" : "auto"
-              }
-              data-testid={`landing-hero-img-${tile.slot}`}
-            />
-            <figcaption className="lf-tag bottom-3 left-3">
-              {tile.tag}
-            </figcaption>
-          </figure>
-        ))}
-      </div>
+      </HeroCollage>
     </section>
   );
 }

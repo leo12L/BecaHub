@@ -3,9 +3,8 @@ import { LandingWordmark } from "@/components/landing/landing-wordmark";
 
 export const LANDING_NAV_LINKS = [
   { href: "#descubre", label: "Descubre" },
-  { href: "#preparate", label: "Prepárate" },
   { href: "#como-funciona", label: "Cómo funciona" },
-  { href: "#comunidad", label: "Comunidad" },
+  { href: "#nosotros", label: "Nosotros" },
 ] as const;
 
 export function LandingNavbar() {
@@ -50,7 +49,7 @@ export function LandingNavbar() {
           </ul>
         </details>
         <Link href="/becas" className="lf-pill lf-pill-green">
-          Explorar becas →
+          Explorar becas ↗
         </Link>
       </div>
     </header>

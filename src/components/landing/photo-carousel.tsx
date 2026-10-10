@@ -49,7 +49,7 @@ export function PhotoCarousel({
           data-testid={`${testId}-img`}
         />
         {slide.tag ? (
-          <figcaption className="lf-tag bottom-4 left-4">
+          <figcaption className="lf-tag lf-tag-green bottom-4 left-4">
             {slide.tag}
           </figcaption>
         ) : null}

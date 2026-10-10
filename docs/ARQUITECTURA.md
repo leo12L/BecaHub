@@ -89,7 +89,7 @@ BecaHub es una plataforma para estudiantes mexicanos, principalmente universitar
 
 **Descripción:** landing pública para universitarias y universitarios en México. No incluye globo interactivo ni carrusel de categorías ni tiras de becas de ejemplo.
 
-**Estructura:** barra de píldoras flotantes (BecaHub, Descubre, Prepárate, Cómo funciona, Comunidad, Explorar becas), hero con retícula de fotos de estudiantes y titular centrado («no» enfatizado), franja verde «Tu próxima oportunidad.», bloque 01/DESCUBRE con carrusel, bloque 02/PREPÁRATE, pasos numerados y pie con Explora / Becas / redes pendientes. Paleta y tipografía propias de la portada (verde bosque `#0C6948`, crema), sin cambiar el resto de la app.
+**Estructura:** barra de píldoras (BecaHub, Descubre, Cómo funciona, Nosotros, Explorar becas), hero con collage animado de fotos y «Pausar carrusel», titular con «no» en verde, franja verde diagonal «Tu próxima oportunidad.», 01/DESCUBRE con carrusel, 02/PREPÁRATE, pasos 01–03 y pie Explora / Redes. Paleta de la referencia (`#0D6847`, `#FAFAF5`) solo en `/`.
 
 **Componentes:** `src/components/landing/` (`landing-navbar`, `hero-section`, `green-band`, `discover-section`, `prepare-section`, `steps-section`, `photo-carousel`, `landing-footer`).
 

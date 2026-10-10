@@ -54,9 +54,9 @@ describe("portada: diseño de referencia y consulta pública", () => {
     expect(cards).not.toMatch(/\bcountryDestination\b/);
   });
 
-  it("las fotos locales existen y el hero las carga eager", () => {
+  it("las fotos locales existen y el collage las carga eager", () => {
     const photos = readLanding("landing-photos.ts");
-    const hero = readLanding("hero-section.tsx");
+    const collage = readLanding("hero-collage.tsx");
     const files = [
       "hero-laptop.jpg",
       "hero-cafe.jpg",
@@ -74,7 +74,8 @@ describe("portada: diseño de referencia y consulta pública", () => {
       expect(photos).toContain(`/images/landing/${file}`);
       expect(existsSync(join(photosDir, file))).toBe(true);
     }
-    expect(hero).toContain('loading="eager"');
+    expect(collage).toContain('loading="eager"');
+    expect(collage).toContain("Pausar carrusel");
     expect(photos).not.toContain("pexels");
   });
 
@@ -90,9 +91,10 @@ describe("portada: diseño de referencia y consulta pública", () => {
   it("la barra y las secciones usan las rutas y copys de la referencia", () => {
     const nav = readLanding("landing-navbar.tsx");
     expect(nav).toContain("Descubre");
-    expect(nav).toContain("Prepárate");
     expect(nav).toContain("Cómo funciona");
-    expect(nav).toContain("Comunidad");
+    expect(nav).toContain("Nosotros");
+    expect(nav).not.toContain("Prepárate");
+    expect(nav).not.toContain("Comunidad");
     expect(nav).toContain('href="/becas"');
     expect(nav).toContain("Explorar becas");
 
@@ -111,12 +113,15 @@ describe("portada: diseño de referencia y consulta pública", () => {
     expect(steps).toContain('id="como-funciona"');
 
     const footer = readLanding("landing-footer.tsx");
-    expect(footer).toContain("Más oportunidades, nuevos caminos.");
-    expect(footer).toContain("Todas las becas");
+    expect(footer).toContain("Más oportunidades. Nuevos caminos.");
+    expect(footer).toContain(
+      "Prototipo visual. Las imágenes y categorías son ilustrativas.",
+    );
     expect(footer).toContain("Instagram");
     expect(footer).toContain("LinkedIn");
-    expect(footer).toContain("Facebook");
-    expect(footer).toContain('id="comunidad"');
+    expect(footer).not.toContain("Facebook");
+    expect(footer).not.toContain("Todas las becas");
+    expect(footer).toContain('id="nosotros"');
   });
 
   it("el carrusel respeta prefers-reduced-motion", () => {

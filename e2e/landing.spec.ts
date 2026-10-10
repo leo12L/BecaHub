@@ -12,10 +12,10 @@ test.describe("Portada BecaHub", () => {
     );
     await expect(page.locator("h1 em")).toHaveText("no");
     await expect(
-      page.getByRole("link", { name: "Explorar becas →" }),
+      page.getByRole("link", { name: "Explorar becas ↗" }),
     ).toHaveAttribute("href", "/becas");
     await expect(
-      page.getByRole("link", { name: "Encuentra tu beca →" }),
+      page.getByRole("link", { name: "Encuentra tu beca ↗" }),
     ).toHaveAttribute("href", "/becas");
     await expect(
       page.getByRole("heading", { name: "Oportunidades que mereces conocer." }),
@@ -27,8 +27,9 @@ test.describe("Portada BecaHub", () => {
       page.getByRole("heading", { name: "Encuentra lo que va contigo" }),
     ).toBeVisible();
     await expect(
-      page.getByText("Más oportunidades, nuevos caminos."),
+      page.getByText("Más oportunidades. Nuevos caminos."),
     ).toBeVisible();
+    await expect(page.getByTestId("landing-pause-collage")).toBeVisible();
     await expect(
       page.getByLabel("Pendiente: Instagram (sin URL todavía)"),
     ).toBeDisabled();
@@ -44,14 +45,9 @@ test.describe("Portada BecaHub", () => {
     await expect(page.locator("#descubre")).toBeVisible();
     await expect(page.locator("#preparate")).toBeVisible();
     await expect(page.locator("#como-funciona")).toBeVisible();
-    await expect(page.locator("#comunidad")).toBeVisible();
+    await expect(page.locator("#nosotros")).toBeVisible();
 
-    for (const label of [
-      "Descubre",
-      "Prepárate",
-      "Cómo funciona",
-      "Comunidad",
-    ]) {
+    for (const label of ["Descubre", "Cómo funciona", "Nosotros"]) {
       await expect(
         page
           .getByRole("navigation", { name: "Navegación principal" })
@@ -80,13 +76,14 @@ test.describe("Portada BecaHub", () => {
         document.documentElement.classList.toggle("dark", dark);
       }, viewport.dark);
 
-      const visibleHero =
-        viewport.width < 901
-          ? (["a", "b", "d", "e"] as const)
-          : (["a", "b", "c", "d", "e", "f", "g", "h"] as const);
-
-      for (const slot of visibleHero) {
-        const img = page.getByTestId(`landing-hero-img-${slot}`);
+      const heroImgs = page
+        .locator('[data-testid^="landing-hero-img-"]')
+        .locator("visible=true");
+      const count = await heroImgs.count();
+      expect(count, `hero fotos en ${viewport.name}`).toBeGreaterThan(0);
+      const sample = Math.min(count, viewport.width < 901 ? 2 : 6);
+      for (let i = 0; i < sample; i++) {
+        const img = heroImgs.nth(i);
         await img.scrollIntoViewIfNeeded();
         await expect(img).toBeVisible();
         await expect
@@ -95,10 +92,9 @@ test.describe("Portada BecaHub", () => {
         const naturalWidth = await img.evaluate(
           (el: HTMLImageElement) => el.naturalWidth,
         );
-        expect(
-          naturalWidth,
-          `hero ${slot} en ${viewport.name}`,
-        ).toBeGreaterThan(0);
+        expect(naturalWidth, `hero ${i} en ${viewport.name}`).toBeGreaterThan(
+          0,
+        );
       }
 
       for (const id of [
@@ -191,5 +187,13 @@ test.describe("Portada con reduced motion", () => {
       (el) => getComputedStyle(el).transition,
     );
     expect(transition === "none" || transition.includes("none")).toBe(true);
+
+    const col = page.locator("[data-landing-collage-col]").first();
+    if (await col.count()) {
+      const animation = await col.evaluate(
+        (el) => getComputedStyle(el).animationName,
+      );
+      expect(animation === "none" || animation === "").toBe(true);
+    }
   });
 });
