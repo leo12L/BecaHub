@@ -117,12 +117,15 @@ test.describe("Destination Selector and Globe", () => {
   }) => {
     await page.goto("/");
 
-    // Wait for the globe section to be visible
-    await expect(
-      page.getByRole("heading", { name: /¿A dónde quieres ir\?/i }),
-    ).toBeVisible();
+    // Wait for the globe section to be visible and loaded
+    const globeSection = page.locator('text="¿A dónde quieres ir?"').locator("..");
+    await expect(globeSection).toBeVisible();
+
+    // Wait for dynamic component to load (it uses next/dynamic with ssr: false)
+    await page.waitForTimeout(2000);
 
     // Check for canvas (WebGL globe) or fallback (if WebGL not supported)
+    // The canvas/fallback should be near the destination chips
     const hasCanvas = await page.locator("canvas").count();
     const hasFallback = await page
       .locator('[role="img"][aria-label*="Globo terráqueo"]')
@@ -134,6 +137,7 @@ test.describe("Destination Selector and Globe", () => {
     // If canvas exists, verify it has dimensions
     if (hasCanvas > 0) {
       const canvas = page.locator("canvas").first();
+      await canvas.waitFor({ state: "visible", timeout: 5000 });
       const box = await canvas.boundingBox();
       expect(box).toBeTruthy();
       expect(box!.width).toBeGreaterThan(0);
