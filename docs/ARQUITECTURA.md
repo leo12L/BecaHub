@@ -928,6 +928,85 @@ Resultado de `npm audit --omit=dev` sobre el lockfile actual (verificado 2026-10
 
 ---
 
+## Sistema de diseño visual
+
+### Paleta de colores
+
+El sistema de diseño de BecaHub está inspirado en la referencia visual de un globo terráqueo hecho de puntos con colores suaves (verde agua y azul cielo), tarjetas blancas redondeadas con mucho aire. La paleta está optimizada para modo claro principalmente, con soporte completo para modo oscuro.
+
+**Colores modo claro:**
+- Background: `#f0f9ff` (azul cielo muy claro)
+- Primary: `#0891b2` (turquesa/cyan)
+- Secondary: `#e0f2fe` (azul cielo suave)
+- Highlight: `#06b6d4` (cyan brillante)
+- Globo: `#06b6d4` y `#67e8f9` sobre fondo `#e0f2fe`
+
+**Colores modo oscuro:**
+- Background: `#0f172a` (azul oscuro profundo)
+- Primary: `#22d3ee` (cyan brillante)
+- Secondary: `#1e3a5f` (azul marino)
+- Highlight: `#06b6d4` (cyan)
+
+**Radios y espaciado:**
+- Radio base: `1rem` (16px) para tarjetas y botones
+- Espaciado generoso con `py-16` y `px-4` en secciones
+- Sombras suaves (`shadow-sm`, `shadow-md`) para profundidad
+
+### Tipografía
+
+- Fuente: Geist Sans (sistema por defecto: Arial, Helvetica, sans-serif)
+- Títulos grandes: `text-3xl` a `text-4xl` con `font-bold`
+- Texto muted: `text-muted-foreground` para información secundaria
+- Alto contraste en modo claro y oscuro (cumple WCAG AA)
+
+### Componentes visuales
+
+#### Globo terráqueo interactivo
+
+**Decisión técnica:** Se eligió `cobe` (MIT license, ~5KB) sobre alternativas como `react-globe.gl` porque:
+- **Ligero:** Solo 5KB vs 200KB+ de alternativas
+- **Rendimiento:** Usa WebGL de forma eficiente
+- **Sin dependencias pesadas:** No requiere Three.js
+- **Accesibilidad:** Se complementa con chips de destino como alternativa principal
+
+**Implementación:**
+- Carga lazy con `next/dynamic` y `ssr: false`
+- Solo se renderiza cuando entra en viewport (IntersectionObserver)
+- Respeta `prefers-reduced-motion` para usuarios sensibles al movimiento
+- Marcadores animados para destinos seleccionados
+- Rotación suave hacia la ubicación seleccionada
+
+**Ubicaciones de países/regiones:**
+```typescript
+GLOBE_LOCATIONS = {
+  MX: [23.6345, -102.5528],   // México
+  ES: [40.4168, -3.7038],      // España
+  US: [37.0902, -95.7129],     // Estados Unidos
+  // ... más ubicaciones
+}
+```
+
+#### Selector de destinos
+
+- **UI principal:** Chips clicables con estados (normal/seleccionado)
+- **Alternativa accesible:** Los chips son la forma principal de interacción, el globo es visual
+- **Feedback claro:** Estado vacío explícito cuando no hay becas para un destino
+- **Responsive:** Funciona en móvil con tap y en desktop con click
+
+#### Carrusel de categorías
+
+**Implementación:** Embla Carousel vía `embla-carousel-react` porque:
+- **Touch-friendly:** Soporte nativo para swipe en móvil
+- **Teclado:** Navegación con flechas izquierda/derecha
+- **Sin animaciones innecesarias:** Respetuoso con el rendimiento
+- **Tamaño:** Lightweight comparado con alternativas
+
+**Categorías disponibles:**
+- Cierran pronto (deadline <= 30 días)
+- Posgrado en el extranjero
+- Licenciatura en México  
+- Idiomas e intercambio
+
 ## Bitácora de cambios
 
 Esta sección debe actualizarse en cada PR que modifique la arquitectura.
@@ -941,7 +1020,11 @@ Esta sección debe actualizarse en cada PR que modifique la arquitectura.
 | 2026-10-09 | PR #5 (v5) | **Tercera ronda de correcciones (Arquitecto y QA):** (1) **SEGURIDAD getCurrentUser**: agregado `onUpdate: Cascade` a FKs de `userId` (migración `20261009022100_add_onupdate_cascade`). `getCurrentUser()` vincula legacy SIN BORRAR: cambia ID con `db.user.update()` en transacción. Solo vincula si `email_confirmed_at` existe; sin confirmación lanza error. Pruebas DB verifican preservación de favoritos/perfil y rechazo sin confirmación. (2) **Vulnerabilidades**: reescrita sección con `npm audit --omit=dev` real: 0 críticas, 4 altas (prisma CLI: `deepmerge-ts`, `mysql2`). Justificación: mysql2 no usado (Postgres), deepmerge-ts solo en config. Fix exige Prisma 6 (breaking). Eliminado `NPM_FLAGS = "--omit=dev"` de `netlify.toml`. (3) **Cobertura 403**: nueva prueba unitaria `src/__tests__/proxy.test.ts` mockeando `@supabase/ssr` y `@/lib/db`. Verifica USER→403, MODERATOR/ADMIN→pasan, sin sesión→redirect o 401. Fijado `test:unit` y `test:db` con `server.test.ts`. |
 | 2026-10-09 | PR #5 (v6) | **Cuarta ronda - migración MODERATOR y validación de schema:** (1) **Migración faltante**: nueva migración `20261009025900_add_moderator_role` con `ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'MODERATOR'` (sin transacción, ADD VALUE no es transaccional). El schema tenía MODERATOR pero ninguna migración lo creaba en la DB real. (2) **Validación automática**: CI ahora valida que migraciones coincidan con schema usando `prisma migrate diff --exit-code`. Crea shadow database (`becahub_shadow`) y falla si hay diferencias. Configurado `shadowDatabaseUrl` en `prisma.config.ts`. (3) **Pruebas rol MODERATOR**: nueva prueba `src/lib/__tests__/user-roles.test.ts` verifica creación, actualización y filtrado de usuarios con rol MODERATOR. Agregado a `test:db`. Esto previene divergencia futura entre schema y migraciones. |
 | 2026-10-09 | PR #6 | **Fase 2: Ingesta automática de becas.** (1) Sistema de ingesta completo en `src/lib/ingesta/`: lectores SECIHTI (API JSON) y Jina Reader (HTML), orquestador `ejecutar.ts`, tipos y validadores Zod. (2) Deduplicación por fingerprint: nuevos campos `fingerprint` (único, opcional), `rawPayload` (Json), `validationErrors` (Json) en modelo `Scholarship`. Migración `20261009033700_add_fingerprint_and_validation_fields`. Fingerprint = `título_normalizado|convocante_normalizado|año`. **Prioridad del año**: (a) deadline, (b) año de la fuente (SECIHTI `conv_year`), (c) literal `"sin-anio"` si no hay ninguno. NUNCA null - siempre genera huella válida. Si una beca sin año aparece luego con fecha, busca variante `sin-anio` y actualiza huella sin duplicar. (3) **Actualización no despublica**: al actualizar beca existente, SOLO cambia `rawPayload`, `scrapedAt`, `validationErrors` y `fingerprint`; campos editados (título, descripción, nivel, status) se preservan. Si cambian deadline/link, se anota en `validationErrors` para moderador. (4) **Validación de URLs**: si HEAD responde 405, reintenta con GET antes de marcar como roto. (5) **Suposiciones anotadas**: nivel `UNDERGRAD`, cobertura `MONETARY`, país `México` por defecto se anotan en `validationErrors`. (6) **Limitación deduplicación**: Jina puede dejar `convocante` null y SECIHTI pone "SECIHTI", así que la misma beca en ambas fuentes puede no unirse todavía. (7) Fixtures reales guardados en `fixtures/`. (8) Todas las becas ingresan como `PENDING_REVIEW` con errores en `validationErrors` si los hay; `validationErrors` vuelve a `Prisma.DbNull` cuando se corrigen. (9) GitHub Actions workflow `ingesta-diaria.yml` con cron diario y skip limpio si falta `DATABASE_URL`. (10) Tests con BD real (`test:db`) sin salir a internet (mocks de fetch/validateUrlLiveness). (11) Eliminación total de Tavily: archivos, dependencias, referencias en orquestador, seed, admin UI. Script `npm run ingesta` reemplaza `npm run discover`. (12) Admin `/admin/becas` muestra aviso si no hubo corrida exitosa en 48 horas. (13) Seed actualizado con fuentes SECIHTI, Jina Reader y Manual. (14) Manejo de errores mejorado: fallos en `ScraperLog` no tumban `Promise.all` ni la corrida. (15) `Prisma.DbNull` para campos Json nullable (no `null` plano ni `as unknown`). |
+<<<<<<< HEAD
 | 2026-10-09 | PR #7 (v1) | **Fase 3 completa - perfil y búsqueda:** (1) **Búsqueda con unaccent**: migración `20261009043000_add_unaccent_extension` activa extensión nativa de Postgres. `getBecas()` usa `$queryRaw` con `unaccent(LOWER(campo)) LIKE unaccent(LOWER('%término%'))` para búsqueda insensible a acentos ("mexico" encuentra "México"). Escapa `%` y `_` del término del usuario para que no actúen como comodines. Implementación con `LIKE` suficiente para <500 usuarios (más simple que full-text search; se puede migrar más adelante si es necesario). (2) **Recomendaciones mejoradas**: `recomendarBecas()` ahora filtra becas vencidas usando la misma lógica de fecha que `getBecas` (hora de México, America/Mexico_City). Solo recomienda becas `ACTIVE` con `deadline >= hoy` o `deadline IS NULL`. (3) **APIs REST de favoritos y postulaciones**: nuevos endpoints en `/api/v1/favoritos` (GET, POST, DELETE) y `/api/v1/postulaciones` (GET, POST) bajo ruta versionada acordada para futura app Expo. Validación con `requireUser()` y filtros estrictos por `userId`. Estados de postulación: INTERESTED, APPLIED, INTERVIEW, AWARDED, REJECTED. (4) **Aislamiento entre usuarios**: todas las APIs validan sesión y filtran por `userId` del usuario autenticado. Tests verifican que usuario A no puede leer, modificar ni borrar datos de B (favoritos, postulaciones, perfil). (5) **Manejo de email no confirmado**: error código `EMAIL_NOT_CONFIRMED` en español, middleware redirige desde dashboard/admin, APIs retornan 403 (no 500), login pages muestran mensaje claro con Suspense. (6) **Tests completos**: 4 tests para búsqueda con unaccent (incluye wildcards), 4 tests para `recomendarBecas` con BD (no recomienda posgrado ni vencidas), 7 tests para aislamiento de usuarios (incluye DELETE), 11 tests para favoritos/postulaciones, 3 tests para email no confirmado. Total: 169 tests pasando (6 nuevos archivos de test). |
+=======
+| 2026-10-10 | PR #8 | **Rediseño visual con globo interactivo y carrusel de categorías:** (1) **Migración de datos**: `countryDestination` String → `destinationCountries` String[] con códigos ISO-3166 alpha-2. Migración SQL convierte datos existentes ("México"→["MX"], "España"→["ES"], etc.) y agrega validationErrors para valores no reconocidos. Eliminada restricción de "solo México" en `assertCanPublish`. Eliminado default "México" en ingesta - arreglo vacío si no detecta país. (2) **Sistema de diseño**: Nueva paleta inspirada en globo terráqueo con colores suaves (azul cielo `#f0f9ff`, turquesa `#0891b2`, cyan `#06b6d4`). Modo claro y oscuro completo. Radio base 1rem, espaciado generoso. Documentado en sección "Sistema de diseño visual" de ARQUITECTURA.md. (3) **Globo interactivo**: Componente `InteractiveGlobe` con `cobe` (5KB, MIT). Carga lazy con `next/dynamic`, renderiza solo en viewport (IntersectionObserver), respeta `prefers-reduced-motion`. Selector de destinos con chips como UI principal accesible. (4) **Carrusel de categorías**: Implementado con `embla-carousel-react`. Soporte touch (swipe), teclado (flechas), y accesibilidad completa. 4 categorías: cierran pronto, posgrado extranjero, licenciatura México, idiomas. (5) **Componentes UI**: Carousel reutilizable con Embla, ScholarshipCard actualizado para mostrar múltiples destinos, filtros por array de códigos en queries. (6) **Tests**: E2E para globo (selección destino, estado vacío, teclado) y carrusel (navegación flechas, teclado, móvil). DB tests para filtrado por país y región (Europa, América del Norte). (7) **Geo utilities**: `src/lib/geo.ts` con mapeo nombre→código, códigos→nombre, definición de regiones, parsing de texto libre. 147 tests unitarios passing. (8) **Admin UI**: Form actualizado con checkbox list para selección múltiple de países. BecasTable muestra nombres de países en español. |
+>>>>>>> 4b9bb11 (docs: document design system and technical decisions in ARQUITECTURA.md)
 
 ---
 
