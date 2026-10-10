@@ -1,0 +1,401 @@
+/* Portada de referencia: verde bosque, crema, píldoras. Solo aplica dentro de .landing-ref. */
+
+.landing-ref {
+  --lf-bg: #f3f4f2;
+  --lf-ink: #141414;
+  --lf-muted: #5a5f5a;
+  --lf-green: #0c6948;
+  --lf-green-hover: #0a553b;
+  --lf-card: #ffffff;
+  --lf-line: #d8dcd6;
+  background: var(--lf-bg);
+  color: var(--lf-ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.landing-ref a:focus-visible,
+.landing-ref button:focus-visible,
+.landing-ref summary:focus-visible {
+  outline: 2px solid var(--lf-green);
+  outline-offset: 3px;
+}
+
+.lf-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.lf-display {
+  font-weight: 700;
+  letter-spacing: -0.038em;
+  line-height: 1.02;
+}
+
+.lf-eyebrow {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lf-muted);
+}
+
+.lf-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  padding: 0.72rem 1.2rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.lf-pill-green {
+  background: var(--lf-green);
+  color: #fff;
+}
+
+.lf-pill-green:hover {
+  background: var(--lf-green-hover);
+}
+
+.lf-pill-ghost {
+  background: #fff;
+  color: var(--lf-ink);
+  border: 1px solid var(--lf-line);
+}
+
+.lf-pill-ghost:hover {
+  border-color: var(--lf-green);
+}
+
+.lf-pill-nav {
+  background: #fff;
+  color: var(--lf-ink);
+  padding: 0.62rem 1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.lf-pill-nav:hover {
+  color: var(--lf-green);
+}
+
+.lf-tag {
+  position: absolute;
+  z-index: 1;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 0.28rem 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--lf-ink);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.lf-photo {
+  overflow: hidden;
+  border-radius: 0.9rem;
+  background: #e7e9e4;
+}
+
+.lf-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lf-nav {
+  position: absolute;
+  inset: 1.1rem 1.25rem auto;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.lf-nav-links {
+  display: none;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.lf-hero {
+  position: relative;
+  min-height: 100svh;
+}
+
+.lf-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 36rem) minmax(0, 1fr);
+  grid-template-rows: 7.5rem minmax(4rem, 1fr) auto minmax(4rem, 1fr) 7.5rem;
+  gap: 0.85rem;
+  min-height: 100svh;
+  padding: 5.5rem 1.25rem 5rem;
+}
+
+.lf-hero-copy {
+  grid-column: 2;
+  grid-row: 2 / 5;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1.25rem 0.75rem;
+  background: var(--lf-bg);
+}
+
+.lf-hero-title {
+  max-width: 14ch;
+  font-size: clamp(2.4rem, 5vw, 4.35rem);
+}
+
+.lf-hero-title em {
+  font-style: normal;
+  color: var(--lf-green);
+}
+
+.lf-hero-tile {
+  position: relative;
+  min-height: 0;
+}
+
+.lf-hero-tile[data-slot="a"] {
+  grid-column: 1;
+  grid-row: 1 / 3;
+}
+.lf-hero-tile[data-slot="b"] {
+  grid-column: 1;
+  grid-row: 3 / 4;
+}
+.lf-hero-tile[data-slot="c"] {
+  grid-column: 1;
+  grid-row: 4 / 6;
+}
+.lf-hero-tile[data-slot="d"] {
+  grid-column: 3;
+  grid-row: 1 / 3;
+}
+.lf-hero-tile[data-slot="e"] {
+  grid-column: 3;
+  grid-row: 3 / 4;
+}
+.lf-hero-tile[data-slot="f"] {
+  grid-column: 3;
+  grid-row: 4 / 6;
+}
+.lf-hero-tile[data-slot="g"] {
+  grid-column: 2;
+  grid-row: 1;
+  max-width: 16rem;
+  justify-self: end;
+}
+.lf-hero-tile[data-slot="h"] {
+  grid-column: 2;
+  grid-row: 5;
+  max-width: 16rem;
+}
+
+.lf-band {
+  background: var(--lf-green);
+  color: #fff;
+}
+
+.lf-band .lf-eyebrow {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.lf-section {
+  padding: 5.5rem 1.5rem;
+}
+
+.lf-section-inner {
+  margin: 0 auto;
+  display: grid;
+  max-width: 72rem;
+  align-items: center;
+  gap: 3.5rem;
+}
+
+.lf-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--lf-green);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.lf-link:hover {
+  color: var(--lf-green-hover);
+}
+
+.lf-square-btn {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--lf-line);
+  background: #fff;
+  color: var(--lf-ink);
+}
+
+.lf-square-btn:hover {
+  border-color: var(--lf-green);
+  color: var(--lf-green);
+}
+
+.lf-square-btn:disabled {
+  opacity: 0.4;
+}
+
+.lf-carousel-track {
+  transition: opacity 0.35s ease;
+}
+
+.lf-steps {
+  display: grid;
+  gap: 3rem;
+}
+
+.lf-step {
+  position: relative;
+  padding-left: 4.25rem;
+}
+
+.lf-step + .lf-step::before {
+  content: "";
+  position: absolute;
+  top: -3rem;
+  left: 0.95rem;
+  width: 1px;
+  height: 3rem;
+  background: var(--lf-green);
+}
+
+.lf-step-n {
+  position: absolute;
+  top: 0.15rem;
+  left: 0;
+  display: flex;
+  width: 1.9rem;
+  height: 1.9rem;
+  align-items: center;
+  justify-content: center;
+  background: var(--lf-green);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.lf-footer {
+  border-top: 1px solid var(--lf-line);
+  padding: 4rem 1.5rem 2.5rem;
+}
+
+.lf-footer-grid {
+  margin: 0 auto;
+  display: grid;
+  max-width: 72rem;
+  gap: 2.5rem;
+}
+
+@media (min-width: 901px) {
+  .lf-nav-links {
+    display: flex;
+  }
+
+  .lf-nav-mobile {
+    display: none;
+  }
+
+  .lf-section-inner {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lf-steps {
+    grid-template-columns: 1fr 1fr;
+    gap: 5rem;
+    align-items: start;
+  }
+
+  .lf-footer-grid {
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .lf-hero-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
+    min-height: auto;
+    padding: 5.25rem 0.75rem 2rem;
+  }
+
+  .lf-hero-copy {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    padding: 0.5rem 0.5rem 1.5rem;
+  }
+
+  .lf-hero-tile[data-slot="a"],
+  .lf-hero-tile[data-slot="b"],
+  .lf-hero-tile[data-slot="c"],
+  .lf-hero-tile[data-slot="d"],
+  .lf-hero-tile[data-slot="e"],
+  .lf-hero-tile[data-slot="f"],
+  .lf-hero-tile[data-slot="g"],
+  .lf-hero-tile[data-slot="h"] {
+    grid-column: auto;
+    grid-row: auto;
+    max-width: none;
+    aspect-ratio: 4 / 3;
+  }
+
+  .lf-hero-tile[data-slot="c"],
+  .lf-hero-tile[data-slot="f"],
+  .lf-hero-tile[data-slot="g"],
+  .lf-hero-tile[data-slot="h"] {
+    display: none;
+  }
+
+  .lf-section {
+    padding: 3.5rem 1.15rem;
+  }
+
+  .lf-nav {
+    inset: 0.75rem 0.75rem auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-carousel-track,
+  .lf-pill {
+    transition: none !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.landing-ref) {
+    scroll-behavior: smooth;
+  }
+}

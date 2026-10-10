@@ -7,9 +7,9 @@ import {
 } from "@/lib/becas/landing-cards";
 
 /**
- * Becas de las tiras del hero. Delegamos el WHERE a `getBecas()`,
- * que aplica `filtroBecaPublica()` (ACTIVE y no vencida).
- * Esta función no arma su propio filtro de estado.
+ * Helper de consulta pública (ya no alimenta la portada visual).
+ * Delegamos el WHERE a `getBecas()`, que aplica `filtroBecaPublica()`
+ * (ACTIVE y no vencida). Esta función no arma su propio filtro de estado.
  */
 export async function getLandingStripBecas(): Promise<LandingStripCard[]> {
   const query = becasQuerySchema.parse({

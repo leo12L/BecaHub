@@ -4,13 +4,25 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const here = dirname(fileURLToPath(import.meta.url));
+const landingDir = join(here, "../../../components/landing");
+const photosDir = join(here, "../../../../public/images/landing");
 
-describe("portada: consulta pública y piezas del boceto", () => {
-  it("usa getLandingStripBecas y getLandingStats, no arma su propio filtro", () => {
+function readLanding(file: string) {
+  return readFileSync(join(landingDir, file), "utf8");
+}
+
+describe("portada: diseño de referencia y consulta pública", () => {
+  it("la portada no consulta becas ni arma un filtro propio", () => {
     const src = readFileSync(join(here, "../page.tsx"), "utf8");
 
-    expect(src).toContain("getLandingStripBecas");
-    expect(src).toContain("getLandingStats");
+    expect(src).toContain("landing-ref");
+    expect(src).toContain("HeroSection");
+    expect(src).toContain("DiscoverSection");
+    expect(src).toContain("PrepareSection");
+    expect(src).toContain("StepsSection");
+    expect(src).not.toContain("getLandingStripBecas");
+    expect(src).not.toContain("getLandingStats");
+    expect(src).not.toContain("ScholarshipStrips");
     expect(src).not.toMatch(/status:\s*["']PENDING_REVIEW["']/);
     expect(src).not.toContain("filtroBecaPublica(");
     expect(src).not.toContain("cobe");
@@ -42,51 +54,74 @@ describe("portada: consulta pública y piezas del boceto", () => {
     expect(cards).not.toMatch(/\bcountryDestination\b/);
   });
 
-  it("las dos fotos de los bloques existen en public/ y se referencian", () => {
-    const blocks = readFileSync(
-      join(here, "../../../components/landing/feature-blocks.tsx"),
-      "utf8",
-    );
+  it("las fotos locales existen y el hero las carga eager", () => {
+    const photos = readLanding("landing-photos.ts");
+    const hero = readLanding("hero-section.tsx");
     const files = [
+      "hero-laptop.jpg",
+      "hero-cafe.jpg",
+      "hero-mesa.jpg",
+      "hero-grupo.jpg",
+      "hero-libros.jpg",
+      "prepare-laptop.jpg",
       "estudiantes-colaborando.jpg",
+      "carousel-cursos.jpg",
       "estudiantes-aula.jpg",
+      "prepare-notas.jpg",
     ] as const;
 
     for (const file of files) {
-      expect(blocks).toContain(`/images/landing/${file}`);
-      expect(
-        existsSync(join(here, "../../../../public/images/landing", file)),
-      ).toBe(true);
+      expect(photos).toContain(`/images/landing/${file}`);
+      expect(existsSync(join(photosDir, file))).toBe(true);
     }
-    expect(blocks).toContain('loading="eager"');
+    expect(hero).toContain('loading="eager"');
+    expect(photos).not.toContain("pexels");
   });
 
-  it("las tiras son 4 y van a los lados, no un tablero central", () => {
-    const strips = readFileSync(
-      join(here, "../../../components/landing/scholarship-strips.tsx"),
-      "utf8",
-    );
-    expect(strips).toContain("COLUMN_COUNT = 4");
-    expect(strips).toContain('data-landing-cluster="left"');
-    expect(strips).toContain('data-landing-cluster="right"');
-    expect(strips).not.toContain("landing-strips-board");
+  it("el hero enfatiza 'no' y no muestra tiras ni contadores", () => {
+    const hero = readLanding("hero-section.tsx");
+    expect(hero).toContain("<em>no</em>");
+    expect(hero).toContain("Encuentra las becas de las que");
+    expect(hero).not.toContain("ScholarshipStrips");
+    expect(hero).not.toContain("stat-convocatorias");
+    expect(hero).not.toContain("getLandingStats");
   });
 
-  it("la portada no usa esquinas redondeadas", () => {
-    const files = [
-      "../page.tsx",
-      "../../../components/landing/landing-navbar.tsx",
-      "../../../components/landing/hero-section.tsx",
-      "../../../components/landing/strip-card.tsx",
-      "../../../components/landing/feature-blocks.tsx",
-      "../../../components/landing/how-it-works.tsx",
-      "../../../components/landing/landing-footer.tsx",
-    ];
-    for (const file of files) {
-      const src = readFileSync(join(here, file), "utf8");
-      expect(src, file).not.toMatch(
-        /rounded-(?:sm|md|lg|xl|2xl|3xl|4xl|full)\b/,
-      );
-    }
+  it("la barra y las secciones usan las rutas y copys de la referencia", () => {
+    const nav = readLanding("landing-navbar.tsx");
+    expect(nav).toContain("Descubre");
+    expect(nav).toContain("Prepárate");
+    expect(nav).toContain("Cómo funciona");
+    expect(nav).toContain("Comunidad");
+    expect(nav).toContain('href="/becas"');
+    expect(nav).toContain("Explorar becas");
+
+    const discover = readLanding("discover-section.tsx");
+    expect(discover).toContain("Oportunidades que mereces conocer.");
+    expect(discover).toContain('id="descubre"');
+
+    const prepare = readLanding("prepare-section.tsx");
+    expect(prepare).toContain("El siguiente paso empieza contigo.");
+    expect(prepare).toContain('id="preparate"');
+
+    const steps = readLanding("steps-section.tsx");
+    expect(steps).toContain("Encuentra lo que va contigo");
+    expect(steps).toContain("Prepara tu siguiente paso");
+    expect(steps).toContain("Envía tu postulación");
+    expect(steps).toContain('id="como-funciona"');
+
+    const footer = readLanding("landing-footer.tsx");
+    expect(footer).toContain("Más oportunidades, nuevos caminos.");
+    expect(footer).toContain("Todas las becas");
+    expect(footer).toContain("Instagram");
+    expect(footer).toContain("LinkedIn");
+    expect(footer).toContain("Facebook");
+    expect(footer).toContain('id="comunidad"');
+  });
+
+  it("el carrusel respeta prefers-reduced-motion", () => {
+    const carousel = readLanding("photo-carousel.tsx");
+    expect(carousel).toContain("prefers-reduced-motion");
+    expect(carousel).toContain('loading="eager"');
   });
 });

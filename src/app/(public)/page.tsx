@@ -1,27 +1,24 @@
 import { LandingNavbar } from "@/components/landing/landing-navbar";
-import "@/components/landing/landing-motion.css";
 import { HeroSection } from "@/components/landing/hero-section";
-import { FeatureBlocks } from "@/components/landing/feature-blocks";
-import { HowItWorks } from "@/components/landing/how-it-works";
+import { GreenBand } from "@/components/landing/green-band";
+import { DiscoverSection } from "@/components/landing/discover-section";
+import { PrepareSection } from "@/components/landing/prepare-section";
+import { StepsSection } from "@/components/landing/steps-section";
 import { LandingFooter } from "@/components/landing/landing-footer";
-import { getLandingStripBecas } from "@/lib/becas/landing";
-import { getLandingStats } from "@/lib/becas/queries";
+import "@/components/landing/landing-ref.css";
 
-export const dynamic = "force-dynamic";
-
-export default async function LandingPage() {
-  const [cards, stats] = await Promise.all([
-    getLandingStripBecas(),
-    getLandingStats(),
-  ]);
-
+export default function LandingPage() {
   return (
-    <div className="landing-page bg-background min-h-screen">
-      <LandingNavbar />
+    <div className="landing-ref min-h-screen">
+      <div className="relative">
+        <LandingNavbar />
+        <HeroSection />
+      </div>
       <main>
-        <HeroSection cards={cards} stats={stats} />
-        <FeatureBlocks />
-        <HowItWorks />
+        <GreenBand />
+        <DiscoverSection />
+        <PrepareSection />
+        <StepsSection />
       </main>
       <LandingFooter />
     </div>

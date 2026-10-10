@@ -1,69 +1,58 @@
 import Link from "next/link";
-import { BecaHubLogo } from "@/components/brand/becahub-logo";
+import { LandingWordmark } from "@/components/landing/landing-wordmark";
 
-const navLinks = [
-  { href: "/", label: "Inicio" },
-  { href: "/becas", label: "Becas" },
+export const LANDING_NAV_LINKS = [
+  { href: "#descubre", label: "Descubre" },
+  { href: "#preparate", label: "Prepárate" },
   { href: "#como-funciona", label: "Cómo funciona" },
-  { href: "/login", label: "Entrar" },
-];
+  { href: "#comunidad", label: "Comunidad" },
+] as const;
 
 export function LandingNavbar() {
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-3 pt-4">
-      <nav
-        className="border-border/80 bg-card/90 pointer-events-auto flex w-full max-w-3xl items-center justify-between gap-3 rounded-none border px-3 py-2 shadow-lg shadow-black/5 md:px-5"
-        aria-label="Navegación principal"
+    <header className="lf-nav">
+      <Link
+        href="/"
+        className="lf-pill lf-pill-nav"
+        aria-label="BecaHub, ir al inicio"
       >
-        <Link
-          href="/"
-          className="focus-visible:outline-ring flex shrink-0 items-center gap-2 rounded-none focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
-          <BecaHubLogo variant="mark" className="h-7 w-7" />
-          <span className="text-foreground text-sm font-bold tracking-tight">
-            BecaHub
-          </span>
-        </Link>
+        <LandingWordmark size="sm" />
+      </Link>
 
-        <ul className="hidden items-center gap-1 md:flex">
-          {navLinks.map((link) => (
+      <nav aria-label="Navegación principal">
+        <ul className="lf-nav-links">
+          {LANDING_NAV_LINKS.map((link) => (
             <li key={link.href}>
-              <Link
-                href={link.href}
-                className="text-muted-foreground hover:text-foreground rounded-none px-3 py-1.5 text-sm font-medium transition-colors"
-              >
+              <Link href={link.href} className="lf-pill lf-pill-nav">
                 {link.label}
               </Link>
             </li>
           ))}
         </ul>
-
-        <div className="flex items-center gap-2">
-          <details className="relative md:hidden">
-            <summary className="border-border text-foreground cursor-pointer list-none rounded-none border px-3 py-1.5 text-sm font-medium">
-              Menú
-            </summary>
-            <ul className="border-border bg-card absolute top-full right-0 mt-2 w-44 rounded-none border p-2 shadow-lg">
-              {navLinks.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-foreground hover:bg-muted block rounded-none px-3 py-2 text-sm font-medium"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </details>
-          <Link
-            href="/becas"
-            className="bg-primary hover:bg-primary/90 rounded-none px-3.5 py-1.5 text-sm font-semibold text-white"
-          >
-            Explorar
-          </Link>
-        </div>
       </nav>
-    </div>
+
+      <div className="flex items-center gap-2">
+        <details className="lf-nav-mobile relative">
+          <summary className="lf-pill lf-pill-nav cursor-pointer list-none">
+            Menú
+          </summary>
+          <ul className="absolute top-full right-0 z-30 mt-2 w-48 border border-[var(--lf-line)] bg-white p-2 shadow-lg">
+            {LANDING_NAV_LINKS.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="block px-3 py-2 text-sm font-medium text-[var(--lf-ink)]"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </details>
+        <Link href="/becas" className="lf-pill lf-pill-green">
+          Explorar becas →
+        </Link>
+      </div>
+    </header>
   );
 }
