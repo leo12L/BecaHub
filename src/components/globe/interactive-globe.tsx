@@ -16,6 +16,10 @@ interface InteractiveGlobeProps {
   onLoad?: () => void;
 }
 
+const PREFERS_REDUCED_MOTION =
+  typeof window !== "undefined" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 // Coordenadas de países/regiones populares
 export const GLOBE_LOCATIONS = {
   MX: [23.6345, -102.5528] as [number, number], // México
@@ -41,6 +45,7 @@ export function InteractiveGlobe({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const globeRef = useRef<ReturnType<typeof createGlobe> | null>(null);
   const [isInView, setIsInView] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const phi = useRef(0);
   const theta = useRef(0);
   const targetPhi = useRef(0);
@@ -75,6 +80,21 @@ export function InteractiveGlobe({
   useEffect(() => {
     if (!isInView || !canvasRef.current) return;
 
+    // Check for WebGL support
+    try {
+      const canvas = canvasRef.current;
+      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      if (!gl) {
+        console.warn("WebGL not supported, showing fallback");
+        setHasError(true);
+        return;
+      }
+    } catch (e) {
+      console.warn("WebGL initialization error:", e);
+      setHasError(true);
+      return;
+    }
+
     let width = 0;
     const onResize = () => {
       if (canvasRef.current) {
@@ -84,45 +104,77 @@ export function InteractiveGlobe({
     window.addEventListener("resize", onResize);
     onResize();
 
-    const opts = {
-      devicePixelRatio: 2,
-      width: width * 2,
-      height: width * 2,
-      phi: 0,
-      theta: 0.3,
-      dark: 0,
-      diffuse: 3,
-      mapSamples: 16000,
-      mapBrightness: 1.2,
-      baseColor: [0.3, 0.3, 0.3],
-      markerColor: [0.1, 0.8, 1],
-      glowColor: [0.4, 0.8, 1],
-      markers: markers.map((m) => ({
-        location: m.location,
-        size: m.size,
-      })),
-      onRender: (state: Record<string, unknown>) => {
-        if (!focusLocation) {
-          state.phi = phi.current;
-          phi.current += 0.002;
-        } else {
-          state.phi = phi.current += (targetPhi.current - phi.current) * 0.05;
-          state.theta =
-            theta.current += (targetTheta.current - theta.current) * 0.05;
-        }
-        state.width = width * 2;
-        state.height = width * 2;
-      },
-    } as COBEOptions;
+    try {
+      const opts = {
+        devicePixelRatio: 2,
+        width: width * 2,
+        height: width * 2,
+        phi: 0,
+        theta: 0.3,
+        dark: 0,
+        diffuse: 3,
+        mapSamples: 16000,
+        mapBrightness: 1.2,
+        baseColor: [0.3, 0.3, 0.3],
+        markerColor: [0.1, 0.8, 1],
+        glowColor: [0.4, 0.8, 1],
+        markers: markers.map((m) => ({
+          location: m.location,
+          size: m.size,
+        })),
+        onRender: (state: Record<string, unknown>) => {
+          if (!focusLocation || PREFERS_REDUCED_MOTION) {
+            state.phi = phi.current;
+            phi.current += PREFERS_REDUCED_MOTION ? 0 : 0.002;
+          } else {
+            state.phi = phi.current += (targetPhi.current - phi.current) * 0.05;
+            state.theta =
+              theta.current += (targetTheta.current - theta.current) * 0.05;
+          }
+          state.width = width * 2;
+          state.height = width * 2;
+        },
+      } as COBEOptions;
 
-    globeRef.current = createGlobe(canvasRef.current, opts);
-    onLoad?.();
+      globeRef.current = createGlobe(canvasRef.current, opts);
+      onLoad?.();
+    } catch (e) {
+      console.error("Error creating globe:", e);
+      setHasError(true);
+    }
 
     return () => {
       globeRef.current?.destroy();
       window.removeEventListener("resize", onResize);
     };
   }, [isInView, markers, focusLocation, onLoad]);
+
+  if (hasError) {
+    return (
+      <div
+        className={cn(
+          "aspect-square w-full flex items-center justify-center",
+          "bg-gradient-to-br from-primary/5 via-primary/10 to-secondary/5",
+          "rounded-2xl border border-border",
+          className
+        )}
+        style={{
+          width: "100%",
+          height: "auto",
+          maxWidth: 600,
+        }}
+        role="img"
+        aria-label="Globo terráqueo interactivo (fallback)"
+      >
+        <div className="text-center p-8">
+          <div className="text-6xl mb-4">🌍</div>
+          <p className="text-sm text-muted-foreground">
+            Globo interactivo no disponible
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <canvas
@@ -134,6 +186,8 @@ export function InteractiveGlobe({
         maxWidth: 600,
         contain: "layout paint size",
       }}
+      role="img"
+      aria-label="Globo terráqueo interactivo"
     />
   );
 }

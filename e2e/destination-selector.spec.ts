@@ -111,4 +111,40 @@ test.describe("Destination Selector and Globe", () => {
       timeout: 5000,
     });
   });
+
+  test("should render interactive globe canvas or fallback", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    // Wait for the globe section to be visible
+    await expect(
+      page.getByRole("heading", { name: /¿A dónde quieres ir\?/i }),
+    ).toBeVisible();
+
+    // Check for canvas (WebGL globe) or fallback (if WebGL not supported)
+    const hasCanvas = await page.locator("canvas").count();
+    const hasFallback = await page
+      .locator('[role="img"][aria-label*="Globo terráqueo"]')
+      .count();
+
+    // Must have either canvas or fallback
+    expect(hasCanvas + hasFallback).toBeGreaterThan(0);
+
+    // If canvas exists, verify it has dimensions
+    if (hasCanvas > 0) {
+      const canvas = page.locator("canvas").first();
+      const box = await canvas.boundingBox();
+      expect(box).toBeTruthy();
+      expect(box!.width).toBeGreaterThan(0);
+      expect(box!.height).toBeGreaterThan(0);
+    }
+
+    // If fallback exists, verify it's visible
+    if (hasFallback > 0) {
+      await expect(
+        page.locator('[role="img"][aria-label*="Globo terráqueo"]').first(),
+      ).toBeVisible();
+    }
+  });
 });
