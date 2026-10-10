@@ -13,8 +13,8 @@ export function StripCard({
   const decorative = isDuplicate || isExample;
 
   const className = isExample
-    ? "border-primary/25 bg-card w-[220px] rounded-xl border border-dashed p-3 shadow-sm"
-    : "border-border bg-card w-[220px] rounded-xl border p-3 shadow-sm";
+    ? "border-primary/25 bg-card landing-strip-card rounded-xl border border-dashed p-3 shadow-sm"
+    : "border-border bg-card landing-strip-card rounded-xl border p-3 shadow-sm";
 
   const body = (
     <>

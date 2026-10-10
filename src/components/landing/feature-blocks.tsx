@@ -13,6 +13,7 @@ const blocks = [
       src: "/images/landing/estudiantes-colaborando.jpg",
       alt: "Grupo de estudiantes universitarios colaborando alrededor de una mesa con computadoras portátiles.",
       credit: "Foto: Brooke Cagle / Unsplash (licencia Unsplash)",
+      testId: "landing-photo-colaborando",
     },
     imageSide: "left" as const,
   },
@@ -24,8 +25,9 @@ const blocks = [
     cta: "Armar mi perfil",
     image: {
       src: "/images/landing/estudiantes-aula.jpg",
-      alt: "Estudiantes sentados en un aula universitaria, tomando notas durante una clase.",
-      credit: "Foto: NeONBRAND / Unsplash (licencia Unsplash)",
+      alt: "Estudiantes universitarios riendo mientras estudian juntos frente a una laptop.",
+      credit: "Foto: Priscilla Du Preez / Unsplash (licencia Unsplash)",
+      testId: "landing-photo-aula",
     },
     imageSide: "right" as const,
   },
@@ -43,16 +45,18 @@ export function FeatureBlocks() {
             className={block.imageSide === "left" ? "lg:order-1" : "lg:order-2"}
           >
             <div className="landing-photo-tilt" data-landing-photo>
-              {/* Fotos bajo el pliegue: img nativo evita el JS de next/image en la portada. */}
+              {/* eager: lazy + view() dejaba el segundo recuadro vacío en captura. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={block.image.src}
                 alt={block.image.alt}
-                width={1200}
-                height={800}
-                loading="lazy"
+                width={1000}
+                height={667}
+                loading="eager"
                 decoding="async"
-                className="border-border aspect-[3/2] w-full rounded-3xl border object-cover shadow-md"
+                fetchPriority={block.imageSide === "left" ? "high" : "auto"}
+                data-testid={block.image.testId}
+                className="border-border bg-muted aspect-[3/2] w-full rounded-3xl border object-cover shadow-md"
               />
             </div>
             <figcaption className="text-muted-foreground mt-3 text-xs">

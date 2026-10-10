@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -30,5 +30,24 @@ describe("portada: consulta pública y piezas del boceto", () => {
     expect(src).toContain("filtroBecaPublica");
     expect(src).not.toMatch(/status:\s*["']PENDING_REVIEW["']/);
     expect(src).not.toMatch(/where:\s*\{/);
+  });
+
+  it("las dos fotos de los bloques existen en public/ y se referencian", () => {
+    const blocks = readFileSync(
+      join(here, "../../../components/landing/feature-blocks.tsx"),
+      "utf8",
+    );
+    const files = [
+      "estudiantes-colaborando.jpg",
+      "estudiantes-aula.jpg",
+    ] as const;
+
+    for (const file of files) {
+      expect(blocks).toContain(`/images/landing/${file}`);
+      expect(
+        existsSync(join(here, "../../../../public/images/landing", file)),
+      ).toBe(true);
+    }
+    expect(blocks).toContain('loading="eager"');
   });
 });

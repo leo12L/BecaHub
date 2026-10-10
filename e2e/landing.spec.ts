@@ -71,6 +71,54 @@ test.describe("Portada BecaHub", () => {
     expect(focusedIsExample).toBe(false);
   });
 
+  test("ambas fotos de los bloques cargan con naturalWidth > 0", async ({
+    page,
+  }) => {
+    const cases = [
+      { name: "compu-claro", width: 1440, height: 900, dark: false },
+      { name: "compu-oscuro", width: 1440, height: 900, dark: true },
+      { name: "celular-claro", width: 390, height: 844, dark: false },
+      { name: "celular-oscuro", width: 390, height: 844, dark: true },
+    ] as const;
+
+    for (const viewport of cases) {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await page.goto("/");
+      await page.evaluate((dark) => {
+        document.documentElement.classList.toggle("dark", dark);
+      }, viewport.dark);
+
+      const ids = ["landing-photo-colaborando", "landing-photo-aula"] as const;
+      for (const id of ids) {
+        const img = page.getByTestId(id);
+        await img.scrollIntoViewIfNeeded();
+        await expect(img).toBeVisible();
+        await expect
+          .poll(async () => img.evaluate((el: HTMLImageElement) => el.complete))
+          .toBe(true);
+        const naturalWidth = await img.evaluate(
+          (el: HTMLImageElement) => el.naturalWidth,
+        );
+        expect(naturalWidth, `${id} en ${viewport.name}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  test("las tiras del hero están en diagonal", async ({ page }) => {
+    await page.goto("/");
+    const board = page.getByTestId("landing-strips");
+    await expect(board).toBeVisible();
+    const degrees = await board.evaluate((el) => {
+      const { transform } = getComputedStyle(el);
+      const matrix = new DOMMatrix(transform);
+      return (Math.atan2(matrix.b, matrix.a) * 180) / Math.PI;
+    });
+    expect(Math.abs(degrees)).toBeGreaterThan(15);
+  });
+
   test("los duplicados de las tiras están ocultos al lector de pantalla", async ({
     page,
   }) => {

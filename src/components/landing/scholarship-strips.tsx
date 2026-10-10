@@ -37,11 +37,8 @@ export function ScholarshipStrips({ cards }: { cards: LandingStripCard[] }) {
   const columns = splitIntoColumns(cards, COLUMN_COUNT);
 
   return (
-    <div className="landing-strips pointer-events-none absolute inset-[-20%] z-0">
-      <div
-        className="absolute top-1/2 left-1/2 flex origin-center -translate-x-1/2 -translate-y-1/2 -rotate-[14deg] gap-3 md:gap-4"
-        data-testid="landing-strips"
-      >
+    <div className="landing-strips pointer-events-none absolute inset-[-42%] z-0 md:inset-[-32%]">
+      <div className="landing-strips-board" data-testid="landing-strips">
         {columns.map((columnCards, index) => (
           <StripColumn
             key={index}
