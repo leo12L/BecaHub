@@ -10,6 +10,7 @@ import {
   normalizeForFingerprint,
 } from "./utils";
 import { parseSpanishDate } from "@/scrapers/normalize";
+import { parseCountryDestination } from "@/lib/geo";
 import { SECIHTILector } from "./fuentes/secihti";
 import { JinaLector } from "./fuentes/jina";
 
@@ -346,6 +347,20 @@ async function procesarBeca(
     suffix += 1;
   }
 
+  // Parse country destination
+  const destinationCountries = beca.countryDestination
+    ? parseCountryDestination(beca.countryDestination)
+    : [];
+
+  // If no countries could be parsed, add validation error
+  if (destinationCountries.length === 0) {
+    validationErrors.push(
+      beca.countryDestination
+        ? `No se pudo mapear el país de destino: "${beca.countryDestination}"`
+        : "País de destino no especificado en la fuente",
+    );
+  }
+
   await db.scholarship.create({
     data: {
       title: beca.title,
@@ -357,7 +372,7 @@ async function procesarBeca(
       amountMax: extractAmount(beca.amount)?.[1] ?? null,
       currency: "MXN",
       countryOrigin: null,
-      countryDestination: beca.countryDestination ?? "México",
+      destinationCountries: destinationCountries,
       academicLevel: mapAcademicLevel(beca.academicLevel),
       language: beca.language ?? null,
       deadline: parsedDeadline,

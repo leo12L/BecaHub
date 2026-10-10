@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
   if (body.status === "ACTIVE") {
     const check = await assertCanPublish({
-      countryDestination: body.countryDestination,
+      destinationCountries: body.destinationCountries,
       deadline,
       applyUrl: body.applyUrl,
     });
@@ -90,7 +90,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       amountMax: body.amountMax ?? null,
       currency: body.currency,
       countryOrigin: body.countryOrigin ?? null,
-      countryDestination: body.countryDestination,
+      destinationCountries: body.destinationCountries,
       academicLevel: body.academicLevel as AcademicLevel,
       language: body.language ?? null,
       deadline,
@@ -133,7 +133,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   if (body.status === "ACTIVE") {
     const check = await assertCanPublish({
-      countryDestination: existing.countryDestination,
+      destinationCountries: existing.destinationCountries,
       deadline: existing.deadline,
       applyUrl: existing.applyUrl,
     });

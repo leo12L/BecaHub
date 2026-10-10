@@ -127,30 +127,30 @@ model Category {
 }
 
 model Scholarship {
-  id                 String            @id @default(uuid())
-  title              String
-  slug               String            @unique
-  description        String            @db.Text
-  status             ScholarshipStatus @default(DRAFT)
-  coverageType       CoverageType
-  amountMin          Decimal?
-  amountMax          Decimal?
-  currency           String            @default("MXN")
-  countryOrigin      String?
-  countryDestination String
-  academicLevel      AcademicLevel
-  language           String?
-  deadline           DateTime?
-  applyUrl           String
-  sourceId           String
-  isVerified         Boolean           @default(false)
-  isFeatured         Boolean           @default(false)
-  scrapedAt          DateTime?
-  fingerprint        String?           @unique
-  rawPayload         Json?
-  validationErrors   Json?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  id                   String            @id @default(uuid())
+  title                String
+  slug                 String            @unique
+  description          String            @db.Text
+  status               ScholarshipStatus @default(DRAFT)
+  coverageType         CoverageType
+  amountMin            Decimal?
+  amountMax            Decimal?
+  currency             String            @default("MXN")
+  countryOrigin        String?
+  destinationCountries String[]
+  academicLevel        AcademicLevel
+  language             String?
+  deadline             DateTime?
+  applyUrl             String
+  sourceId             String
+  isVerified           Boolean           @default(false)
+  isFeatured           Boolean           @default(false)
+  scrapedAt            DateTime?
+  fingerprint          String?           @unique
+  rawPayload           Json?
+  validationErrors     Json?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
   source       Source                @relation(fields: [sourceId], references: [id])
   categories   ScholarshipCategory[]
@@ -160,7 +160,7 @@ model Scholarship {
   // TODO: índice tsvector vía migración SQL manual (lo haremos cuando implementemos /search)
   @@index([deadline])
   @@index([status, deadline])
-  @@index([countryDestination, academicLevel])
+  @@index([destinationCountries])
   @@index([createdAt])
 }
 

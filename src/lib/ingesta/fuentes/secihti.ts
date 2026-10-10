@@ -100,7 +100,7 @@ export class SECIHTILector implements FuenteLector {
       amount: null,
       coverageType: "RESEARCH",
       academicLevel: null,
-      countryDestination: "México",
+      countryDestination: null,
       language: "Español",
       convocante: "SECIHTI",
       rawData: {
