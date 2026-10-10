@@ -80,21 +80,6 @@ export function InteractiveGlobe({
   useEffect(() => {
     if (!isInView || !canvasRef.current) return;
 
-    // Check for WebGL support
-    try {
-      const canvas = canvasRef.current;
-      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-      if (!gl) {
-        console.warn("WebGL not supported, showing fallback");
-        setHasError(true);
-        return;
-      }
-    } catch (e) {
-      console.warn("WebGL initialization error:", e);
-      setHasError(true);
-      return;
-    }
-
     let width = 0;
     const onResize = () => {
       if (canvasRef.current) {
@@ -105,6 +90,7 @@ export function InteractiveGlobe({
     onResize();
 
     try {
+      // WebGL validation will happen in createGlobe
       const opts = {
         devicePixelRatio: 2,
         width: width * 2,
@@ -139,8 +125,12 @@ export function InteractiveGlobe({
       globeRef.current = createGlobe(canvasRef.current, opts);
       onLoad?.();
     } catch (e) {
+      // Handle WebGL or other initialization errors
       console.error("Error creating globe:", e);
-      setHasError(true);
+      // Schedule state update after effect
+      window.requestAnimationFrame(() => {
+        setHasError(true);
+      });
     }
 
     return () => {

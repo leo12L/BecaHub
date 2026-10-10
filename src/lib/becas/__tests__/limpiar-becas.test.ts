@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/lib/db";
-import type { Scholarship, Source, User } from "@/generated/prisma/client";
+import type { Source, User } from "@/generated/prisma/client";
 
 describe("limpiar-becas script logic", () => {
   let testUser: User;

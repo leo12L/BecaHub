@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
-import { REGIONS, countryCodeToName } from "@/lib/geo";
+import { REGIONS } from "@/lib/geo";
 import type { BecaListItem } from "@/lib/becas/queries";
 import { ScholarshipCard } from "@/components/scholarships/scholarship-card";
 

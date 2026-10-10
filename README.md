@@ -163,14 +163,31 @@ Después de configurar las variables de entorno y ejecutar las migraciones (paso
 ## Scripts disponibles
 
 ```powershell
-npm run dev           # Inicia el servidor de desarrollo
-npm run build         # Compila la aplicación para producción
-npm start             # Inicia el servidor de producción
-npm run lint          # Ejecuta el linter
-npm test              # Ejecuta las pruebas
-npm run scrape        # Ejecuta el scraper manual (requiere sourceId)
-npm run discover      # Ejecuta el descubrimiento automático con Tavily
+npm run dev                # Inicia el servidor de desarrollo
+npm run build              # Compila la aplicación para producción
+npm start                  # Inicia el servidor de producción
+npm run lint               # Ejecuta el linter
+npm test                   # Ejecuta las pruebas
+npm run ingesta            # Ejecuta la ingesta automática de becas
+npm run limpiar-becas      # Limpia becas de prueba (pide confirmación)
+npm run limpiar-becas -- --yes  # Limpia sin pedir confirmación
 ```
+
+### Después de fusionar PR #8 (migración destinationCountries)
+
+Si ya tenías becas en tu base de datos antes del PR #8, algunas pueden haber quedado con datos obsoletos. Para limpiarlas y cargar becas reales:
+
+```powershell
+npm run limpiar-becas -- --yes
+npm run ingesta
+```
+
+El script `limpiar-becas` borra:
+- Becas de prueba (URLs con "ejemplo", slugs con "test" o "screenshot")
+- Becas borradores sin destino definido
+- Favoritos y postulaciones asociados (CASCADE automático)
+
+**No toca:** usuarios ni fuentes.
 
 ## Estructura del proyecto
 
