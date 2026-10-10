@@ -4,6 +4,7 @@ import {
   MIN_LANDING_STRIP_CARDS,
   buildLandingStripCards,
   countPublicLandingCards,
+  destinationCountriesLabel,
   splitIntoColumns,
   type LandingBecaInput,
 } from "../landing-cards";
@@ -21,7 +22,7 @@ function fakePublica(
     amountMax: overrides.amountMax ?? 2000,
     currency: overrides.currency ?? "MXN",
     academicLevel: overrides.academicLevel ?? "UNDERGRAD",
-    countryDestination: overrides.countryDestination ?? "México",
+    destinationCountries: overrides.destinationCountries ?? ["MX"],
     deadline: overrides.deadline ?? new Date("2027-06-01"),
     source: overrides.source ?? { name: "SECIHTI" },
   };
@@ -71,6 +72,15 @@ describe("buildLandingStripCards", () => {
     expect(example.title).toMatch(/ejemplo/i);
     expect(example.href).toBeUndefined();
     expect(example.sourceName).toMatch(/ejemplo/i);
+  });
+
+  it("muestra destinos desde códigos ISO, no countryDestination", () => {
+    const [card] = buildLandingStripCards([
+      fakePublica({ destinationCountries: ["MX", "ES"] }),
+    ]);
+    expect(card.country).toBe("México, España");
+    expect(destinationCountriesLabel([])).toBe("Sin destino");
+    expect(destinationCountriesLabel(["JP"])).toBe("Japón");
   });
 });
 

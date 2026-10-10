@@ -3,6 +3,7 @@ import {
   coverageLabels,
   formatAmount,
 } from "@/lib/becas/format";
+import { countryCodeToName } from "@/lib/geo";
 import type {
   AcademicLevel,
   CoverageType,
@@ -22,7 +23,7 @@ export type LandingBecaInput = {
   amountMax?: number | string | { toString(): string } | null;
   currency: string;
   academicLevel: AcademicLevel;
-  countryDestination: string;
+  destinationCountries: string[];
   deadline: Date | string | null;
   source: { name: string };
 };
@@ -48,6 +49,11 @@ function deadlineLabel(deadline: Date | string | null): string {
     day: "numeric",
     month: "short",
   })}`;
+}
+
+export function destinationCountriesLabel(codes: string[]): string {
+  if (codes.length === 0) return "Sin destino";
+  return codes.map((code) => countryCodeToName(code)).join(", ");
 }
 
 function coverageLabelFor(beca: LandingBecaInput): string {
@@ -176,7 +182,7 @@ export function toLandingStripCard(beca: LandingBecaInput): LandingStripCard {
     sourceName: beca.source.name,
     coverageLabel: coverageLabelFor(beca),
     levelLabel: academicLevelLabels[beca.academicLevel],
-    country: beca.countryDestination,
+    country: destinationCountriesLabel(beca.destinationCountries),
     deadlineLabel: deadlineLabel(beca.deadline),
     href: `/becas/${beca.slug}`,
   };

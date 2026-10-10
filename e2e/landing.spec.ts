@@ -178,11 +178,11 @@ test.describe("Portada BecaHub", () => {
     await client.query(
       `INSERT INTO "Scholarship" (
         id, title, slug, description, status, "coverageType",
-        "countryDestination", "academicLevel", "applyUrl", "sourceId",
+        "destinationCountries", "academicLevel", "applyUrl", "sourceId",
         deadline, "createdAt", "updatedAt"
       ) VALUES (
         $1, $2, $3, $4, 'PENDING_REVIEW', 'MONETARY',
-        'México', 'UNDERGRAD', $5, $6,
+        ARRAY['MX']::text[], 'UNDERGRAD', $5, $6,
         $7, NOW(), NOW()
       )
       ON CONFLICT (id) DO UPDATE SET status = 'PENDING_REVIEW', title = EXCLUDED.title`,

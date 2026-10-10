@@ -30,6 +30,16 @@ describe("portada: consulta pública y piezas del boceto", () => {
     expect(src).toContain("filtroBecaPublica");
     expect(src).not.toMatch(/status:\s*["']PENDING_REVIEW["']/);
     expect(src).not.toMatch(/where:\s*\{/);
+    expect(src).not.toContain("countryDestination");
+  });
+
+  it("las tarjetas de tira leen destinationCountries, no countryDestination", () => {
+    const cards = readFileSync(
+      join(here, "../../../lib/becas/landing-cards.ts"),
+      "utf8",
+    );
+    expect(cards).toContain("destinationCountries");
+    expect(cards).not.toMatch(/\bcountryDestination\b/);
   });
 
   it("las dos fotos de los bloques existen en public/ y se referencian", () => {
