@@ -1,18 +1,42 @@
 /* Animaciones de la portada: CSS puro, sin librerías. */
 
+.landing-strips {
+  contain: layout;
+}
+
+.landing-hero-veil {
+  background: radial-gradient(
+    ellipse 70% 60% at 50% 42%,
+    var(--background) 0%,
+    color-mix(in srgb, var(--background) 78%, transparent) 52%,
+    transparent 78%
+  );
+}
+
+@media (max-width: 768px) {
+  .landing-hero-veil {
+    background: radial-gradient(
+      ellipse 95% 38% at 50% 40%,
+      color-mix(in srgb, var(--background) 55%, transparent) 0%,
+      transparent 70%
+    );
+  }
+}
+
 .landing-strip-track {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  will-change: transform;
 }
 
 .landing-strip-track[data-direction="up"] {
   animation: landing-strip-up 42s linear infinite;
+  animation-delay: 2s;
 }
 
 .landing-strip-track[data-direction="down"] {
   animation: landing-strip-down 48s linear infinite;
+  animation-delay: 2s;
 }
 
 .landing-strip-track[data-speed="slow"][data-direction="up"] {

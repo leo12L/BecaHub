@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import "./landing-motion.css";
@@ -24,9 +23,9 @@ const blocks = [
     href: "/login",
     cta: "Armar mi perfil",
     image: {
-      src: "/images/landing/estudiantes-biblioteca.jpg",
-      alt: "Estudiantes sentados juntos en un edificio universitario, conversando entre clases.",
-      credit: "Foto: Priscilla Du Preez / Unsplash (licencia Unsplash)",
+      src: "/images/landing/estudiantes-aula.jpg",
+      alt: "Estudiantes sentados en un aula universitaria, tomando notas durante una clase.",
+      credit: "Foto: NeONBRAND / Unsplash (licencia Unsplash)",
     },
     imageSide: "right" as const,
   },
@@ -44,12 +43,15 @@ export function FeatureBlocks() {
             className={block.imageSide === "left" ? "lg:order-1" : "lg:order-2"}
           >
             <div className="landing-photo-tilt" data-landing-photo>
-              <Image
+              {/* Fotos bajo el pliegue: img nativo evita el JS de next/image en la portada. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={block.image.src}
                 alt={block.image.alt}
                 width={1200}
                 height={800}
-                sizes="(max-width: 1024px) 100vw, 560px"
+                loading="lazy"
+                decoding="async"
                 className="border-border aspect-[3/2] w-full rounded-3xl border object-cover shadow-md"
               />
             </div>

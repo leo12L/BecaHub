@@ -12,18 +12,16 @@ export function LandingNavbar() {
   return (
     <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-3 pt-4">
       <nav
-        className="border-border/80 bg-card/80 pointer-events-auto flex w-full max-w-3xl items-center justify-between gap-3 rounded-full border px-3 py-2 shadow-lg shadow-black/5 backdrop-blur-md md:px-5"
+        className="border-border/80 bg-card/90 pointer-events-auto flex w-full max-w-3xl items-center justify-between gap-3 rounded-full border px-3 py-2 shadow-lg shadow-black/5 md:px-5"
         aria-label="Navegación principal"
       >
         <Link
           href="/"
-          className="focus-visible:outline-ring flex shrink-0 items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="focus-visible:outline-ring flex shrink-0 items-center gap-2 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2"
         >
-          <span className="hidden w-36 sm:block">
-            <BecaHubLogo variant="horizontal" className="h-7" />
-          </span>
-          <span className="sm:hidden">
-            <BecaHubLogo variant="mark" className="h-7 w-7" />
+          <BecaHubLogo variant="mark" className="h-7 w-7" />
+          <span className="text-foreground text-sm font-bold tracking-tight">
+            BecaHub
           </span>
         </Link>
 

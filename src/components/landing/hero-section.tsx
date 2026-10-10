@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, MapPin, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { ScholarshipStrips } from "@/components/landing/scholarship-strips";
 import type { LandingStripCard } from "@/lib/becas/landing-cards";
 import type { getLandingStats } from "@/lib/becas/queries";
@@ -13,14 +13,7 @@ export function HeroSection({
 }) {
   return (
     <section className="bg-background relative isolate min-h-[100svh] overflow-hidden px-4 pt-28 pb-16 sm:px-6 lg:pt-32">
-      <ScholarshipStrips cards={cards} />
-
-      <div
-        className="from-background via-background/85 to-background/40 pointer-events-none absolute inset-0 bg-gradient-to-b"
-        aria-hidden="true"
-      />
-
-      <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center text-center">
+      <div className="bg-background/80 relative z-10 mx-auto flex max-w-3xl flex-col items-center rounded-3xl px-4 py-8 text-center md:bg-transparent md:px-0 md:py-0">
         <p className="text-primary mb-4 text-sm font-bold tracking-[0.28em] uppercase">
           BecaHub
         </p>
@@ -51,32 +44,26 @@ export function HeroSection({
         <dl className="mt-12 grid w-full max-w-lg grid-cols-3 gap-3">
           {[
             {
-              icon: BookOpen,
               value: stats.totalCount,
               label: stats.totalCount === 1 ? "convocatoria" : "convocatorias",
               testId: "stat-convocatorias",
             },
             {
-              icon: MapPin,
               value: stats.countriesCount,
               label: stats.countriesCount === 1 ? "país" : "países",
               testId: "stat-paises",
             },
             {
-              icon: ShieldCheck,
               value: `${stats.verifiedPercentage}%`,
               label: "verificadas",
               testId: "stat-verificadas",
             },
-          ].map(({ icon: Icon, value, label, testId }) => (
+          ].map(({ value, label, testId }) => (
             <div
               key={testId}
               className="border-border bg-card/90 rounded-2xl border px-3 py-3 text-center shadow-sm"
             >
-              <dt className="text-muted-foreground flex items-center justify-center gap-1 text-[11px]">
-                <Icon size={13} aria-hidden="true" />
-                {label}
-              </dt>
+              <dt className="text-muted-foreground text-[11px]">{label}</dt>
               <dd
                 className="text-foreground mt-1 text-xl font-extrabold"
                 data-testid={testId}
@@ -87,6 +74,12 @@ export function HeroSection({
           ))}
         </dl>
       </div>
+
+      <div
+        className="landing-hero-veil pointer-events-none absolute inset-0 z-[1]"
+        aria-hidden="true"
+      />
+      <ScholarshipStrips cards={cards} />
     </section>
   );
 }
