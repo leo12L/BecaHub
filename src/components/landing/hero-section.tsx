@@ -13,7 +13,7 @@ export function HeroSection({
 }) {
   return (
     <section className="bg-background relative isolate min-h-[100svh] overflow-hidden px-4 pt-28 pb-16 sm:px-6 lg:pt-32">
-      <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center px-4 py-8 text-center">
+      <div className="bg-background relative z-10 mx-auto mt-8 flex w-[min(100%,19.75rem)] flex-col items-center px-3 py-6 text-center md:mt-0 md:w-full md:max-w-2xl md:px-4 md:py-8">
         <p className="text-primary mb-4 text-sm font-bold tracking-[0.28em] uppercase">
           BecaHub
         </p>

@@ -42,18 +42,26 @@ export function ScholarshipStrips({ cards }: { cards: LandingStripCard[] }) {
       data-testid="landing-strips"
     >
       <div
-        className="landing-strips-cluster landing-strips-cluster--left"
-        data-landing-cluster="left"
+        className="landing-strips-corner landing-strips-corner--left"
+        data-landing-corner="left"
       >
-        <StripColumn cards={columns[0] ?? []} direction="up" speed="normal" />
-        <StripColumn cards={columns[1] ?? []} direction="down" speed="slow" />
+        <div className="landing-strips-cluster" data-landing-cluster="left">
+          <StripColumn cards={columns[0] ?? []} direction="up" speed="normal" />
+          <StripColumn cards={columns[1] ?? []} direction="down" speed="slow" />
+        </div>
       </div>
       <div
-        className="landing-strips-cluster landing-strips-cluster--right"
-        data-landing-cluster="right"
+        className="landing-strips-corner landing-strips-corner--right"
+        data-landing-corner="right"
       >
-        <StripColumn cards={columns[2] ?? []} direction="up" speed="slow" />
-        <StripColumn cards={columns[3] ?? []} direction="down" speed="normal" />
+        <div className="landing-strips-cluster" data-landing-cluster="right">
+          <StripColumn cards={columns[2] ?? []} direction="up" speed="slow" />
+          <StripColumn
+            cards={columns[3] ?? []}
+            direction="down"
+            speed="normal"
+          />
+        </div>
       </div>
     </div>
   );

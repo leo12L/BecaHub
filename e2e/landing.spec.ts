@@ -125,14 +125,18 @@ test.describe("Portada BecaHub", () => {
 
     const heading = page.getByRole("heading", { level: 1 });
     const headingBox = await heading.boundingBox();
-    const leftBox = await left.boundingBox();
-    const rightBox = await right.boundingBox();
+    const leftBox = await page
+      .locator('[data-landing-corner="left"]')
+      .boundingBox();
+    const rightBox = await page
+      .locator('[data-landing-corner="right"]')
+      .boundingBox();
     expect(headingBox).toBeTruthy();
     expect(leftBox).toBeTruthy();
     expect(rightBox).toBeTruthy();
     const headingCenter = headingBox!.x + headingBox!.width / 2;
-    expect(leftBox!.x + leftBox!.width / 2).toBeLessThan(headingCenter);
-    expect(rightBox!.x + rightBox!.width / 2).toBeGreaterThan(headingCenter);
+    expect(leftBox!.x + leftBox!.width).toBeLessThan(headingCenter);
+    expect(rightBox!.x).toBeGreaterThan(headingCenter);
 
     for (const cluster of [left, right]) {
       const degrees = await cluster.evaluate((el) => {
