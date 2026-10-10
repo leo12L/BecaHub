@@ -8,7 +8,13 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { db } from "@/lib/db";
-import { getBecaBySlug, getBecas, getLandingStats } from "@/lib/becas/queries";
+import {
+  getBecaBySlug,
+  getBecas,
+  getFeaturedBecas,
+  getFilterCountries,
+  getLandingStats,
+} from "@/lib/becas/queries";
 import { recomendarBecas } from "@/lib/becas/recommend";
 import {
   AVISO_CONVOCATORIA_CERRADA,
@@ -17,6 +23,7 @@ import {
   estadoDetallePublico,
   filtroBecaPublica,
   puedePedirEstadoNoPublico,
+  queryListadoPublico,
 } from "@/lib/becas/publica";
 import { componentsToMexicoMidnight } from "@/lib/fechas";
 import sitemap from "@/app/sitemap";
@@ -27,6 +34,8 @@ const DRAFT_ID = "test-beca-vis-draft";
 const PENDING_ID = "test-beca-vis-pending";
 const CLOSED_ID = "test-beca-vis-closed";
 const VENCIDA_ID = "test-beca-vis-vencida";
+const FEATURED_ACTIVE_ID = "test-beca-vis-featured-active";
+const FEATURED_PENDING_ID = "test-beca-vis-featured-pending";
 
 const ACTIVE_SLUG = "test-beca-vis-active";
 const DRAFT_SLUG = "test-beca-vis-draft";
@@ -34,7 +43,8 @@ const PENDING_SLUG = "test-beca-vis-pending";
 const CLOSED_SLUG = "test-beca-vis-closed";
 const VENCIDA_SLUG = "test-beca-vis-vencida";
 
-const PAIS_PENDING = "PaísInéditoVisibilidadXYZ";
+const PAIS_PENDING = "PaisIneditoVisibilidadXYZ";
+const PAIS_FEATURED_PENDING = "PaisFeaturedPendienteXYZ";
 
 describe("Visibilidad pública de becas", () => {
   beforeAll(async () => {
@@ -150,12 +160,65 @@ describe("Visibilidad pública de becas", () => {
       },
       update: { status: "ACTIVE", deadline: pastDate },
     });
+
+    await db.scholarship.upsert({
+      where: { id: FEATURED_ACTIVE_ID },
+      create: {
+        id: FEATURED_ACTIVE_ID,
+        title: "Beca featured ACTIVE",
+        slug: "test-beca-vis-featured-active",
+        description: "Destacada pública",
+        status: "ACTIVE",
+        coverageType: "MONETARY",
+        countryDestination: "México",
+        academicLevel: "UNDERGRAD",
+        applyUrl: "https://example.com/featured-active",
+        sourceId: SOURCE_ID,
+        deadline: futureDate,
+        isFeatured: true,
+      },
+      update: { status: "ACTIVE", deadline: futureDate, isFeatured: true },
+    });
+
+    await db.scholarship.upsert({
+      where: { id: FEATURED_PENDING_ID },
+      create: {
+        id: FEATURED_PENDING_ID,
+        title: "Beca featured PENDING",
+        slug: "test-beca-vis-featured-pending",
+        description: "Destacada no pública",
+        status: "PENDING_REVIEW",
+        coverageType: "MONETARY",
+        countryDestination: PAIS_FEATURED_PENDING,
+        academicLevel: "UNDERGRAD",
+        applyUrl: "https://example.com/featured-pending",
+        sourceId: SOURCE_ID,
+        deadline: futureDate,
+        isFeatured: true,
+      },
+      update: {
+        status: "PENDING_REVIEW",
+        deadline: futureDate,
+        isFeatured: true,
+        countryDestination: PAIS_FEATURED_PENDING,
+      },
+    });
   });
 
   afterAll(async () => {
     await db.scholarship.deleteMany({
       where: {
-        id: { in: [ACTIVE_ID, DRAFT_ID, PENDING_ID, CLOSED_ID, VENCIDA_ID] },
+        id: {
+          in: [
+            ACTIVE_ID,
+            DRAFT_ID,
+            PENDING_ID,
+            CLOSED_ID,
+            VENCIDA_ID,
+            FEATURED_ACTIVE_ID,
+            FEATURED_PENDING_ID,
+          ],
+        },
       },
     });
     await db.source.deleteMany({ where: { id: SOURCE_ID } });
@@ -237,34 +300,35 @@ describe("Visibilidad pública de becas", () => {
       expect(urls.some((u) => u.includes(VENCIDA_SLUG))).toBe(false);
     });
 
-    it("getLandingStats no cuenta PENDING_REVIEW ni su país (falla si se quita el filtro)", async () => {
-      const before = await getLandingStats();
-
-      const extraId = "test-beca-vis-pending-extra";
-      await db.scholarship.create({
-        data: {
-          id: extraId,
-          title: "PENDING extra para contadores",
-          slug: "test-beca-vis-pending-extra",
-          description: "No debe mover contadores",
-          status: "PENDING_REVIEW",
-          coverageType: "MONETARY",
-          countryDestination: "NarniaContadorXYZ",
-          academicLevel: "UNDERGRAD",
-          applyUrl: "https://example.com/pending-extra",
-          sourceId: SOURCE_ID,
-          deadline: componentsToMexicoMidnight(2027, 12, 31),
-        },
+    it("getLandingStats no incluye SU beca PENDING ni SU país único (falla si se quita el filtro)", async () => {
+      const stats = await getLandingStats();
+      const publicas = await db.scholarship.findMany({
+        where: filtroBecaPublica(),
+        select: { id: true, countryDestination: true },
       });
 
-      try {
-        const after = await getLandingStats();
-        expect(after.totalCount).toBe(before.totalCount);
-        expect(after.activeCount).toBe(before.activeCount);
-        expect(after.countriesCount).toBe(before.countriesCount);
-      } finally {
-        await db.scholarship.delete({ where: { id: extraId } });
-      }
+      expect(publicas.map((b) => b.id)).not.toContain(PENDING_ID);
+      expect(publicas.map((b) => b.countryDestination)).not.toContain(
+        PAIS_PENDING,
+      );
+      expect(stats.countryDestinations).not.toContain(PAIS_PENDING);
+      expect(stats.countryDestinations).not.toContain(PAIS_FEATURED_PENDING);
+    });
+
+    it("getFeaturedBecas no incluye PENDING destacada (falla si se quita el filtro público)", async () => {
+      const featured = await getFeaturedBecas();
+      const ids = featured.map((b) => b.id);
+
+      expect(ids).toContain(FEATURED_ACTIVE_ID);
+      expect(ids).not.toContain(FEATURED_PENDING_ID);
+    });
+
+    it("getFilterCountries no incluye el país único de SU PENDING (falla si se quita el filtro)", async () => {
+      const countries = await getFilterCountries();
+
+      expect(countries).not.toContain(PAIS_PENDING);
+      expect(countries).not.toContain(PAIS_FEATURED_PENDING);
+      expect(countries).toContain("México");
     });
   });
 
@@ -319,12 +383,22 @@ describe("Visibilidad pública de becas", () => {
     });
   });
 
-  describe("roles", () => {
+  describe("roles y listado /becas", () => {
     it("solo ADMIN y MODERATOR pueden pedir estados no públicos", () => {
       expect(puedePedirEstadoNoPublico("ADMIN")).toBe(true);
       expect(puedePedirEstadoNoPublico("MODERATOR")).toBe(true);
       expect(puedePedirEstadoNoPublico("USER")).toBe(false);
       expect(puedePedirEstadoNoPublico(undefined)).toBe(false);
+    });
+
+    it("queryListadoPublico descarta ?status (falla si /becas vuelve a aceptarlo)", () => {
+      expect(
+        queryListadoPublico({ status: "DRAFT", page: 1, limit: 50 }).status,
+      ).toBeUndefined();
+      expect(
+        queryListadoPublico({ status: "PENDING_REVIEW", page: 1, limit: 10 })
+          .status,
+      ).toBeUndefined();
     });
   });
 });

@@ -30,6 +30,8 @@ import type { User } from "@/generated/prisma/client";
 const USER_ID = "test-user-visibilidad-fav";
 const SOURCE_ID = "test-source-visibilidad-fav";
 const PENDING_ID = "test-beca-vis-fav-pending";
+const DRAFT_ID = "test-beca-vis-fav-draft";
+const CLOSED_ID = "test-beca-vis-fav-closed";
 const ACTIVE_ID = "test-beca-vis-fav-active";
 const ACTIVE_SLUG = "test-beca-vis-fav-active";
 
@@ -85,6 +87,42 @@ describe("Favoritos y postulaciones — visibilidad al crear vs al listar", () =
     });
 
     await db.scholarship.upsert({
+      where: { id: DRAFT_ID },
+      create: {
+        id: DRAFT_ID,
+        title: "DRAFT favoritos",
+        slug: "test-beca-vis-fav-draft",
+        description: "No se puede guardar",
+        status: "DRAFT",
+        coverageType: "MONETARY",
+        countryDestination: "México",
+        academicLevel: "UNDERGRAD",
+        applyUrl: "https://example.com/vis-fav-draft",
+        sourceId: SOURCE_ID,
+        deadline: futureDate,
+      },
+      update: { status: "DRAFT", deadline: futureDate },
+    });
+
+    await db.scholarship.upsert({
+      where: { id: CLOSED_ID },
+      create: {
+        id: CLOSED_ID,
+        title: "CLOSED favoritos",
+        slug: "test-beca-vis-fav-closed",
+        description: "No se puede guardar",
+        status: "CLOSED",
+        coverageType: "MONETARY",
+        countryDestination: "México",
+        academicLevel: "UNDERGRAD",
+        applyUrl: "https://example.com/vis-fav-closed",
+        sourceId: SOURCE_ID,
+        deadline: futureDate,
+      },
+      update: { status: "CLOSED", deadline: futureDate },
+    });
+
+    await db.scholarship.upsert({
       where: { id: ACTIVE_ID },
       create: {
         id: ACTIVE_ID,
@@ -107,7 +145,7 @@ describe("Favoritos y postulaciones — visibilidad al crear vs al listar", () =
     await db.favorite.deleteMany({ where: { userId: USER_ID } });
     await db.application.deleteMany({ where: { userId: USER_ID } });
     await db.scholarship.deleteMany({
-      where: { id: { in: [PENDING_ID, ACTIVE_ID] } },
+      where: { id: { in: [PENDING_ID, DRAFT_ID, CLOSED_ID, ACTIVE_ID] } },
     });
     await db.source.deleteMany({ where: { id: SOURCE_ID } });
     await db.user.deleteMany({ where: { id: USER_ID } });
@@ -125,50 +163,64 @@ describe("Favoritos y postulaciones — visibilidad al crear vs al listar", () =
     vi.mocked(requireUser).mockResolvedValue(testUser);
   });
 
-  it("POST favorito con id PENDING_REVIEW da 404 y no guarda nada", async () => {
-    const request = new NextRequest("http://localhost/api/v1/favoritos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scholarshipId: PENDING_ID }),
-    });
+  it.each([
+    ["PENDING_REVIEW", PENDING_ID],
+    ["DRAFT", DRAFT_ID],
+    ["CLOSED", CLOSED_ID],
+  ] as const)(
+    "POST favorito con id %s da 404 y no guarda nada",
+    async (_status, scholarshipId) => {
+      const request = new NextRequest("http://localhost/api/v1/favoritos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scholarshipId }),
+      });
 
-    const response = await POST_FAVORITOS(request);
-    expect(response.status).toBe(404);
+      const response = await POST_FAVORITOS(request);
+      expect(response.status).toBe(404);
 
-    const saved = await db.favorite.findUnique({
-      where: {
-        userId_scholarshipId: {
-          userId: USER_ID,
-          scholarshipId: PENDING_ID,
+      const saved = await db.favorite.findUnique({
+        where: {
+          userId_scholarshipId: {
+            userId: USER_ID,
+            scholarshipId,
+          },
         },
-      },
-    });
-    expect(saved).toBeNull();
-  });
+      });
+      expect(saved).toBeNull();
+    },
+  );
 
-  it("POST postulación con id PENDING_REVIEW da 404 y no guarda nada", async () => {
-    const request = new NextRequest("http://localhost/api/v1/postulaciones", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        scholarshipId: PENDING_ID,
-        status: "INTERESTED",
-      }),
-    });
+  it.each([
+    ["PENDING_REVIEW", PENDING_ID],
+    ["DRAFT", DRAFT_ID],
+    ["CLOSED", CLOSED_ID],
+  ] as const)(
+    "POST postulación con id %s da 404 y no guarda nada",
+    async (_status, scholarshipId) => {
+      const request = new NextRequest("http://localhost/api/v1/postulaciones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scholarshipId,
+          status: "INTERESTED",
+        }),
+      });
 
-    const response = await POST_POSTULACIONES(request);
-    expect(response.status).toBe(404);
+      const response = await POST_POSTULACIONES(request);
+      expect(response.status).toBe(404);
 
-    const saved = await db.application.findUnique({
-      where: {
-        userId_scholarshipId: {
-          userId: USER_ID,
-          scholarshipId: PENDING_ID,
+      const saved = await db.application.findUnique({
+        where: {
+          userId_scholarshipId: {
+            userId: USER_ID,
+            scholarshipId,
+          },
         },
-      },
-    });
-    expect(saved).toBeNull();
-  });
+      });
+      expect(saved).toBeNull();
+    },
+  );
 
   it("una ACTIVE guardada que pasa a CLOSED sigue en el tablero y su detalle abre", async () => {
     const favReq = new NextRequest("http://localhost/api/v1/favoritos", {

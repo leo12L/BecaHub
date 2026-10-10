@@ -49,6 +49,16 @@ export function puedePedirEstadoNoPublico(role?: Role | null): boolean {
   return role === "ADMIN" || role === "MODERATOR";
 }
 
+/**
+ * El listado público `/becas` nunca acepta `?status`.
+ * Admin filtra estados en `/admin/becas`, no aquí.
+ */
+export function queryListadoPublico<T extends { status?: unknown }>(
+  query: T,
+): Omit<T, "status"> & { status: undefined } {
+  return { ...query, status: undefined };
+}
+
 type BecaParaDetalle = {
   status: string;
   deadline: Date | string | null;

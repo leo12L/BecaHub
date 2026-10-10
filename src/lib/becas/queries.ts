@@ -188,39 +188,40 @@ export const getFilterCategories = unstable_cache(
   { revalidate: 3600 },
 );
 
-/** Paises de destino distintos entre todas las becas públicas, para el filtro de pais. */
-export const getFilterCountries = unstable_cache(
-  async () => {
-    const rows = await db.scholarship.findMany({
-      where: filtroBecaPublica(),
-      select: { countryDestination: true },
-      distinct: ["countryDestination"],
-      orderBy: { countryDestination: "asc" },
-    });
-    return rows.map((r) => r.countryDestination).filter(Boolean);
-  },
-  ["filter-countries-all"],
-  { revalidate: 600 },
-);
+/** Paises de destino distintos entre las becas públicas (sin caché). */
+export async function fetchPublicCountries(): Promise<string[]> {
+  const rows = await db.scholarship.findMany({
+    where: filtroBecaPublica(),
+    select: { countryDestination: true },
+    distinct: ["countryDestination"],
+    orderBy: { countryDestination: "asc" },
+  });
+  return rows.map((r) => r.countryDestination).filter(Boolean);
+}
+
+/** Paises de destino para el filtro de pais. En tests no se cachea. */
+export const getFilterCountries =
+  process.env.VITEST || process.env.NODE_ENV === "test"
+    ? fetchPublicCountries
+    : unstable_cache(fetchPublicCountries, ["filter-countries-all"], {
+        revalidate: 600,
+      });
 
 /** Metricas reales para los chips de la landing y el dashboard. */
 export async function getLandingStats() {
   const filtroPublico = filtroBecaPublica();
 
-  const [totalCount, countries, verifiedCount] = await Promise.all([
+  const [totalCount, countryDestinations, verifiedCount] = await Promise.all([
     db.scholarship.count({ where: filtroPublico }),
-    db.scholarship.findMany({
-      where: filtroPublico,
-      select: { countryDestination: true },
-      distinct: ["countryDestination"],
-    }),
+    fetchPublicCountries(),
     db.scholarship.count({ where: { ...filtroPublico, isVerified: true } }),
   ]);
 
   return {
     totalCount,
     activeCount: totalCount,
-    countriesCount: countries.length,
+    countriesCount: countryDestinations.length,
+    countryDestinations,
     verifiedPercentage:
       totalCount > 0 ? Math.round((verifiedCount / totalCount) * 100) : 0,
   };

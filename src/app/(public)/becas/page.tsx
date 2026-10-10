@@ -15,6 +15,7 @@ import {
 
 export const dynamic = "force-dynamic";
 import { becasQuerySchema } from "@/validators/becas.validator";
+import { queryListadoPublico } from "@/lib/becas/publica";
 
 export const metadata: Metadata = {
   title: "Explorar becas",
@@ -41,8 +42,7 @@ export default async function BecasPage({
   const raw = toRecord(await searchParams);
   const parsed = becasQuerySchema.safeParse(raw);
   const parsedQuery = parsed.success ? parsed.data : becasQuerySchema.parse({});
-  // El listado público nunca acepta status distinto de ACTIVE.
-  const query = { ...parsedQuery, status: undefined };
+  const query = queryListadoPublico(parsedQuery);
   const sort: SortOrder = raw.sort === "recent" ? "recent" : "deadline";
 
   const [{ data, pagination }, categories, countries] = await Promise.all([
