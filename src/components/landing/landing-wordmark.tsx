@@ -1,11 +1,17 @@
 export function LandingWordmark({
   inverted = false,
   size = "md",
+  tone = "brand",
 }: {
   inverted?: boolean;
   size?: "sm" | "md";
+  tone?: "brand" | "ink";
 }) {
-  const color = inverted ? "#ffffff" : "var(--lf-green)";
+  const color = inverted
+    ? "#ffffff"
+    : tone === "ink"
+      ? "var(--lf-ink)"
+      : "var(--lf-green)";
   const textClass = size === "sm" ? "text-[1.05rem]" : "text-[1.15rem]";
 
   return (

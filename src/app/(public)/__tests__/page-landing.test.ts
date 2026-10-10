@@ -76,16 +76,23 @@ describe("portada: diseño de referencia y consulta pública", () => {
     }
     expect(collage).toContain('loading="eager"');
     expect(collage).toContain("Pausar carrusel");
+    expect(collage).toContain("lf-masonry");
+    expect(photos).toContain("HERO_MOSAIC");
     expect(photos).not.toContain("pexels");
   });
 
-  it("el hero enfatiza 'no' y no muestra tiras ni contadores", () => {
+  it("el hero enfatiza 'no te has enterado.' sobre el collage y no muestra tiras", () => {
     const hero = readLanding("hero-section.tsx");
-    expect(hero).toContain("<em>no</em>");
-    expect(hero).toContain("Encuentra las becas de las que");
+    const css = readLanding("landing-ref.css");
+    expect(hero).toContain("<em>no te has</em>");
+    expect(hero).toContain("<em>enterado.</em>");
+    expect(hero).toContain("Encuentra las becas");
+    expect(hero).not.toContain("<em>no</em>");
     expect(hero).not.toContain("ScholarshipStrips");
     expect(hero).not.toContain("stat-convocatorias");
     expect(hero).not.toContain("getLandingStats");
+    expect(css).toContain("lf-hero-wash");
+    expect(css).toContain("column-count: 5");
   });
 
   it("la barra y las secciones usan las rutas y copys de la referencia", () => {
@@ -97,10 +104,18 @@ describe("portada: diseño de referencia y consulta pública", () => {
     expect(nav).not.toContain("Comunidad");
     expect(nav).toContain('href="/becas"');
     expect(nav).toContain("Explorar becas");
+    expect(nav).toContain("lf-nav-pill");
+    expect(nav).toContain("lf-nav-logo");
+
+    const band = readLanding("green-band.tsx");
+    expect(band).toContain("BecaHub");
+    expect(band).toContain("01 / DESCUBRE");
+    expect(band).toContain("Tu próxima oportunidad.");
 
     const discover = readLanding("discover-section.tsx");
     expect(discover).toContain("Oportunidades que mereces conocer.");
     expect(discover).toContain('id="descubre"');
+    expect(discover).toContain("lf-section-progress");
 
     const prepare = readLanding("prepare-section.tsx");
     expect(prepare).toContain("El siguiente paso empieza contigo.");

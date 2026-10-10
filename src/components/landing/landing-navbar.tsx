@@ -10,27 +10,22 @@ export const LANDING_NAV_LINKS = [
 export function LandingNavbar() {
   return (
     <header className="lf-nav">
-      <Link
-        href="/"
-        className="lf-pill lf-pill-nav"
-        aria-label="BecaHub, ir al inicio"
-      >
-        <LandingWordmark size="sm" />
+      <Link href="/" className="lf-nav-logo" aria-label="BecaHub, ir al inicio">
+        <LandingWordmark size="sm" tone="ink" />
+        <span aria-hidden="true">↗</span>
       </Link>
 
-      <nav aria-label="Navegación principal">
+      <nav className="lf-nav-pill" aria-label="Navegación principal">
         <ul className="lf-nav-links">
           {LANDING_NAV_LINKS.map((link) => (
             <li key={link.href}>
-              <Link href={link.href} className="lf-pill lf-pill-nav">
-                {link.label}
-              </Link>
+              <Link href={link.href}>{link.label}</Link>
             </li>
           ))}
         </ul>
       </nav>
 
-      <div className="flex items-center gap-2">
+      <div className="lf-nav-end">
         <details className="lf-nav-mobile relative">
           <summary className="lf-pill lf-pill-nav cursor-pointer list-none">
             Menú

@@ -5,7 +5,7 @@ export type LandingPhoto = {
   tag?: string;
 };
 
-export const HERO_LEFT: Array<LandingPhoto & { tag: string }> = [
+const CATALOG: Array<LandingPhoto & { tag: string }> = [
   {
     src: "/images/landing/hero-laptop.jpg",
     alt: "Manos escribiendo en un cuaderno junto a dos laptops abiertas.",
@@ -30,9 +30,6 @@ export const HERO_LEFT: Array<LandingPhoto & { tag: string }> = [
     credit: "Foto: Brooke Cagle / Unsplash",
     tag: "Apoyo económico",
   },
-];
-
-export const HERO_RIGHT: Array<LandingPhoto & { tag: string }> = [
   {
     src: "/images/landing/hero-grupo.jpg",
     alt: "Estudiantes riendo frente a una laptop en una biblioteca.",
@@ -57,33 +54,45 @@ export const HERO_RIGHT: Array<LandingPhoto & { tag: string }> = [
     credit: "Foto: Andrew Neel / Unsplash",
     tag: "Movilidad",
   },
-];
-
-export const HERO_PEEK: Array<
-  LandingPhoto & { tag: string; slot: "top" | "mid" | "bot" }
-> = [
   {
-    slot: "top",
     src: "/images/landing/estudiantes-aula.jpg",
     alt: "Estudiantes universitarios estudiando juntos frente a una laptop.",
     credit: "Foto: Priscilla Du Preez / Unsplash",
-    tag: "Movilidad",
+    tag: "Universidad",
   },
   {
-    slot: "mid",
     src: "/images/landing/prepare-notas.jpg",
     alt: "Mano escribiendo apuntes en un cuaderno.",
     credit: "Foto: Unsplash (licencia Unsplash)",
-    tag: "Apoyo económico",
-  },
-  {
-    slot: "bot",
-    src: "/images/landing/hero-laptop.jpg",
-    alt: "Manos y laptops sobre una mesa de trabajo.",
-    credit: "Foto: Scott Graham / Unsplash",
     tag: "Cursos",
   },
+  {
+    src: "/images/landing/carousel-comunidad.jpg",
+    alt: "Personas en un aula durante una sesión de estudio.",
+    credit: "Foto: Unsplash (licencia Unsplash)",
+    tag: "Comunidad",
+  },
 ];
+
+const TAGS = [
+  "Universidad",
+  "Movilidad",
+  "Nuevos caminos",
+  "Apoyo económico",
+  "Cursos",
+  "Deporte",
+] as const;
+
+export const HERO_MOSAIC: Array<LandingPhoto & { tag: string; h: 1 | 2 | 3 }> =
+  Array.from({ length: 24 }, (_, i) => {
+    const photo = CATALOG[i % CATALOG.length];
+    const heights: Array<1 | 2 | 3> = [2, 1, 3, 2, 1, 2, 3, 1];
+    return {
+      ...photo,
+      tag: TAGS[i % TAGS.length],
+      h: heights[i % heights.length],
+    };
+  });
 
 export const DISCOVER_SLIDES: LandingPhoto[] = [
   {

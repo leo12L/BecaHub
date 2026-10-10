@@ -15,7 +15,7 @@ export function DiscoverSection() {
           testId="landing-carousel-discover"
         />
         <div>
-          <p className="lf-eyebrow">01 / Descubre</p>
+          <p className="lf-eyebrow">01 / DESCUBRE</p>
           <h2 className="lf-display mt-4 text-4xl sm:text-5xl">
             Oportunidades que mereces conocer.
           </h2>
@@ -27,6 +27,9 @@ export function DiscoverSection() {
             Tu siguiente paso →
           </Link>
         </div>
+      </div>
+      <div className="lf-section-progress" aria-hidden="true">
+        <span />
       </div>
     </section>
   );

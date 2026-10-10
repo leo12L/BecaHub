@@ -10,7 +10,16 @@ test.describe("Portada BecaHub", () => {
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       "Encuentra las becas de las que no te has enterado.",
     );
-    await expect(page.locator("h1 em")).toHaveText("no");
+    await expect(page.locator("h1 em")).toHaveText(["no te has", "enterado."]);
+    await expect(page.getByTestId("landing-band")).toContainText(
+      "01 / DESCUBRE",
+    );
+    await expect(
+      page.getByTestId("landing-band").getByLabel("BecaHub"),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("landing-discover").locator(".lf-section-progress"),
+    ).toBeAttached();
     await expect(
       page.getByRole("link", { name: "Explorar becas ↗" }),
     ).toHaveAttribute("href", "/becas");
@@ -76,14 +85,11 @@ test.describe("Portada BecaHub", () => {
         document.documentElement.classList.toggle("dark", dark);
       }, viewport.dark);
 
-      const heroIds =
-        viewport.width < 901
-          ? (["landing-hero-img-mobile-Universidad"] as const)
-          : ([
-              "landing-hero-img-left-0",
-              "landing-hero-img-right-0",
-              "landing-hero-img-peek-top",
-            ] as const);
+      const heroIds = [
+        "landing-hero-img-0",
+        "landing-hero-img-1",
+        "landing-hero-img-2",
+      ] as const;
 
       for (const id of heroIds) {
         const img = page.getByTestId(id);

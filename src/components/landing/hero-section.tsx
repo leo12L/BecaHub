@@ -7,14 +7,18 @@ export function HeroSection() {
       <HeroCollage>
         <div className="lf-hero-copy">
           <p className="lf-eyebrow">El mundo está lleno de oportunidades</p>
-          <h1 className="lf-display lf-hero-title mt-5">
-            Encuentra las becas de las que <em>no</em> te has enterado.
+          <h1 className="lf-hero-title">
+            Encuentra las becas
+            <br />
+            de las que <em>no te has</em>
+            <br />
+            <em>enterado.</em>
           </h1>
-          <p className="mt-5 max-w-md text-[0.98rem] leading-relaxed text-[var(--lf-muted)]">
+          <p className="lf-hero-lead">
             Tu próxima oportunidad puede estar más cerca de lo que crees.
             Empieza por descubrirla.
           </p>
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
+          <div className="lf-hero-actions">
             <Link href="/becas" className="lf-pill lf-pill-green">
               Encuentra tu beca ↗
             </Link>
