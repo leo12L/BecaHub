@@ -49,23 +49,27 @@ export function puedePedirEstadoNoPublico(role?: Role | null): boolean {
   return role === "ADMIN" || role === "MODERATOR";
 }
 
-export function esVisibleEnDetalle(scholarship: {
+type BecaParaDetalle = {
   status: string;
-  deadline: Date | null;
-}): boolean {
+  deadline: Date | string | null;
+};
+
+function toDeadlineDate(deadline: Date | string | null): Date | null {
+  if (deadline === null) return null;
+  return typeof deadline === "string" ? new Date(deadline) : deadline;
+}
+
+export function esVisibleEnDetalle(scholarship: BecaParaDetalle): boolean {
   return scholarship.status === "ACTIVE" || scholarship.status === "CLOSED";
 }
 
-export function esCerrada(scholarship: {
-  status: string;
-  deadline: Date | null;
-}): boolean {
-  const todayMexico = getTodayInMexicoCity();
+export function esCerrada(scholarship: BecaParaDetalle): boolean {
+  if (scholarship.status === "CLOSED") {
+    return true;
+  }
 
-  return (
-    scholarship.status === "CLOSED" ||
-    (scholarship.deadline !== null && scholarship.deadline < todayMexico)
-  );
+  const deadline = toDeadlineDate(scholarship.deadline);
+  return deadline !== null && deadline < getTodayInMexicoCity();
 }
 
 /**
@@ -75,10 +79,9 @@ export function esCerrada(scholarship: {
  * - `abierta`: ACTIVE vigente
  * - `cerrada`: CLOSED o vencida → 200 con aviso
  */
-export function estadoDetallePublico(scholarship: {
-  status: string;
-  deadline: Date | null;
-}): "not_found" | "abierta" | "cerrada" {
+export function estadoDetallePublico(
+  scholarship: BecaParaDetalle,
+): "not_found" | "abierta" | "cerrada" {
   if (!esVisibleEnDetalle(scholarship)) {
     return "not_found";
   }

@@ -305,6 +305,18 @@ describe("Visibilidad pública de becas", () => {
       expect(estadoDetallePublico(active!)).toBe("abierta");
       expect(esCerrada(active!)).toBe(false);
     });
+
+    it("trata deadline serializado como string (respuesta JSON de la API)", () => {
+      const past = componentsToMexicoMidnight(2020, 1, 1).toISOString();
+      const future = componentsToMexicoMidnight(2027, 12, 31).toISOString();
+
+      expect(estadoDetallePublico({ status: "ACTIVE", deadline: past })).toBe(
+        "cerrada",
+      );
+      expect(estadoDetallePublico({ status: "ACTIVE", deadline: future })).toBe(
+        "abierta",
+      );
+    });
   });
 
   describe("roles", () => {
