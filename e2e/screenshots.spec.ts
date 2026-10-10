@@ -1,5 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { db } from "@/lib/db";
 
 // Only run this spec when SCREENSHOTS=1 is set
 const SCREENSHOTS_ENABLED = process.env.SCREENSHOTS === "1";
@@ -8,6 +7,9 @@ test.describe("Visual Screenshots", () => {
   test.skip(!SCREENSHOTS_ENABLED, "Screenshots only run when SCREENSHOTS=1");
 
   test.beforeAll(async () => {
+    // Import db dynamically to avoid ES module issues
+    const { db } = await import("../src/lib/db.js");
+
     // Create test scholarships for screenshots
     const manualSource = await db.source.findFirst({
       where: { name: "Curación manual (admin)" },
@@ -122,6 +124,9 @@ test.describe("Visual Screenshots", () => {
   });
 
   test.afterAll(async () => {
+    // Import db dynamically
+    const { db } = await import("../src/lib/db.js");
+
     // Clean up test scholarships
     await db.scholarship.deleteMany({
       where: {
