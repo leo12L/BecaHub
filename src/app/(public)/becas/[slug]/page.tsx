@@ -23,6 +23,7 @@ import {
   formatDate,
   statusLabels,
 } from "@/lib/becas/format";
+import { esVisibleEnDetalle, esCerrada } from "@/lib/becas/publica";
 
 type Params = Promise<{ slug: string }>;
 
@@ -60,9 +61,12 @@ export default async function BecaDetailPage({ params }: { params: Params }) {
   const { slug } = await params;
   const beca = await getBecaBySlug(slug);
 
-  if (!beca) {
+  // 404 si no existe o no es visible públicamente (DRAFT/PENDING_REVIEW)
+  if (!beca || !esVisibleEnDetalle(beca)) {
     notFound();
   }
+
+  const becaCerrada = esCerrada(beca);
 
   const amount = formatAmount(beca.amountMin, beca.amountMax, beca.currency);
   const publishedDate = formatDate(beca.createdAt);
@@ -103,6 +107,14 @@ export default async function BecaDetailPage({ params }: { params: Params }) {
             <DeadlineBadge deadline={beca.deadline} status={beca.status} />
           </div>
         </header>
+
+        {becaCerrada && (
+          <div className="mt-4 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
+            <p className="text-sm font-semibold">
+              ⚠️ Esta convocatoria ha cerrado y ya no acepta postulaciones.
+            </p>
+          </div>
+        )}
 
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[2fr_1fr]">
           <div className="flex flex-col gap-6">

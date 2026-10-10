@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import type { BecasQuery } from "@/validators/becas.validator";
 import { getTodayInMexicoCity } from "@/lib/fechas";
+import { filtroBecaPublica } from "@/lib/becas/publica";
 
 const LIST_INCLUDE = {
   source: { select: { id: true, name: true, type: true } },
@@ -40,23 +41,25 @@ function flattenCategories<T extends { categories: { category: unknown }[] }>(
 
 /**
  * Catálogo de becas con filtrado automático de vencidas.
- * Las becas con deadline < hoy (zona America/Mexico_City) se ocultan SIEMPRE,
- * excepto si se especifica explícitamente un status distinto a ACTIVE.
+ *
+ * Por defecto, muestra solo becas ACTIVE no vencidas (seguridad: evita exponer
+ * DRAFT/PENDING_REVIEW). Otros estados solo son accesibles si se especifica
+ * explícitamente `query.status` (reservado para admin/moderador).
  */
 export async function getBecas(
   query: BecasQuery,
   options?: { sort?: SortOrder },
 ) {
   const where: Prisma.ScholarshipWhereInput = {};
-  
-  // Filtro de status
-  if (query.status) {
-    where.status = query.status;
-  }
 
-  // Ocultar becas vencidas SIEMPRE, a menos que se pida un status específico diferente a ACTIVE
-  // En vistas públicas (sin status o status=ACTIVE), siempre se ocultan las vencidas
-  if (!query.status || query.status === "ACTIVE") {
+  // Filtro de status: ACTIVE por defecto (seguridad)
+  // Si se especifica explícitamente otro status, se respeta (solo admin/moderador)
+  const status = query.status ?? "ACTIVE";
+  where.status = status;
+
+  // Ocultar becas vencidas para status ACTIVE (vistas públicas)
+  // Para otros estados (admin), se muestran incluso si están vencidas
+  if (status === "ACTIVE") {
     const todayMexico = getTodayInMexicoCity();
     where.AND = where.AND || [];
     (where.AND as Prisma.ScholarshipWhereInput[]).push({
@@ -84,14 +87,14 @@ export async function getBecas(
   if (query.search) {
     const searchTerm = query.search.trim();
     // Escapar % y _ para que no actúen como comodines
-    const escapedTerm = searchTerm.replace(/[%_]/g, '\\$&');
+    const escapedTerm = searchTerm.replace(/[%_]/g, "\\$&");
     // Buscar IDs que coincidan con el término (con unaccent para ignorar acentos)
     const matchingIds = await db.$queryRaw<{ id: string }[]>`
       SELECT id FROM "Scholarship" 
-      WHERE unaccent(LOWER(title)) LIKE unaccent(LOWER(${'%' + escapedTerm + '%'}))
-         OR unaccent(LOWER(description)) LIKE unaccent(LOWER(${'%' + escapedTerm + '%'}))
+      WHERE unaccent(LOWER(title)) LIKE unaccent(LOWER(${"%" + escapedTerm + "%"}))
+         OR unaccent(LOWER(description)) LIKE unaccent(LOWER(${"%" + escapedTerm + "%"}))
     `;
-    
+
     // Si no hay coincidencias, retornar vacío
     if (matchingIds.length === 0) {
       return {
@@ -104,9 +107,9 @@ export async function getBecas(
         },
       };
     }
-    
+
     // Filtrar por los IDs que coinciden
-    where.id = { in: matchingIds.map(r => r.id) };
+    where.id = { in: matchingIds.map((r) => r.id) };
   }
 
   const categoryFilters: Prisma.ScholarshipCategoryWhereInput[] = [];
@@ -162,7 +165,10 @@ export async function getBecaBySlug(slug: string) {
 
 export async function getFeaturedBecas() {
   const scholarships = await db.scholarship.findMany({
-    where: { isFeatured: true },
+    where: {
+      ...filtroBecaPublica(),
+      isFeatured: true,
+    },
     orderBy: LIST_ORDER_BY.deadline,
     include: LIST_INCLUDE,
   });
@@ -188,10 +194,11 @@ export const getFilterCategories = unstable_cache(
   { revalidate: 3600 },
 );
 
-/** Paises de destino distintos entre todas las becas, para el filtro de pais. */
+/** Paises de destino distintos entre todas las becas públicas, para el filtro de pais. */
 export const getFilterCountries = unstable_cache(
   async () => {
     const rows = await db.scholarship.findMany({
+      where: filtroBecaPublica(),
       select: { countryDestination: true },
       distinct: ["countryDestination"],
       orderBy: { countryDestination: "asc" },
@@ -204,15 +211,18 @@ export const getFilterCountries = unstable_cache(
 
 /** Metricas reales para los chips de la landing y el dashboard. */
 export async function getLandingStats() {
+  const filtroPublico = filtroBecaPublica();
+
   const [totalCount, activeCount, countries, verifiedCount] = await Promise.all(
     [
       db.scholarship.count(),
-      db.scholarship.count({ where: { status: "ACTIVE" } }),
+      db.scholarship.count({ where: filtroPublico }),
       db.scholarship.findMany({
+        where: filtroPublico,
         select: { countryDestination: true },
         distinct: ["countryDestination"],
       }),
-      db.scholarship.count({ where: { isVerified: true } }),
+      db.scholarship.count({ where: { ...filtroPublico, isVerified: true } }),
     ],
   );
 

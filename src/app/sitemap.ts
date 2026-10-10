@@ -1,13 +1,14 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
 import { SITE_URL } from "@/lib/site";
+import { filtroBecaPublica } from "@/lib/becas/publica";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const scholarships = await db.scholarship.findMany({
-    where: { status: "ACTIVE" },
+    where: filtroBecaPublica(),
     select: { slug: true, updatedAt: true },
   });
 
