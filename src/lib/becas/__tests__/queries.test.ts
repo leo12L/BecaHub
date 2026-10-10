@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi, beforeEach, afterEach } from "vitest";
 import { db } from "@/lib/db";
 import { getBecas } from "../queries";
+import { componentsToMexicoMidnight } from "@/lib/fechas";
 
 // Skip tests if DATABASE_URL is not set
 const shouldSkip = !process.env.DATABASE_URL;
@@ -10,6 +11,18 @@ describe.skipIf(shouldSkip)("getBecas - deadline filtering", () => {
   let todayBecaId: string;
   let tomorrowBecaId: string;
   let yesterdayBecaId: string;
+
+  beforeEach(() => {
+    // Fijar hora del sistema a 23:30 de México (05:30 UTC del día siguiente)
+    // En México: 2026-10-09 23:30
+    // En UTC: 2026-10-10 05:30
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-10T05:30:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   beforeAll(async () => {
     // Crear una fuente de prueba
@@ -22,19 +35,11 @@ describe.skipIf(shouldSkip)("getBecas - deadline filtering", () => {
     });
     sourceId = source.id;
 
-    // Obtener fecha de hoy en Mexico City
-    const now = new Date();
-    const mexicoTimeString = now.toLocaleString("en-US", {
-      timeZone: "America/Mexico_City",
-    });
-    const todayMexico = new Date(mexicoTimeString);
-    todayMexico.setHours(0, 0, 0, 0);
-
-    const yesterday = new Date(todayMexico);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const tomorrow = new Date(todayMexico);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Usar componentsToMexicoMidnight para crear fechas consistentes
+    // Hoy: 2026-10-09 (fijado por vi.setSystemTime)
+    const todayMexico = componentsToMexicoMidnight(2026, 10, 9);
+    const yesterday = componentsToMexicoMidnight(2026, 10, 8);
+    const tomorrow = componentsToMexicoMidnight(2026, 10, 10);
 
     // Crear becas de prueba
     const todayBeca = await db.scholarship.create({

@@ -5,7 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Proteger /dashboard - requiere autenticación
+  // Proteger /dashboard - requiere autenticación y email confirmado
   if (pathname.startsWith("/dashboard")) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -44,6 +44,14 @@ export async function proxy(request: NextRequest) {
 
     if (!authUser) {
       return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    // Verificar que el email esté confirmado
+    if (!authUser.email_confirmed_at) {
+      // Redirigir al login con mensaje de error
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("error", "email_not_confirmed");
+      return NextResponse.redirect(loginUrl);
     }
 
     return response;

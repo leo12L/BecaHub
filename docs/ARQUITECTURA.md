@@ -435,6 +435,17 @@ model Scholarship {
 - `LEADERSHIP` — liderazgo
 - `FULL` — todo incluido
 
+**Regla importante sobre `deadline`:**
+
+La fecha de cierre (`deadline`) es el **último día en hora de México** (`America/Mexico_City`, UTC-6 constante sin horario de verano) y se guarda como **medianoche con offset `-06:00`**. Una beca que cierra el 15 de octubre está vigente hasta las 23:59:59 del 15 de octubre hora de México.
+
+Toda fecha de cierre debe crearse usando las funciones de `src/lib/fechas.ts`:
+- `getTodayInMexicoCity()`: obtiene la fecha de hoy en México como `Date` con offset `-06:00`
+- `dateToMexicoMidnight(fechaYYYYMMDD)`: convierte `YYYY-MM-DD` a medianoche de México
+- `componentsToMexicoMidnight(year, month, day)`: convierte componentes (año, mes 1-12, día) a medianoche de México
+
+Esta regla garantiza que el filtro de becas vencidas funcione correctamente independientemente de la zona horaria del servidor (UTC en CI/Netlify). El sistema nunca debe usar `new Date(año, mes, día)` ni `new Date("YYYY-MM-DD")` directamente para fechas de cierre, ya que estos constructores dependen de la zona horaria del servidor.
+
 ---
 
 #### Profile
@@ -851,12 +862,12 @@ Cada fase tiene criterios de éxito que se responden con **sí o no**.
 - Botón "Descubrir" en `/admin` (si existe)
 - **Opción de reemplazo:** Exa para descubrimiento de becas  
 
-### Fase 3: Perfil y búsqueda ⏳ EN CURSO
+### Fase 3: Perfil y búsqueda ✅ COMPLETADA
 
-3.1 Buscar "mexico" encuentra "Becas México" → ⏳ pendiente: `contains` no ignora acentos. La extensión `unaccent` de Postgres se activa con una migración de Prisma para que también funcione en el Postgres de la CI  
-3.2 Las recomendaciones no incluyen becas de otro nivel académico → ✅ sí (`recomendarBecas` filtra por `academicLevel`)  
-3.3 Los favoritos y las postulaciones se guardan → ⏳ modelos existen, UI pendiente  
-3.4 El estudiante A no puede leer ni cambiar nada del B, aunque cambie el id en la URL → ⏳ validación de sesión pendiente  
+3.1 Buscar "mexico" encuentra "Becas México" → ✅ sí (extensión `unaccent` + `LIKE` con escaping de `%` y `_`)  
+3.2 Las recomendaciones no incluyen becas de otro nivel académico → ✅ sí (`recomendarBecas` filtra por `academicLevel` y excluye vencidas)  
+3.3 Los favoritos y las postulaciones se guardan → ✅ sí (APIs REST en `/api/v1/favoritos` y `/api/v1/postulaciones`)  
+3.4 El estudiante A no puede leer ni cambiar nada del B, aunque cambie el id en la URL → ✅ sí (validación con `requireUser`, filtros por `userId`)  
 
 ### Fase 4: Expediente y legal ⏳ PENDIENTE
 
@@ -874,7 +885,7 @@ Cada fase tiene criterios de éxito que se responden con **sí o no**.
 
 5.1 Un moderador puede aprobar becas, pero no administrar usuarios ni fuentes → ⏳ rol `MODERATOR` existe, lógica diferenciada pendiente  
 5.2 Cada aprobación queda en la bitácora → ⏳ modelo `AuditLog` pendiente  
-5.3 Ningún componente de la web llama a una ruta `/api/` que no empiece con `/api/v1` → ⏳ pendiente: los endpoints actuales están en `/api`, no `/api/v1`  
+5.3 Ningún componente de la web llama a una ruta `/api/` que no empiece con `/api/v1` → ⏳ parcialmente: favoritos y postulaciones en `/api/v1`, otros endpoints pendientes de migrar  
 
 ### Después: App nativa, alertas y monetización
 
@@ -930,6 +941,7 @@ Esta sección debe actualizarse en cada PR que modifique la arquitectura.
 | 2026-10-09 | PR #5 (v5) | **Tercera ronda de correcciones (Arquitecto y QA):** (1) **SEGURIDAD getCurrentUser**: agregado `onUpdate: Cascade` a FKs de `userId` (migración `20261009022100_add_onupdate_cascade`). `getCurrentUser()` vincula legacy SIN BORRAR: cambia ID con `db.user.update()` en transacción. Solo vincula si `email_confirmed_at` existe; sin confirmación lanza error. Pruebas DB verifican preservación de favoritos/perfil y rechazo sin confirmación. (2) **Vulnerabilidades**: reescrita sección con `npm audit --omit=dev` real: 0 críticas, 4 altas (prisma CLI: `deepmerge-ts`, `mysql2`). Justificación: mysql2 no usado (Postgres), deepmerge-ts solo en config. Fix exige Prisma 6 (breaking). Eliminado `NPM_FLAGS = "--omit=dev"` de `netlify.toml`. (3) **Cobertura 403**: nueva prueba unitaria `src/__tests__/proxy.test.ts` mockeando `@supabase/ssr` y `@/lib/db`. Verifica USER→403, MODERATOR/ADMIN→pasan, sin sesión→redirect o 401. Fijado `test:unit` y `test:db` con `server.test.ts`. |
 | 2026-10-09 | PR #5 (v6) | **Cuarta ronda - migración MODERATOR y validación de schema:** (1) **Migración faltante**: nueva migración `20261009025900_add_moderator_role` con `ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'MODERATOR'` (sin transacción, ADD VALUE no es transaccional). El schema tenía MODERATOR pero ninguna migración lo creaba en la DB real. (2) **Validación automática**: CI ahora valida que migraciones coincidan con schema usando `prisma migrate diff --exit-code`. Crea shadow database (`becahub_shadow`) y falla si hay diferencias. Configurado `shadowDatabaseUrl` en `prisma.config.ts`. (3) **Pruebas rol MODERATOR**: nueva prueba `src/lib/__tests__/user-roles.test.ts` verifica creación, actualización y filtrado de usuarios con rol MODERATOR. Agregado a `test:db`. Esto previene divergencia futura entre schema y migraciones. |
 | 2026-10-09 | PR #6 | **Fase 2: Ingesta automática de becas.** (1) Sistema de ingesta completo en `src/lib/ingesta/`: lectores SECIHTI (API JSON) y Jina Reader (HTML), orquestador `ejecutar.ts`, tipos y validadores Zod. (2) Deduplicación por fingerprint: nuevos campos `fingerprint` (único, opcional), `rawPayload` (Json), `validationErrors` (Json) en modelo `Scholarship`. Migración `20261009033700_add_fingerprint_and_validation_fields`. Fingerprint = `título_normalizado|convocante_normalizado|año`. **Prioridad del año**: (a) deadline, (b) año de la fuente (SECIHTI `conv_year`), (c) literal `"sin-anio"` si no hay ninguno. NUNCA null - siempre genera huella válida. Si una beca sin año aparece luego con fecha, busca variante `sin-anio` y actualiza huella sin duplicar. (3) **Actualización no despublica**: al actualizar beca existente, SOLO cambia `rawPayload`, `scrapedAt`, `validationErrors` y `fingerprint`; campos editados (título, descripción, nivel, status) se preservan. Si cambian deadline/link, se anota en `validationErrors` para moderador. (4) **Validación de URLs**: si HEAD responde 405, reintenta con GET antes de marcar como roto. (5) **Suposiciones anotadas**: nivel `UNDERGRAD`, cobertura `MONETARY`, país `México` por defecto se anotan en `validationErrors`. (6) **Limitación deduplicación**: Jina puede dejar `convocante` null y SECIHTI pone "SECIHTI", así que la misma beca en ambas fuentes puede no unirse todavía. (7) Fixtures reales guardados en `fixtures/`. (8) Todas las becas ingresan como `PENDING_REVIEW` con errores en `validationErrors` si los hay; `validationErrors` vuelve a `Prisma.DbNull` cuando se corrigen. (9) GitHub Actions workflow `ingesta-diaria.yml` con cron diario y skip limpio si falta `DATABASE_URL`. (10) Tests con BD real (`test:db`) sin salir a internet (mocks de fetch/validateUrlLiveness). (11) Eliminación total de Tavily: archivos, dependencias, referencias en orquestador, seed, admin UI. Script `npm run ingesta` reemplaza `npm run discover`. (12) Admin `/admin/becas` muestra aviso si no hubo corrida exitosa en 48 horas. (13) Seed actualizado con fuentes SECIHTI, Jina Reader y Manual. (14) Manejo de errores mejorado: fallos en `ScraperLog` no tumban `Promise.all` ni la corrida. (15) `Prisma.DbNull` para campos Json nullable (no `null` plano ni `as unknown`). |
+| 2026-10-09 | PR #7 (v1) | **Fase 3 completa - perfil y búsqueda:** (1) **Búsqueda con unaccent**: migración `20261009043000_add_unaccent_extension` activa extensión nativa de Postgres. `getBecas()` usa `$queryRaw` con `unaccent(LOWER(campo)) LIKE unaccent(LOWER('%término%'))` para búsqueda insensible a acentos ("mexico" encuentra "México"). Escapa `%` y `_` del término del usuario para que no actúen como comodines. Implementación con `LIKE` suficiente para <500 usuarios (más simple que full-text search; se puede migrar más adelante si es necesario). (2) **Recomendaciones mejoradas**: `recomendarBecas()` ahora filtra becas vencidas usando la misma lógica de fecha que `getBecas` (hora de México, America/Mexico_City). Solo recomienda becas `ACTIVE` con `deadline >= hoy` o `deadline IS NULL`. (3) **APIs REST de favoritos y postulaciones**: nuevos endpoints en `/api/v1/favoritos` (GET, POST, DELETE) y `/api/v1/postulaciones` (GET, POST) bajo ruta versionada acordada para futura app Expo. Validación con `requireUser()` y filtros estrictos por `userId`. Estados de postulación: INTERESTED, APPLIED, INTERVIEW, AWARDED, REJECTED. (4) **Aislamiento entre usuarios**: todas las APIs validan sesión y filtran por `userId` del usuario autenticado. Tests verifican que usuario A no puede leer, modificar ni borrar datos de B (favoritos, postulaciones, perfil). (5) **Manejo de email no confirmado**: error código `EMAIL_NOT_CONFIRMED` en español, middleware redirige desde dashboard/admin, APIs retornan 403 (no 500), login pages muestran mensaje claro con Suspense. (6) **Tests completos**: 4 tests para búsqueda con unaccent (incluye wildcards), 4 tests para `recomendarBecas` con BD (no recomienda posgrado ni vencidas), 7 tests para aislamiento de usuarios (incluye DELETE), 11 tests para favoritos/postulaciones, 3 tests para email no confirmado. Total: 169 tests pasando (6 nuevos archivos de test). |
 
 ---
 

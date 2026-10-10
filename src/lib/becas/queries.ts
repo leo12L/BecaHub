@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import type { BecasQuery } from "@/validators/becas.validator";
+import { getTodayInMexicoCity } from "@/lib/fechas";
 
 const LIST_INCLUDE = {
   source: { select: { id: true, name: true, type: true } },
@@ -35,20 +36,6 @@ function flattenCategories<T extends { categories: { category: unknown }[] }>(
   } as Omit<T, "categories"> & {
     categories: T["categories"][number]["category"][];
   };
-}
-
-/**
- * Retorna la fecha de hoy en zona horaria America/Mexico_City (inicio del día).
- * Una beca que cierra hoy aún está vigente.
- */
-function getTodayInMexicoCity(): Date {
-  const now = new Date();
-  const mexicoTimeString = now.toLocaleString("en-US", {
-    timeZone: "America/Mexico_City",
-  });
-  const mexicoDate = new Date(mexicoTimeString);
-  mexicoDate.setHours(0, 0, 0, 0);
-  return mexicoDate;
 }
 
 /**
@@ -92,15 +79,34 @@ export async function getBecas(
     where.deadline = { lte: query.deadlineBefore };
   }
 
-  // Búsqueda de texto - combinar con AND usando el where.AND que ya existe
+  // Búsqueda de texto - usa la extensión unaccent de Postgres para ignorar acentos
+  // unaccent(campo) ILIKE unaccent('%término%') permite buscar "mexico" y encontrar "México"
   if (query.search) {
-    where.AND = where.AND || [];
-    (where.AND as Prisma.ScholarshipWhereInput[]).push({
-      OR: [
-        { title: { contains: query.search, mode: "insensitive" } },
-        { description: { contains: query.search, mode: "insensitive" } },
-      ],
-    });
+    const searchTerm = query.search.trim();
+    // Escapar % y _ para que no actúen como comodines
+    const escapedTerm = searchTerm.replace(/[%_]/g, '\\$&');
+    // Buscar IDs que coincidan con el término (con unaccent para ignorar acentos)
+    const matchingIds = await db.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "Scholarship" 
+      WHERE unaccent(LOWER(title)) LIKE unaccent(LOWER(${'%' + escapedTerm + '%'}))
+         OR unaccent(LOWER(description)) LIKE unaccent(LOWER(${'%' + escapedTerm + '%'}))
+    `;
+    
+    // Si no hay coincidencias, retornar vacío
+    if (matchingIds.length === 0) {
+      return {
+        data: [],
+        pagination: {
+          page: query.page,
+          limit: query.limit,
+          total: 0,
+          totalPages: 0,
+        },
+      };
+    }
+    
+    // Filtrar por los IDs que coinciden
+    where.id = { in: matchingIds.map(r => r.id) };
   }
 
   const categoryFilters: Prisma.ScholarshipCategoryWhereInput[] = [];

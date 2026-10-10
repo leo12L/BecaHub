@@ -1,5 +1,6 @@
 import { checkUrlHealth } from "@/lib/validation/url-health";
 import { MEXICO_PATTERN } from "@/lib/geo";
+import { getTodayInMexicoCity } from "@/lib/fechas";
 
 export interface PublishCheckResult {
   ok: boolean;
@@ -32,9 +33,8 @@ export async function assertCanPublish(input: {
     };
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (input.deadline.getTime() < today.getTime()) {
+  const todayMexico = getTodayInMexicoCity();
+  if (input.deadline.getTime() < todayMexico.getTime()) {
     return {
       ok: false,
       error: "La fecha límite ya pasó; no se puede publicar como activa",

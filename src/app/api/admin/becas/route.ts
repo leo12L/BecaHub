@@ -7,6 +7,7 @@ import { adminBecaInputSchema } from "@/validators/admin-becas.validator";
 import type { CoverageType, AcademicLevel } from "@/generated/prisma/enums";
 import { generateFingerprint } from "@/lib/ingesta/utils";
 import type { BecaCandidata } from "@/lib/ingesta/types";
+import { dateToMexicoMidnight } from "@/lib/fechas";
 
 /** Resuelve colisiones de slug agregando un sufijo numérico. */
 async function resolveSlug(base: string): Promise<string> {
@@ -58,8 +59,10 @@ export async function POST(request: NextRequest) {
 
   let deadline: Date | null = null;
   if (body.deadline) {
-    deadline = new Date(body.deadline);
-    if (Number.isNaN(deadline.getTime())) {
+    try {
+      // El input type="date" envía YYYY-MM-DD; convertir a medianoche de México
+      deadline = dateToMexicoMidnight(body.deadline);
+    } catch {
       return NextResponse.json({ error: "deadline inválido" }, { status: 400 });
     }
   }

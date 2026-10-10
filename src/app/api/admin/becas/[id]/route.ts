@@ -7,6 +7,7 @@ import {
   adminBecaPatchSchema,
 } from "@/validators/admin-becas.validator";
 import type { CoverageType, AcademicLevel } from "@/generated/prisma/enums";
+import { dateToMexicoMidnight } from "@/lib/fechas";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -54,8 +55,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
   let deadline: Date | null = null;
   if (body.deadline) {
-    deadline = new Date(body.deadline);
-    if (Number.isNaN(deadline.getTime())) {
+    try {
+      // El input type="date" envía YYYY-MM-DD; convertir a medianoche de México
+      deadline = dateToMexicoMidnight(body.deadline);
+    } catch {
       return NextResponse.json({ error: "deadline inválido" }, { status: 400 });
     }
   }

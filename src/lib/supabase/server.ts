@@ -81,9 +81,11 @@ export async function getCurrentUser(): Promise<PrismaUser | null> {
     // Encontramos un usuario legacy con este email pero diferente ID
     // SEGURIDAD: Solo vincular si el email está confirmado
     if (!authUser.email_confirmed_at) {
-      throw new Error(
+      const error = new Error(
         "Debes confirmar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.",
       );
+      (error as Error & { code?: string }).code = "EMAIL_NOT_CONFIRMED";
+      throw error;
     }
 
     // Vincular el usuario legacy actualizando su ID en una transacción

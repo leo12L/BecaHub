@@ -1,15 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam === "email_not_confirmed") {
+      // Usar setTimeout para evitar llamar setState directamente en el efecto
+      setTimeout(() => {
+        setError(
+          "Debes confirmar tu correo electrónico antes de continuar. Revisa tu bandeja de entrada.",
+        );
+      }, 0);
+    }
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -104,5 +117,13 @@ export default function AdminLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={<div className="container mx-auto flex min-h-screen items-center justify-center">Cargando...</div>}>
+      <AdminLoginForm />
+    </Suspense>
   );
 }

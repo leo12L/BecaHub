@@ -185,11 +185,17 @@ describe("proxy - Admin route protection", () => {
       expect(response.headers.get("location")).toContain("/login");
     });
 
-    it("debe permitir acceso cuando hay sesión", async () => {
+    it("debe permitir acceso cuando hay sesión y email confirmado", async () => {
       vi.mocked(createServerClient).mockReturnValue({
         auth: {
           getUser: vi.fn().mockResolvedValue({
-            data: { user: { id: "user-123", email: "user@example.com" } },
+            data: {
+              user: {
+                id: "user-123",
+                email: "user@example.com",
+                email_confirmed_at: "2026-01-01T00:00:00.000Z",
+              },
+            },
           }),
         },
       } as never);

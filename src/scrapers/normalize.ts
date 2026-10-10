@@ -8,6 +8,7 @@ import {
   type ScholarshipStatus as ScholarshipStatusType,
 } from "@/generated/prisma/enums";
 import type { RawScholarship } from "./types";
+import { componentsToMexicoMidnight, dateToMexicoMidnight } from "@/lib/fechas";
 
 /**
  * Forma normalizada de una beca, lista para `prisma.scholarship.upsert`.
@@ -117,32 +118,46 @@ export function slugify(value: string): string {
 /**
  * Parsea fechas en formatos comunes: ISO (`2026-03-15`),
  * `dd/mm/yyyy`/`dd-mm-yyyy` y español (`15 de marzo de 2026`).
+ * Devuelve la fecha como medianoche en hora de México (-06:00).
  * Devuelve `null` si no se reconoce el formato.
  */
 export function parseSpanishDate(raw: string): Date | null {
   const trimmed = raw.trim();
 
+  // Formato dd/mm/yyyy o dd-mm-yyyy
   const numeric = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (numeric) {
     const [, day, month, year] = numeric;
-    const date = new Date(Number(year), Number(month) - 1, Number(day));
-    return Number.isNaN(date.getTime()) ? null : date;
+    const yearNum = Number(year);
+    const monthNum = Number(month);
+    const dayNum = Number(day);
+    
+    // Validar rangos básicos
+    if (monthNum < 1 || monthNum > 12 || dayNum < 1 || dayNum > 31) {
+      return null;
+    }
+    
+    return componentsToMexicoMidnight(yearNum, monthNum, dayNum);
   }
 
-  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-    const date = new Date(trimmed);
-    return Number.isNaN(date.getTime()) ? null : date;
+  // Formato ISO YYYY-MM-DD
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return componentsToMexicoMidnight(Number(year), Number(month), Number(day));
   }
 
+  // Formato español: dd de mes de yyyy
   const spanish = stripAccents(trimmed.toLowerCase()).match(
     /^(\d{1,2})\s+de\s+([a-z]+)\s+de\s+(\d{4})$/,
   );
   if (spanish) {
     const [, day, monthName, year] = spanish;
-    const month = MONTHS_ES[monthName ?? ""];
-    if (month === undefined) return null;
-    const date = new Date(Number(year), month, Number(day));
-    return Number.isNaN(date.getTime()) ? null : date;
+    const monthIndex = MONTHS_ES[monthName ?? ""];
+    if (monthIndex === undefined) return null;
+    
+    // MONTHS_ES usa índices 0-11 (estilo JS Date), pero componentsToMexicoMidnight espera 1-12
+    return componentsToMexicoMidnight(Number(year), monthIndex + 1, Number(day));
   }
 
   return null;
