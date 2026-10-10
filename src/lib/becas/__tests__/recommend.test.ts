@@ -50,7 +50,7 @@ describe("recomendarBecas con BD", () => {
         description: "Beca que cierra hoy, aún debe aparecer",
         status: "ACTIVE",
         coverageType: "FULL",
-        countryDestination: "México",
+        destinationCountries: ["MX"],
         academicLevel: "UNDERGRAD",
         deadline: componentsToMexicoMidnight(2026, 10, 9), // Cierra HOY en México
         applyUrl: "https://example.com/apply-undergrad-valid",
@@ -70,7 +70,7 @@ describe("recomendarBecas con BD", () => {
         description: "Beca vigente para estudiantes de posgrado",
         status: "ACTIVE",
         coverageType: "FULL",
-        countryDestination: "México",
+        destinationCountries: ["MX"],
         academicLevel: "GRAD",
         deadline: componentsToMexicoMidnight(2026, 10, 9), // Cierra HOY
         applyUrl: "https://example.com/apply-grad-valid",
@@ -91,7 +91,7 @@ describe("recomendarBecas con BD", () => {
         description: "Beca que cerró ayer, no debe aparecer",
         status: "ACTIVE", // ACTIVE pero con deadline pasado
         coverageType: "FULL",
-        countryDestination: "México",
+        destinationCountries: ["MX"],
         academicLevel: "UNDERGRAD",
         deadline: componentsToMexicoMidnight(2026, 10, 8), // Cerró AYER en México
         applyUrl: "https://example.com/apply-undergrad-expired",

@@ -57,7 +57,7 @@ describe("API de postulaciones", () => {
         description: "Beca para probar postulaciones",
         status: "ACTIVE",
         coverageType: "FULL",
-        countryDestination: "México",
+        destinationCountries: ["MX"],
         academicLevel: "UNDERGRAD",
         deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         applyUrl: "https://example.com/apply-applications",

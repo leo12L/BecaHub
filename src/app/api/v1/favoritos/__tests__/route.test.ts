@@ -57,7 +57,7 @@ describe("API de favoritos", () => {
         description: "Beca para probar favoritos",
         status: "ACTIVE",
         coverageType: "FULL",
-        countryDestination: "México",
+        destinationCountries: ["MX"],
         academicLevel: "UNDERGRAD",
         deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         applyUrl: "https://example.com/apply-favorites",

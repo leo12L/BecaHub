@@ -48,9 +48,8 @@ export async function recomendarBecas(
         ...(profile.countryInterest
           ? [
               {
-                countryDestination: {
-                  contains: profile.countryInterest,
-                  mode: "insensitive" as const,
+                destinationCountries: {
+                  has: profile.countryInterest,
                 },
               },
             ]
