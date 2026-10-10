@@ -15,6 +15,7 @@ import {
   getFilterCountries,
   getLandingStats,
 } from "@/lib/becas/queries";
+import { getLandingStripBecas } from "@/lib/becas/landing";
 import { recomendarBecas } from "@/lib/becas/recommend";
 import {
   AVISO_CONVOCATORIA_CERRADA,
@@ -260,6 +261,21 @@ describe("Visibilidad pública de becas", () => {
 
       expect(pending.data.map((b) => b.id)).toContain(PENDING_ID);
       expect(draft.data.map((b) => b.id)).toContain(DRAFT_ID);
+    });
+
+    it("PENDING_REVIEW nunca sale en las tiras de la portada", async () => {
+      const cards = await getLandingStripBecas();
+      const realIds = cards
+        .filter((card) => card.kind === "real")
+        .map((card) => card.id);
+
+      expect(realIds).not.toContain(PENDING_ID);
+      expect(realIds).not.toContain(DRAFT_ID);
+      expect(realIds).not.toContain(CLOSED_ID);
+      expect(realIds).not.toContain(VENCIDA_ID);
+      expect(cards.every((card) => card.kind === "example" || card.href)).toBe(
+        true,
+      );
     });
 
     it("filtroBecaPublica solo trae ACTIVE no vencidas", async () => {

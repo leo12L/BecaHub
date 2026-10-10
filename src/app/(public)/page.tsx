@@ -1,34 +1,28 @@
 import { LandingNavbar } from "@/components/landing/landing-navbar";
 import { HeroSection } from "@/components/landing/hero-section";
-import { AuthOptionsCard } from "@/components/landing/auth-options-card";
-import { SocialProof } from "@/components/landing/social-proof";
-import { getBecas, getLandingStats } from "@/lib/becas/queries";
-import { becasQuerySchema } from "@/validators/becas.validator";
+import { FeatureBlocks } from "@/components/landing/feature-blocks";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { LandingFooter } from "@/components/landing/landing-footer";
+import { getLandingStripBecas } from "@/lib/becas/landing";
+import { getLandingStats } from "@/lib/becas/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function LandingPage() {
-  const [{ data: scholarships }, stats] = await Promise.all([
-    getBecas(becasQuerySchema.parse({ limit: 50 }), { sort: "deadline" }),
+  const [cards, stats] = await Promise.all([
+    getLandingStripBecas(),
     getLandingStats(),
   ]);
 
   return (
     <div className="bg-background min-h-screen">
       <LandingNavbar />
-
       <main>
-        <HeroSection scholarships={scholarships} stats={stats} />
-
-        {/* Auth options */}
-        <section className="border-border bg-background border-t px-4 py-16">
-          <div className="mx-auto flex max-w-screen-lg justify-center">
-            <AuthOptionsCard />
-          </div>
-        </section>
-
-        <SocialProof />
+        <HeroSection cards={cards} stats={stats} />
+        <FeatureBlocks />
+        <HowItWorks />
       </main>
+      <LandingFooter />
     </div>
   );
 }
