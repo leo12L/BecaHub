@@ -107,7 +107,8 @@ export async function getCurrentUser(): Promise<PrismaUser | null> {
     return user;
   }
 
-  // Usuario completamente nuevo
+  // Usuario de Auth sin fila en `User` (alta nueva o `migrate reset`):
+  // se recrea la fila con el id de Supabase Auth. El rol vuelve a USER.
   user = await db.user.create({
     data: {
       id: authUser.id,

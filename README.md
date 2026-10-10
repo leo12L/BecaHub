@@ -175,17 +175,20 @@ npm run limpiar-becas -- --yes  # Ejecuta el borrado
 
 ### Después de fusionar PR #8 (migración destinationCountries)
 
-Si ya tenías becas en tu base de datos antes del PR #8, algunas pueden haber quedado con datos obsoletos. Para limpiarlas y cargar becas reales:
+Los datos actuales de la Supabase del dueño son de prueba. Hay que resetear y volver a sembrar (no se añade una migración de parche):
 
 ```powershell
-npm run limpiar-becas          # dry-run: no borra nada
-npm run limpiar-becas -- --yes # borra solo becas de ingesta no aprobadas
-npm run ingesta
+npx prisma migrate reset --force
+npx prisma db seed
 ```
 
-El script `limpiar-becas` solo borra becas de ingesta (`source.type != MANUAL`) que siguen sin publicar (`status != ACTIVE`). Por defecto corre en dry-run. Los favoritos y postulaciones asociados se eliminan por CASCADE.
+Luego inicia sesión una vez (eso recrea tu fila en `User`). Sustituye el correo y ejecuta:
 
-**No toca:** becas creadas o publicadas a mano, usuarios ni fuentes.
+```powershell
+'UPDATE "User" SET role = ''ADMIN'' WHERE email = ''TU_CORREO@dominio.com'';' | npx prisma db execute --stdin
+```
+
+El script `limpiar-becas` sigue disponible para borrar solo ingesta no publicada (`npm run limpiar-becas` / `--yes`).
 
 ## Estructura del proyecto
 

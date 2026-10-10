@@ -193,4 +193,50 @@ describe.skipIf(shouldSkip)("getCurrentUser - legacy user linking", () => {
     });
     expect(newUser).toBeNull();
   });
+
+  it("tras un reset, recrea la fila User al iniciar sesión con una cuenta de Auth que ya existía", async () => {
+    const existingAuthId = "supabase-auth-after-reset";
+    const existingEmail = "owner-after-reset@example.com";
+
+    await db.user.deleteMany({
+      where: { id: { in: [existingAuthId] } },
+    });
+    await db.user.deleteMany({
+      where: { email: existingEmail },
+    });
+
+    expect(
+      await db.user.findUnique({ where: { id: existingAuthId } }),
+    ).toBeNull();
+
+    mockCreateServerClient.mockReturnValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: {
+            user: {
+              id: existingAuthId,
+              email: existingEmail,
+              email_confirmed_at: new Date().toISOString(),
+              user_metadata: { name: "Dueño" },
+            },
+          },
+        }),
+      },
+    });
+
+    const created = await getCurrentUser();
+
+    expect(created).not.toBeNull();
+    expect(created?.id).toBe(existingAuthId);
+    expect(created?.email).toBe(existingEmail);
+    expect(created?.role).toBe("USER");
+
+    const persisted = await db.user.findUnique({
+      where: { id: existingAuthId },
+    });
+    expect(persisted).not.toBeNull();
+    expect(persisted?.email).toBe(existingEmail);
+
+    await db.user.delete({ where: { id: existingAuthId } });
+  });
 });

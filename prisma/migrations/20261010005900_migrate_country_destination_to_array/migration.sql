@@ -1,84 +1,117 @@
--- AlterTable
--- 1. Add new destinationCountries column as TEXT[] (array of strings)
+-- countryDestination (texto libre) → destinationCountries (ISO-3166 alpha-2[])
+-- La conversión replica parseCountryDestination() de src/lib/geo.ts:
+--   1. Parte por coma, punto y coma, barra, " y " / " o " (palabra completa).
+--   2. Normaliza cada parte (minúsculas, sin acentos, ñ→n).
+--   3. Busca coincidencia exacta en el mapa de nombres/códigos.
+--   4. Vacío o no reconocido → {} (nunca México por defecto).
+-- Los anclajes ^…$ NO se usan: SIMILAR TO '%(^mx$)%' no ancla, busca el literal.
+
+-- 1. Nueva columna
 ALTER TABLE "Scholarship" ADD COLUMN "destinationCountries" TEXT[] NOT NULL DEFAULT '{}';
 
--- 2. Migrate data from countryDestination to destinationCountries
--- México / Mexico / mx → {MX}
-UPDATE "Scholarship"
-SET "destinationCountries" = ARRAY['MX']
-WHERE LOWER("countryDestination") SIMILAR TO '%(mexico|méxico|^mx$)%';
+-- 2. Convertir cada valor con el mismo mapa y el mismo split que JS
+WITH name_to_code(name, code) AS (
+  VALUES
+    ('mexico', 'MX'),
+    ('mx', 'MX'),
+    ('estados unidos', 'US'),
+    ('united states', 'US'),
+    ('usa', 'US'),
+    ('us', 'US'),
+    ('eeuu', 'US'),
+    ('canada', 'CA'),
+    ('ca', 'CA'),
+    ('espana', 'ES'),
+    ('spain', 'ES'),
+    ('es', 'ES'),
+    ('reino unido', 'GB'),
+    ('united kingdom', 'GB'),
+    ('uk', 'GB'),
+    ('gb', 'GB'),
+    ('inglaterra', 'GB'),
+    ('england', 'GB'),
+    ('alemania', 'DE'),
+    ('germany', 'DE'),
+    ('de', 'DE'),
+    ('francia', 'FR'),
+    ('france', 'FR'),
+    ('fr', 'FR'),
+    ('italia', 'IT'),
+    ('italy', 'IT'),
+    ('it', 'IT'),
+    ('china', 'CN'),
+    ('cn', 'CN'),
+    ('japon', 'JP'),
+    ('japan', 'JP'),
+    ('jp', 'JP'),
+    ('argentina', 'AR'),
+    ('ar', 'AR'),
+    ('brasil', 'BR'),
+    ('brazil', 'BR'),
+    ('br', 'BR'),
+    ('chile', 'CL'),
+    ('cl', 'CL'),
+    ('colombia', 'CO'),
+    ('co', 'CO'),
+    ('peru', 'PE'),
+    ('pe', 'PE'),
+    ('australia', 'AU'),
+    ('au', 'AU'),
+    ('nueva zelanda', 'NZ'),
+    ('new zealand', 'NZ'),
+    ('nz', 'NZ'),
+    ('paises bajos', 'NL'),
+    ('netherlands', 'NL'),
+    ('holanda', 'NL'),
+    ('holland', 'NL'),
+    ('nl', 'NL'),
+    ('belgica', 'BE'),
+    ('belgium', 'BE'),
+    ('be', 'BE'),
+    ('suiza', 'CH'),
+    ('switzerland', 'CH'),
+    ('ch', 'CH'),
+    ('suecia', 'SE'),
+    ('sweden', 'SE'),
+    ('se', 'SE'),
+    ('noruega', 'NO'),
+    ('norway', 'NO'),
+    ('no', 'NO'),
+    ('portugal', 'PT'),
+    ('pt', 'PT'),
+    ('corea del sur', 'KR'),
+    ('south korea', 'KR'),
+    ('corea', 'KR'),
+    ('korea', 'KR'),
+    ('kr', 'KR')
+),
+converted AS (
+  SELECT
+    sch.id,
+    ARRAY(
+      SELECT m.code
+      FROM regexp_split_to_table(
+        COALESCE(sch."countryDestination", ''),
+        '[,;/]|\y[yYoO]\y'
+      ) WITH ORDINALITY AS t(part, ord)
+      JOIN name_to_code m
+        ON m.name = lower(trim(unaccent(replace(replace(trim(t.part), 'ñ', 'n'), 'Ñ', 'n'))))
+      WHERE trim(t.part) <> ''
+      GROUP BY m.code
+      ORDER BY MIN(t.ord)
+    ) AS codes
+  FROM "Scholarship" sch
+)
+UPDATE "Scholarship" AS s
+SET "destinationCountries" = c.codes
+FROM converted c
+WHERE s.id = c.id;
 
--- Estados Unidos / USA / US → {US}
+-- 3. Anotar valores no vacíos que no se pudieron mapear (el arreglo queda {})
 UPDATE "Scholarship"
-SET "destinationCountries" = ARRAY['US']
-WHERE "destinationCountries" = '{}'
-  AND LOWER("countryDestination") SIMILAR TO '%(estados unidos|united states|^usa$|^us$|eeuu)%';
-
--- España / Spain / ES → {ES}
-UPDATE "Scholarship"
-SET "destinationCountries" = ARRAY['ES']
-WHERE "destinationCountries" = '{}'
-  AND (LOWER("countryDestination") SIMILAR TO '%(españa|espana|spain|^es$)%');
-
--- Canadá / Canada / CA → {CA}
-UPDATE "Scholarship"
-SET "destinationCountries" = ARRAY['CA']
-WHERE "destinationCountries" = '{}'
-  AND LOWER("countryDestination") SIMILAR TO '%(canadá|canada|^ca$)%';
-
--- Reino Unido / UK / GB → {GB}
-UPDATE "Scholarship"
-SET "destinationCountries" = ARRAY['GB']
-WHERE "destinationCountries" = '{}'
-  AND LOWER("countryDestination") SIMILAR TO '%(reino unido|united kingdom|^uk$|^gb$|inglaterra|england)%';
-
--- Alemania / Germany / DE → {DE}
-UPDATE "Scholarship"
-SET "destinationCountries" = ARRAY['DE']
-WHERE "destinationCountries" = '{}'
-  AND LOWER("countryDestination") SIMILAR TO '%(alemania|germany|^de$)%';
-
--- Francia / France / FR → {FR}
-UPDATE "Scholarship"
-SET "destinationCountries" = ARRAY['FR']
-WHERE "destinationCountries" = '{}'
-  AND LOWER("countryDestination") SIMILAR TO '%(francia|france|^fr$)%';
-
--- Italia / Italy / IT → {IT}
-UPDATE "Scholarship"
-SET "destinationCountries" = ARRAY['IT']
-WHERE "destinationCountries" = '{}'
-  AND LOWER("countryDestination") SIMILAR TO '%(italia|italy|^it$)%';
-
--- China / CN → {CN}
-UPDATE "Scholarship"
-SET "destinationCountries" = ARRAY['CN']
-WHERE "destinationCountries" = '{}'
-  AND LOWER("countryDestination") SIMILAR TO '%(china|^cn$)%';
-
--- Japón / Japan / JP → {JP}
-UPDATE "Scholarship"
-SET "destinationCountries" = ARRAY['JP']
-WHERE "destinationCountries" = '{}'
-  AND LOWER("countryDestination") SIMILAR TO '%(japón|japon|japan|^jp$)%';
-
--- Argentina / AR → {AR}
-UPDATE "Scholarship"
-SET "destinationCountries" = ARRAY['AR']
-WHERE "destinationCountries" = '{}'
-  AND LOWER("countryDestination") SIMILAR TO '%(argentina|^ar$)%';
-
--- Brasil / Brazil / BR → {BR}
-UPDATE "Scholarship"
-SET "destinationCountries" = ARRAY['BR']
-WHERE "destinationCountries" = '{}'
-  AND LOWER("countryDestination") SIMILAR TO '%(brasil|brazil|^br$)%';
-
--- 3. For any remaining empty arrays, add validation error
-UPDATE "Scholarship"
-SET "validationErrors" = 
-  CASE 
-    WHEN "validationErrors" IS NULL THEN 
+SET "validationErrors" =
+  CASE
+    WHEN "validationErrors" IS NULL THEN
       jsonb_build_array(jsonb_build_object(
         'field', 'destinationCountries',
         'message', 'No se pudo mapear el país de destino',
@@ -91,13 +124,14 @@ SET "validationErrors" =
         'originalValue', "countryDestination"
       ))
   END
-WHERE "destinationCountries" = '{}' AND "countryDestination" IS NOT NULL AND "countryDestination" != '';
+WHERE "destinationCountries" = '{}'
+  AND "countryDestination" IS NOT NULL
+  AND btrim("countryDestination") <> '';
 
--- 4. Drop the old countryDestination column
+-- 4. Quitar la columna e índice viejos
 ALTER TABLE "Scholarship" DROP COLUMN "countryDestination";
-
--- 5. Drop the old index that referenced countryDestination
 DROP INDEX IF EXISTS "Scholarship_countryDestination_academicLevel_idx";
 
--- 6. Create new index on destinationCountries
-CREATE INDEX "Scholarship_destinationCountries_idx" ON "Scholarship"("destinationCountries");
+-- 5. Índice GIN para consultas has / hasSome sobre el arreglo
+CREATE INDEX "Scholarship_destinationCountries_idx"
+  ON "Scholarship" USING GIN ("destinationCountries");

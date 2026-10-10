@@ -160,7 +160,7 @@ model Scholarship {
   // TODO: índice tsvector vía migración SQL manual (lo haremos cuando implementemos /search)
   @@index([deadline])
   @@index([status, deadline])
-  @@index([destinationCountries])
+  @@index([destinationCountries], type: Gin)
   @@index([createdAt])
 }
 

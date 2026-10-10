@@ -22,6 +22,7 @@ const dbTests = [
   "src/app/api/perfil/__tests__/route.test.ts",
   "src/lib/ingesta/__tests__/ejecutar-db-full.test.ts",
   "src/lib/supabase/__tests__/server.test.ts",
+  "prisma/__tests__/migrate-country.test.ts",
   "src/lib/__tests__/unconfirmed-email.test.ts",
   "src/lib/__tests__/user-roles.test.ts",
   "src/__tests__/proxy.test.ts",

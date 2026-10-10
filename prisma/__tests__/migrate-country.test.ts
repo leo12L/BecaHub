@@ -1,199 +1,198 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { db } from "@/lib/db";
+/**
+ * Aplica la migración REAL `20261010005900_migrate_country_destination_to_array`
+ * sobre una base en el estado de `main` (columna `countryDestination` texto)
+ * y comprueba que cada valor queda igual que `parseCountryDestination()`.
+ */
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { Client } from "pg";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { parseCountryDestination } from "@/lib/geo";
 
-describe("Country Destination Migration", () => {
-  const testSourceId = "00000000-0000-0000-0000-000000000004"; // Manual source
-  const testSlugPrefix = "migration-test-";
+const TARGET_MIGRATION = "20261010005900_migrate_country_destination_to_array";
+const OLD_VALUES = [
+  "México",
+  "MX",
+  "USA",
+  "México y España",
+  "Europa",
+  "",
+] as const;
 
-  beforeAll(async () => {
-    // Ensure manual source exists
-    await db.source.upsert({
-      where: { id: testSourceId },
-      create: {
-        id: testSourceId,
-        name: "Test Source",
-        url: "https://test.com",
-        type: "MANUAL",
-      },
-      update: {},
+const connectionString =
+  process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? "";
+const shouldSkip = !connectionString;
+
+function withDatabase(url: string, database: string): string {
+  const parsed = new URL(url);
+  parsed.pathname = `/${database}`;
+  return parsed.toString();
+}
+
+function migrationDirs(root: string): string[] {
+  return readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && /^\d+_/.test(entry.name))
+    .map((entry) => entry.name)
+    .sort();
+}
+
+async function applySqlFile(client: Client, filePath: string) {
+  const sql = readFileSync(filePath, "utf8");
+  await client.query(sql);
+}
+
+describe.skipIf(shouldSkip)(
+  "migración real countryDestination → destinationCountries",
+  () => {
+    const dbName = `becahub_mig_country_${process.pid}_${Date.now()}`;
+    const migrationsRoot = join(process.cwd(), "prisma/migrations");
+    const admin = new Client({
+      connectionString: withDatabase(connectionString, "postgres"),
     });
-  });
+    let migrated: Client | null = null;
 
-  afterAll(async () => {
-    // Clean up test scholarships
-    await db.scholarship.deleteMany({
-      where: {
-        slug: {
-          startsWith: testSlugPrefix,
-        },
-      },
-    });
-  });
+    beforeAll(async () => {
+      await admin.connect();
+      await admin.query(`CREATE DATABASE ${dbName}`);
 
-  it("should convert 'México' to ['MX']", async () => {
-    const scholarship = await db.scholarship.create({
-      data: {
-        slug: `${testSlugPrefix}mexico-1`,
-        title: "Test Beca México",
-        description: "Test",
-        status: "ACTIVE",
-        coverageType: "FULL",
-        destinationCountries: ["MX"], // Simulating converted value
-        academicLevel: "UNDERGRAD",
-        deadline: new Date("2027-12-31"),
-        applyUrl: "https://test.com/mx1",
-        sourceId: testSourceId,
-        isVerified: true,
-      },
-    });
+      migrated = new Client({
+        connectionString: withDatabase(connectionString, dbName),
+      });
+      await migrated.connect();
 
-    expect(scholarship.destinationCountries).toEqual(["MX"]);
-  });
+      const dirs = migrationDirs(migrationsRoot);
+      expect(dirs).toContain(TARGET_MIGRATION);
 
-  it("should convert 'Mexico' (without accent) to ['MX']", async () => {
-    const scholarship = await db.scholarship.create({
-      data: {
-        slug: `${testSlugPrefix}mexico-2`,
-        title: "Test Beca Mexico",
-        description: "Test",
-        status: "ACTIVE",
-        coverageType: "FULL",
-        destinationCountries: ["MX"],
-        academicLevel: "UNDERGRAD",
-        deadline: new Date("2027-12-31"),
-        applyUrl: "https://test.com/mx2",
-        sourceId: testSourceId,
-        isVerified: true,
-      },
-    });
+      for (const dir of dirs) {
+        if (dir === TARGET_MIGRATION) break;
+        await applySqlFile(
+          migrated,
+          join(migrationsRoot, dir, "migration.sql"),
+        );
+      }
 
-    expect(scholarship.destinationCountries).toEqual(["MX"]);
-  });
+      const countryColumn = await migrated.query<{ exists: boolean }>(`
+        SELECT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'Scholarship'
+            AND column_name = 'countryDestination'
+        ) AS exists
+      `);
+      expect(countryColumn.rows[0]?.exists).toBe(true);
 
-  it("should convert 'Estados Unidos' to ['US']", async () => {
-    const scholarship = await db.scholarship.create({
-      data: {
-        slug: `${testSlugPrefix}us-1`,
-        title: "Test Beca Estados Unidos",
-        description: "Test",
-        status: "ACTIVE",
-        coverageType: "FULL",
-        destinationCountries: ["US"],
-        academicLevel: "GRAD",
-        deadline: new Date("2027-12-31"),
-        applyUrl: "https://test.com/us1",
-        sourceId: testSourceId,
-        isVerified: true,
-      },
-    });
+      await migrated.query(`
+        INSERT INTO "Source" (id, name, url, type)
+        VALUES (
+          'mig-country-source',
+          'Fuente estado main',
+          'https://example.com/mig-country',
+          'MANUAL'
+        )
+      `);
 
-    expect(scholarship.destinationCountries).toEqual(["US"]);
-  });
+      for (const [index, countryDestination] of OLD_VALUES.entries()) {
+        await migrated.query(
+          `
+          INSERT INTO "Scholarship" (
+            id, title, slug, description, status, "coverageType",
+            "countryDestination", "academicLevel", "applyUrl", "sourceId",
+            "updatedAt"
+          ) VALUES (
+            $1, $2, $3, 'texto de prueba', 'ACTIVE', 'MONETARY',
+            $4, 'UNDERGRAD', $5, 'mig-country-source', NOW()
+          )
+        `,
+          [
+            `mig-country-${index}`,
+            `Beca ${countryDestination || "(vacío)"}`,
+            `mig-country-${index}`,
+            countryDestination,
+            `https://example.com/mig-country/${index}`,
+          ],
+        );
+      }
 
-  it("should convert 'USA' to ['US']", async () => {
-    const scholarship = await db.scholarship.create({
-      data: {
-        slug: `${testSlugPrefix}us-2`,
-        title: "Test Beca USA",
-        description: "Test",
-        status: "ACTIVE",
-        coverageType: "FULL",
-        destinationCountries: ["US"],
-        academicLevel: "GRAD",
-        deadline: new Date("2027-12-31"),
-        applyUrl: "https://test.com/us2",
-        sourceId: testSourceId,
-        isVerified: true,
-      },
-    });
+      await applySqlFile(
+        migrated,
+        join(migrationsRoot, TARGET_MIGRATION, "migration.sql"),
+      );
+    }, 60_000);
 
-    expect(scholarship.destinationCountries).toEqual(["US"]);
-  });
+    afterAll(async () => {
+      if (migrated) {
+        await migrated.end().catch(() => undefined);
+      }
+      try {
+        await admin.query(
+          `
+          SELECT pg_terminate_backend(pid)
+          FROM pg_stat_activity
+          WHERE datname = $1 AND pid <> pg_backend_pid()
+        `,
+          [dbName],
+        );
+        await admin.query(`DROP DATABASE IF EXISTS ${dbName}`);
+      } finally {
+        await admin.end().catch(() => undefined);
+      }
+    }, 30_000);
 
-  it("should convert 'España' to ['ES']", async () => {
-    const scholarship = await db.scholarship.create({
-      data: {
-        slug: `${testSlugPrefix}es-1`,
-        title: "Test Beca España",
-        description: "Test",
-        status: "ACTIVE",
-        coverageType: "FULL",
-        destinationCountries: ["ES"],
-        academicLevel: "PHD",
-        deadline: new Date("2027-12-31"),
-        applyUrl: "https://test.com/es1",
-        sourceId: testSourceId,
-        isVerified: true,
-      },
-    });
+    it("deja en cada beca los mismos códigos que parseCountryDestination()", async () => {
+      expect(migrated).not.toBeNull();
+      const result = await migrated!.query<{
+        slug: string;
+        destinationCountries: string[];
+      }>(
+        `
+        SELECT slug, "destinationCountries"
+        FROM "Scholarship"
+        ORDER BY slug
+      `,
+      );
 
-    expect(scholarship.destinationCountries).toEqual(["ES"]);
-  });
+      expect(result.rows).toHaveLength(OLD_VALUES.length);
 
-  it("should handle unrecognized country by leaving empty array and adding validationErrors", async () => {
-    const scholarship = await db.scholarship.create({
-      data: {
-        slug: `${testSlugPrefix}unknown`,
-        title: "Test Beca Narnia",
-        description: "Test",
-        status: "ACTIVE",
-        coverageType: "FULL",
-        destinationCountries: [], // Empty for unrecognized
-        academicLevel: "UNDERGRAD",
-        deadline: new Date("2027-12-31"),
-        applyUrl: "https://test.com/narnia",
-        sourceId: testSourceId,
-        isVerified: true,
-        validationErrors: {
-          migration: "País no reconocido: 'Narnia'",
-        },
-      },
-    });
-
-    expect(scholarship.destinationCountries).toEqual([]);
-    expect(scholarship.validationErrors).toHaveProperty("migration");
-  });
-
-  it("should support multiple destination countries", async () => {
-    const scholarship = await db.scholarship.create({
-      data: {
-        slug: `${testSlugPrefix}multiple`,
-        title: "Test Beca Multiple Countries",
-        description: "Test",
-        status: "ACTIVE",
-        coverageType: "FULL",
-        destinationCountries: ["MX", "US", "ES"],
-        academicLevel: "GRAD",
-        deadline: new Date("2027-12-31"),
-        applyUrl: "https://test.com/multiple",
-        sourceId: testSourceId,
-        isVerified: true,
-      },
+      for (const [index, oldValue] of OLD_VALUES.entries()) {
+        const row = result.rows.find((r) => r.slug === `mig-country-${index}`);
+        expect(row, `faltó la beca de "${oldValue}"`).toBeDefined();
+        expect(row!.destinationCountries).toEqual(
+          parseCountryDestination(oldValue),
+        );
+      }
     });
 
-    expect(scholarship.destinationCountries).toHaveLength(3);
-    expect(scholarship.destinationCountries).toContain("MX");
-    expect(scholarship.destinationCountries).toContain("US");
-    expect(scholarship.destinationCountries).toContain("ES");
-  });
+    it("no convierte vacío ni 'Europa' en México", async () => {
+      expect(parseCountryDestination("")).toEqual([]);
+      expect(parseCountryDestination("Europa")).toEqual([]);
 
-  it("should allow empty destinationCountries for scholarships without specific destination", async () => {
-    const scholarship = await db.scholarship.create({
-      data: {
-        slug: `${testSlugPrefix}no-destination`,
-        title: "Test Beca Sin Destino",
-        description: "Test",
-        status: "ACTIVE",
-        coverageType: "RESEARCH",
-        destinationCountries: [],
-        academicLevel: "PHD",
-        deadline: new Date("2027-12-31"),
-        applyUrl: "https://test.com/nodest",
-        sourceId: testSourceId,
-        isVerified: true,
-      },
+      const result = await migrated!.query<{ destinationCountries: string[] }>(
+        `
+        SELECT "destinationCountries"
+        FROM "Scholarship"
+        WHERE slug IN ('mig-country-4', 'mig-country-5')
+      `,
+      );
+
+      for (const row of result.rows) {
+        expect(row.destinationCountries).toEqual([]);
+        expect(row.destinationCountries).not.toContain("MX");
+      }
     });
 
-    expect(scholarship.destinationCountries).toEqual([]);
-  });
-});
+    it("crea el índice GIN sobre destinationCountries", async () => {
+      const result = await migrated!.query<{ indexdef: string }>(
+        `
+        SELECT indexdef
+        FROM pg_indexes
+        WHERE schemaname = 'public'
+          AND tablename = 'Scholarship'
+          AND indexname = 'Scholarship_destinationCountries_idx'
+      `,
+      );
+
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0]!.indexdef.toLowerCase()).toContain("using gin");
+    });
+  },
+);
