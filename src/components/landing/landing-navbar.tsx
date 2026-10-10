@@ -12,12 +12,12 @@ export function LandingNavbar() {
   return (
     <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-3 pt-4">
       <nav
-        className="border-border/80 bg-card/90 pointer-events-auto flex w-full max-w-3xl items-center justify-between gap-3 rounded-full border px-3 py-2 shadow-lg shadow-black/5 md:px-5"
+        className="border-border/80 bg-card/90 pointer-events-auto flex w-full max-w-3xl items-center justify-between gap-3 rounded-none border px-3 py-2 shadow-lg shadow-black/5 md:px-5"
         aria-label="Navegación principal"
       >
         <Link
           href="/"
-          className="focus-visible:outline-ring flex shrink-0 items-center gap-2 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="focus-visible:outline-ring flex shrink-0 items-center gap-2 rounded-none focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           <BecaHubLogo variant="mark" className="h-7 w-7" />
           <span className="text-foreground text-sm font-bold tracking-tight">
@@ -30,7 +30,7 @@ export function LandingNavbar() {
             <li key={link.href}>
               <Link
                 href={link.href}
-                className="text-muted-foreground hover:text-foreground rounded-full px-3 py-1.5 text-sm font-medium transition-colors"
+                className="text-muted-foreground hover:text-foreground rounded-none px-3 py-1.5 text-sm font-medium transition-colors"
               >
                 {link.label}
               </Link>
@@ -40,15 +40,15 @@ export function LandingNavbar() {
 
         <div className="flex items-center gap-2">
           <details className="relative md:hidden">
-            <summary className="border-border text-foreground cursor-pointer list-none rounded-full border px-3 py-1.5 text-sm font-medium">
+            <summary className="border-border text-foreground cursor-pointer list-none rounded-none border px-3 py-1.5 text-sm font-medium">
               Menú
             </summary>
-            <ul className="border-border bg-card absolute top-full right-0 mt-2 w-44 rounded-2xl border p-2 shadow-lg">
+            <ul className="border-border bg-card absolute top-full right-0 mt-2 w-44 rounded-none border p-2 shadow-lg">
               {navLinks.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-foreground hover:bg-muted block rounded-xl px-3 py-2 text-sm font-medium"
+                    className="text-foreground hover:bg-muted block rounded-none px-3 py-2 text-sm font-medium"
                   >
                     {link.label}
                   </Link>
@@ -58,7 +58,7 @@ export function LandingNavbar() {
           </details>
           <Link
             href="/becas"
-            className="bg-primary hover:bg-primary/90 rounded-full px-3.5 py-1.5 text-sm font-semibold text-white"
+            className="bg-primary hover:bg-primary/90 rounded-none px-3.5 py-1.5 text-sm font-semibold text-white"
           >
             Explorar
           </Link>

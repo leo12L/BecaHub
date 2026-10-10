@@ -80,7 +80,7 @@ export function LandingFooter() {
                   data-social-pending={label}
                   title={`Pendiente: ${label} (sin URL todavía)`}
                   aria-label={`Pendiente: ${label} (sin URL todavía)`}
-                  className="border-border text-muted-foreground inline-flex size-10 items-center justify-center rounded-full border text-[11px] font-bold tracking-wide opacity-60"
+                  className="border-border text-muted-foreground inline-flex size-10 items-center justify-center rounded-none border text-[11px] font-bold tracking-wide opacity-60"
                 >
                   <span aria-hidden="true">{glyph}</span>
                 </button>

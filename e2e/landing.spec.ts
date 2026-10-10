@@ -107,16 +107,41 @@ test.describe("Portada BecaHub", () => {
     }
   });
 
-  test("las tiras del hero están en diagonal", async ({ page }) => {
+  test("las tiras del hero van a los lados, en diagonal, una sube y otra baja", async ({
+    page,
+  }) => {
     await page.goto("/");
-    const board = page.getByTestId("landing-strips");
-    await expect(board).toBeVisible();
-    const degrees = await board.evaluate((el) => {
-      const { transform } = getComputedStyle(el);
-      const matrix = new DOMMatrix(transform);
-      return (Math.atan2(matrix.b, matrix.a) * 180) / Math.PI;
-    });
-    expect(Math.abs(degrees)).toBeGreaterThan(15);
+    await expect(page.getByTestId("landing-strips")).toBeVisible();
+    await expect(page.locator("[data-landing-strip]")).toHaveCount(4);
+
+    const left = page.locator('[data-landing-cluster="left"]');
+    const right = page.locator('[data-landing-cluster="right"]');
+    await expect(left.locator("[data-landing-strip]")).toHaveCount(2);
+    await expect(right.locator("[data-landing-strip]")).toHaveCount(2);
+    await expect(left.locator('[data-direction="up"]')).toHaveCount(1);
+    await expect(left.locator('[data-direction="down"]')).toHaveCount(1);
+    await expect(right.locator('[data-direction="up"]')).toHaveCount(1);
+    await expect(right.locator('[data-direction="down"]')).toHaveCount(1);
+
+    const heading = page.getByRole("heading", { level: 1 });
+    const headingBox = await heading.boundingBox();
+    const leftBox = await left.boundingBox();
+    const rightBox = await right.boundingBox();
+    expect(headingBox).toBeTruthy();
+    expect(leftBox).toBeTruthy();
+    expect(rightBox).toBeTruthy();
+    const headingCenter = headingBox!.x + headingBox!.width / 2;
+    expect(leftBox!.x + leftBox!.width / 2).toBeLessThan(headingCenter);
+    expect(rightBox!.x + rightBox!.width / 2).toBeGreaterThan(headingCenter);
+
+    for (const cluster of [left, right]) {
+      const degrees = await cluster.evaluate((el) => {
+        const { transform } = getComputedStyle(el);
+        const matrix = new DOMMatrix(transform);
+        return (Math.atan2(matrix.b, matrix.a) * 180) / Math.PI;
+      });
+      expect(Math.abs(degrees)).toBeGreaterThan(15);
+    }
   });
 
   test("los duplicados de las tiras están ocultos al lector de pantalla", async ({

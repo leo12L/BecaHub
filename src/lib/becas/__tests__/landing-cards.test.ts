@@ -79,4 +79,12 @@ describe("splitIntoColumns", () => {
     const cols = splitIntoColumns([1, 2, 3, 4, 5], 3);
     expect(cols).toEqual([[1, 4], [2, 5], [3]]);
   });
+
+  it("reparte 12 tarjetas en las 4 tiras del hero", () => {
+    const items = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const cols = splitIntoColumns(items, 4);
+    expect(cols.map((col) => col.length)).toEqual([3, 3, 3, 3]);
+    expect(cols[0]).toEqual([1, 5, 9]);
+    expect(cols[3]).toEqual([4, 8, 12]);
+  });
 });

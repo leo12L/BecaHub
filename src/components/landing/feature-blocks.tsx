@@ -56,7 +56,7 @@ export function FeatureBlocks() {
                 decoding="async"
                 fetchPriority={block.imageSide === "left" ? "high" : "auto"}
                 data-testid={block.image.testId}
-                className="border-border bg-muted aspect-[3/2] w-full rounded-3xl border object-cover shadow-md"
+                className="border-border bg-muted aspect-[3/2] w-full rounded-none border object-cover shadow-md"
               />
             </div>
             <figcaption className="text-muted-foreground mt-3 text-xs">

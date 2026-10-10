@@ -89,7 +89,7 @@ BecaHub es una plataforma para estudiantes mexicanos, principalmente universitar
 
 **Descripción:** landing pública para universitarias y universitarios en México. No incluye globo interactivo ni carrusel de categorías.
 
-**Estructura:** barra en píldora, hero con tiras diagonales de becas públicas, dos bloques foto+texto con inclinación CSS al hacer scroll, línea de tiempo «Cómo funciona», pie con columnas y redes pendientes (iconos sin URL).
+**Estructura:** barra flotante de esquinas rectas, hero con 4 tiras diagonales de becas públicas (2 en la esquina superior izquierda y 2 en la derecha; en cada lado una sube y otra baja; el título queda al centro), dos bloques foto+texto con inclinación CSS al hacer scroll, línea de tiempo «Cómo funciona», pie con columnas y redes pendientes (iconos sin URL). Esquinas rectas en toda la portada.
 
 **Componentes:** `src/components/landing/` (`landing-navbar`, `hero-section`, `scholarship-strips`, `feature-blocks`, `how-it-works`, `landing-footer`).
 

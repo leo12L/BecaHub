@@ -5,7 +5,7 @@ import {
 import { StripCard } from "@/components/landing/strip-card";
 import "./landing-motion.css";
 
-const COLUMN_COUNT = 3;
+const COLUMN_COUNT = 4;
 
 function StripColumn({
   cards,
@@ -37,16 +37,23 @@ export function ScholarshipStrips({ cards }: { cards: LandingStripCard[] }) {
   const columns = splitIntoColumns(cards, COLUMN_COUNT);
 
   return (
-    <div className="landing-strips pointer-events-none absolute inset-[-42%] z-0 md:inset-[-32%]">
-      <div className="landing-strips-board" data-testid="landing-strips">
-        {columns.map((columnCards, index) => (
-          <StripColumn
-            key={index}
-            cards={columnCards}
-            direction={index % 2 === 0 ? "up" : "down"}
-            speed={index === 1 ? "slow" : "normal"}
-          />
-        ))}
+    <div
+      className="landing-strips pointer-events-none absolute inset-0 z-0 overflow-hidden"
+      data-testid="landing-strips"
+    >
+      <div
+        className="landing-strips-cluster landing-strips-cluster--left"
+        data-landing-cluster="left"
+      >
+        <StripColumn cards={columns[0] ?? []} direction="up" speed="normal" />
+        <StripColumn cards={columns[1] ?? []} direction="down" speed="slow" />
+      </div>
+      <div
+        className="landing-strips-cluster landing-strips-cluster--right"
+        data-landing-cluster="right"
+      >
+        <StripColumn cards={columns[2] ?? []} direction="up" speed="slow" />
+        <StripColumn cards={columns[3] ?? []} direction="down" speed="normal" />
       </div>
     </div>
   );

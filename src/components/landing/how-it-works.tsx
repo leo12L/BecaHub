@@ -49,7 +49,7 @@ export function HowItWorks() {
               className="relative mb-10 grid items-start gap-4 pl-16 md:mb-16 md:grid-cols-2 md:gap-12 md:pl-0"
             >
               <span
-                className="border-border bg-card text-primary absolute top-1 left-3 flex size-7 items-center justify-center rounded-full border text-xs font-extrabold md:left-1/2 md:-translate-x-1/2"
+                className="border-border bg-card text-primary absolute top-1 left-3 flex size-7 items-center justify-center rounded-none border text-xs font-extrabold md:left-1/2 md:-translate-x-1/2"
                 aria-hidden="true"
               >
                 {step.n}
@@ -57,8 +57,8 @@ export function HowItWorks() {
               <div
                 className={
                   onRight
-                    ? "border-border bg-card rounded-2xl border p-5 shadow-sm md:col-start-2"
-                    : "border-border bg-card rounded-2xl border p-5 shadow-sm md:col-start-1 md:text-right"
+                    ? "border-border bg-card rounded-none border p-5 shadow-sm md:col-start-2"
+                    : "border-border bg-card rounded-none border p-5 shadow-sm md:col-start-1 md:text-right"
                 }
               >
                 <h3 className="text-foreground text-lg font-bold">

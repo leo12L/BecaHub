@@ -13,7 +13,7 @@ export function HeroSection({
 }) {
   return (
     <section className="bg-background relative isolate min-h-[100svh] overflow-hidden px-4 pt-28 pb-16 sm:px-6 lg:pt-32">
-      <div className="bg-background/55 relative z-10 mx-auto flex max-w-3xl flex-col items-center rounded-3xl px-4 py-8 text-center backdrop-blur-[1px] md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none">
+      <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center px-4 py-8 text-center">
         <p className="text-primary mb-4 text-sm font-bold tracking-[0.28em] uppercase">
           BecaHub
         </p>
@@ -28,14 +28,14 @@ export function HeroSection({
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/becas"
-            className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center gap-2 rounded-full px-7 py-3 text-sm font-bold text-white shadow-sm"
+            className="bg-primary hover:bg-primary/90 inline-flex items-center justify-center gap-2 rounded-none px-7 py-3 text-sm font-bold text-white shadow-sm"
           >
             Explorar becas
             <ArrowRight size={16} aria-hidden="true" />
           </Link>
           <Link
             href="/login"
-            className="border-border bg-card text-foreground hover:border-primary/40 inline-flex items-center justify-center rounded-full border px-7 py-3 text-sm font-bold shadow-sm"
+            className="border-border bg-card text-foreground hover:border-primary/40 inline-flex items-center justify-center rounded-none border px-7 py-3 text-sm font-bold shadow-sm"
           >
             Crear cuenta
           </Link>
@@ -61,7 +61,7 @@ export function HeroSection({
           ].map(({ value, label, testId }) => (
             <div
               key={testId}
-              className="border-border bg-card/90 rounded-2xl border px-3 py-3 text-center shadow-sm"
+              className="border-border bg-card/90 rounded-none border px-3 py-3 text-center shadow-sm"
             >
               <dt className="text-muted-foreground text-[11px]">{label}</dt>
               <dd

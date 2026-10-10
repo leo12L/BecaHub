@@ -1,4 +1,5 @@
 import { LandingNavbar } from "@/components/landing/landing-navbar";
+import "@/components/landing/landing-motion.css";
 import { HeroSection } from "@/components/landing/hero-section";
 import { FeatureBlocks } from "@/components/landing/feature-blocks";
 import { HowItWorks } from "@/components/landing/how-it-works";
@@ -15,7 +16,7 @@ export default async function LandingPage() {
   ]);
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="landing-page bg-background min-h-screen">
       <LandingNavbar />
       <main>
         <HeroSection cards={cards} stats={stats} />

@@ -50,4 +50,33 @@ describe("portada: consulta pública y piezas del boceto", () => {
     }
     expect(blocks).toContain('loading="eager"');
   });
+
+  it("las tiras son 4 y van a los lados, no un tablero central", () => {
+    const strips = readFileSync(
+      join(here, "../../../components/landing/scholarship-strips.tsx"),
+      "utf8",
+    );
+    expect(strips).toContain("COLUMN_COUNT = 4");
+    expect(strips).toContain('data-landing-cluster="left"');
+    expect(strips).toContain('data-landing-cluster="right"');
+    expect(strips).not.toContain("landing-strips-board");
+  });
+
+  it("la portada no usa esquinas redondeadas", () => {
+    const files = [
+      "../page.tsx",
+      "../../../components/landing/landing-navbar.tsx",
+      "../../../components/landing/hero-section.tsx",
+      "../../../components/landing/strip-card.tsx",
+      "../../../components/landing/feature-blocks.tsx",
+      "../../../components/landing/how-it-works.tsx",
+      "../../../components/landing/landing-footer.tsx",
+    ];
+    for (const file of files) {
+      const src = readFileSync(join(here, file), "utf8");
+      expect(src, file).not.toMatch(
+        /rounded-(?:sm|md|lg|xl|2xl|3xl|4xl|full)\b/,
+      );
+    }
+  });
 });
