@@ -97,26 +97,23 @@ const Carousel = React.forwardRef<
     );
 
     React.useEffect(() => {
-      if (!api || !setApi) {
-        return;
-      }
-
-      setApi(api);
-    }, [api, setApi]);
-
-    React.useEffect(() => {
       if (!api) {
         return;
       }
 
-      onSelect(api);
+      if (setApi) {
+        setApi(api);
+      }
+      
+      // Use queueMicrotask to avoid synchronous setState in effect
+      queueMicrotask(() => onSelect(api));
       api.on("reInit", onSelect);
       api.on("select", onSelect);
 
       return () => {
         api?.off("select", onSelect);
       };
-    }, [api, onSelect]);
+    }, [api, setApi, onSelect]);
 
     return (
       <CarouselContext.Provider

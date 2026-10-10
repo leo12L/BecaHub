@@ -54,7 +54,6 @@ interface DestinationSelectorProps {
 
 export function DestinationSelector({ scholarships }: DestinationSelectorProps) {
   const [selectedDestination, setSelectedDestination] = useState<Destination | null>(null);
-  const [isGlobeLoaded, setIsGlobeLoaded] = useState(false);
 
   const filteredScholarships = useMemo(() => {
     if (!selectedDestination) return [];
@@ -81,14 +80,6 @@ export function DestinationSelector({ scholarships }: DestinationSelectorProps) 
     ];
   }, [selectedDestination]);
 
-  // Respect prefers-reduced-motion
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (mediaQuery.matches && selectedDestination) {
-      // Skip globe animation if user prefers reduced motion
-      setIsGlobeLoaded(true);
-    }
-  }, [selectedDestination]);
 
   return (
     <section className="bg-background py-16 px-4">
@@ -129,7 +120,6 @@ export function DestinationSelector({ scholarships }: DestinationSelectorProps) 
               <InteractiveGlobe
                 markers={globeMarkers}
                 focusLocation={selectedDestination?.globeLocation}
-                onLoad={() => setIsGlobeLoaded(true)}
               />
             </div>
           </div>

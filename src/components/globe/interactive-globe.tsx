@@ -101,7 +101,7 @@ export function InteractiveGlobe({
         location: m.location,
         size: m.size,
       })),
-      onRender: (state: any) => {
+      onRender: (state: Record<string, unknown>) => {
         if (!focusLocation) {
           state.phi = phi.current;
           phi.current += 0.002;
