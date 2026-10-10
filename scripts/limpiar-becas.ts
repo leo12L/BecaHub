@@ -1,59 +1,44 @@
 #!/usr/bin/env tsx
 /**
- * Script para limpiar becas de prueba o migradas con datos obsoletos.
- * Uso: npm run limpiar-becas [-- --yes]
+ * Script para limpiar becas de ingesta no aprobadas.
+ * Uso:
+ *   npm run limpiar-becas          # Modo dry-run: muestra cuántas y cuáles borraría
+ *   npm run limpiar-becas -- --yes # Borra las becas encontradas
  *
- * Sin el flag --yes, el script pide confirmación interactiva antes de borrar.
- * Las relaciones (favoritos, postulaciones) se borran por el onDelete: Cascade del schema.
+ * Criterio de borrado:
+ * - Solo becas de ingesta (source.type != "MANUAL")
+ * - Solo becas no aprobadas (status != "ACTIVE")
+ * - Las relaciones (favoritos, postulaciones) se borran por onDelete: Cascade
  */
 
 import { db } from "@/lib/db";
-import * as readline from "readline";
 
-const DRY_RUN = !process.argv.includes("--yes");
-
-async function promptConfirmation(message: string): Promise<boolean> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise((resolve) => {
-    rl.question(`${message} (s/n): `, (answer) => {
-      rl.close();
-      resolve(answer.toLowerCase() === "s" || answer.toLowerCase() === "y");
-    });
-  });
-}
+const EXECUTE_DELETE = process.argv.includes("--yes");
 
 async function main() {
-  console.log("🧹 Script de limpieza de becas\n");
+  console.log("🧹 Script de limpieza de becas de ingesta\n");
 
-  // Contar becas que serían borradas
-  // Criterio: becas con destinationCountries vacío y status DRAFT o PENDING_REVIEW
-  // (probablemente son becas de prueba o migraciones incompletas)
+  // Buscar becas de ingesta no aprobadas
+  // Criterio: becas de fuentes no manuales (DISCOVERY, GOVERNMENT, etc.)
+  // en estado diferente de ACTIVE (típicamente DRAFT o PENDING_REVIEW)
   const scholarshipsToDelete = await db.scholarship.findMany({
     where: {
-      OR: [
-        {
-          // Becas sin destino en estado borrador o pendiente
-          destinationCountries: { isEmpty: true },
-          status: { in: ["DRAFT", "PENDING_REVIEW"] },
+      source: {
+        type: {
+          not: "MANUAL",
         },
-        {
-          // Becas de prueba (identificables por URLs de ejemplo)
-          applyUrl: { contains: "ejemplo" },
-        },
-        {
-          // Becas con slugs de prueba comunes
-          slug: { contains: "test" },
-        },
-        {
-          slug: { contains: "screenshot" },
-        },
-      ],
+      },
+      status: {
+        not: "ACTIVE",
+      },
     },
     include: {
+      source: {
+        select: {
+          name: true,
+          type: true,
+        },
+      },
       _count: {
         select: {
           favorites: true,
@@ -74,48 +59,49 @@ async function main() {
   );
 
   if (count === 0) {
-    console.log("✨ No se encontraron becas para limpiar.");
+    console.log("✨ No se encontraron becas de ingesta sin aprobar.");
     console.log(
-      "\nLa base de datos está limpia o solo contiene becas verificadas.\n"
+      "\nLa base de datos está limpia o solo contiene becas manuales/aprobadas.\n"
     );
     return;
   }
 
-  console.log(`📊 Se encontraron ${count} becas para borrar:\n`);
+  console.log(`📊 Becas de ingesta no aprobadas encontradas: ${count}\n`);
   console.log(`   • Becas: ${count}`);
   console.log(`   • Favoritos asociados: ${favoritesCount}`);
   console.log(`   • Postulaciones asociadas: ${applicationsCount}\n`);
 
   if (scholarshipsToDelete.length <= 10) {
-    console.log("Becas a borrar:");
+    console.log("Detalle de becas:");
     for (const scholarship of scholarshipsToDelete) {
       console.log(
-        `   - ${scholarship.title} (${scholarship.slug}) [${scholarship.status}]`
+        `   - ${scholarship.title} (${scholarship.slug})`
+      );
+      console.log(
+        `     Fuente: ${scholarship.source.name} (${scholarship.source.type}), Status: ${scholarship.status}`
       );
     }
     console.log();
+  } else {
+    console.log(`   (Lista completa omitida: ${count} becas)\n`);
   }
 
+  console.log(
+    "ℹ️  Criterio: source.type != 'MANUAL' && status != 'ACTIVE'"
+  );
   console.log(
     "⚠️  Los favoritos y postulaciones se borrarán automáticamente (CASCADE)."
   );
   console.log("✅ Los usuarios y fuentes NO se tocarán.\n");
 
-  if (DRY_RUN) {
-    const confirmed = await promptConfirmation(
-      "¿Deseas continuar con el borrado?"
-    );
-
-    if (!confirmed) {
-      console.log("\n❌ Operación cancelada por el usuario.\n");
-      return;
-    }
-  } else {
-    console.log("🚀 Flag --yes detectado, procediendo sin confirmación...\n");
+  if (!EXECUTE_DELETE) {
+    console.log("🔍 MODO DRY-RUN: No se borrará nada.");
+    console.log("   Para ejecutar el borrado, corre: npm run limpiar-becas -- --yes\n");
+    return;
   }
 
   // Ejecutar el borrado
-  console.log("🗑️  Borrando becas...");
+  console.log("🚀 Flag --yes detectado, ejecutando borrado...\n");
 
   const result = await db.scholarship.deleteMany({
     where: {
@@ -125,11 +111,10 @@ async function main() {
     },
   });
 
-  console.log(`\n✅ ${result.count} becas borradas exitosamente.`);
+  console.log(`✅ ${result.count} becas borradas exitosamente.`);
   console.log(
     `   Favoritos y postulaciones asociados fueron borrados por CASCADE.\n`
   );
-  console.log("💡 Tip: Corre 'npm run ingesta' para cargar becas reales.\n");
 
   await db.$disconnect();
 }
