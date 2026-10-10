@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 
   if (body.status === "ACTIVE") {
     const check = await assertCanPublish({
-      countryDestination: body.countryDestination,
+      destinationCountries: body.destinationCountries,
       deadline,
       applyUrl: body.applyUrl,
     });
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     amount: null,
     coverageType: body.coverageType,
     academicLevel: body.academicLevel,
-    countryDestination: body.countryDestination,
+    countryDestination: body.destinationCountries.join(", "),
     language: body.language ?? null,
     convocante: source.name,
   };
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
       amountMax: body.amountMax ?? null,
       currency: body.currency,
       countryOrigin: body.countryOrigin ?? null,
-      countryDestination: body.countryDestination,
+      destinationCountries: body.destinationCountries,
       academicLevel: body.academicLevel as AcademicLevel,
       language: body.language ?? null,
       deadline,

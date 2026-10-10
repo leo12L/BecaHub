@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     slug:        b.slug,
     title:       b.title,
     description: b.description,
-    country:     b.countryDestination,
+    country:     b.destinationCountries.join(", ") || "Sin destino",
     applyUrl:    b.applyUrl,
     isVerified:  b.isVerified,
     deadline:    getDeadlineInfo(b.deadline, b.status).label,

@@ -140,3 +140,56 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+      - name: Seed screenshots test data
+        continue-on-error: true
+        run: npx tsx scripts/seed-screenshots-data.ts
+
+      - name: Capture visual screenshots
+        continue-on-error: true
+        timeout-minutes: 8
+        env:
+          SCREENSHOTS: "1"
+        run: |
+          mkdir -p screenshots
+          fuser -k 3000/tcp || true
+          npx playwright test e2e/screenshots.spec.ts --reporter=list
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-pr
+          path: screenshots/
+          retention-days: 30
+
+      - name: Install wait-on
+        continue-on-error: true
+        run: npm install -g wait-on
+
+      - name: Run Lighthouse audit
+        continue-on-error: true
+        timeout-minutes: 8
+        run: |
+          fuser -k 3000/tcp || true
+          mkdir -p lighthouse-results
+          npm run build
+          npm run start > /tmp/server.log 2>&1 &
+          SERVER_PID=$!
+          echo "Server PID: $SERVER_PID"
+          npx wait-on http://localhost:3000 --timeout 30000 || (echo "Server failed to start:"; cat /tmp/server.log; exit 1)
+          npx lighthouse http://localhost:3000/ \
+            --preset=mobile \
+            --only-categories=performance,accessibility \
+            --output=json,html \
+            --output-path=./lighthouse-results/lighthouse-mobile \
+            --chrome-flags="--headless=new --no-sandbox --disable-gpu"
+          kill $SERVER_PID || true
+
+      - name: Upload Lighthouse results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse
+          path: lighthouse-results/
+          retention-days: 30

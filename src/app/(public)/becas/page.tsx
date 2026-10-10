@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Bot, SearchX } from "lucide-react";
 import { SearchBar } from "@/components/scholarships/search-bar";
 import { FilterPanel } from "@/components/scholarships/filter-panel";
+import { DestinationSelector } from "@/components/scholarships/destination-selector";
 import { ScholarshipCard } from "@/components/scholarships/scholarship-card";
 import { Pagination } from "@/components/scholarships/pagination";
 import {
@@ -12,10 +13,11 @@ import {
   getFilterCountries,
   type SortOrder,
 } from "@/lib/becas/queries";
-
-export const dynamic = "force-dynamic";
+import { destinationLabel } from "@/lib/geo";
 import { becasQuerySchema } from "@/validators/becas.validator";
 import { queryListadoPublico } from "@/lib/becas/publica";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Explorar becas",
@@ -53,6 +55,10 @@ export default async function BecasPage({
 
   const resultLabel =
     pagination.total === 1 ? "convocatoria encontrada" : "convocatorias";
+  const destination = query.destination ?? query.country;
+  const selectedDestinationName = destination
+    ? destinationLabel(destination)
+    : null;
 
   return (
     <div className="bg-background min-h-screen">
@@ -115,20 +121,40 @@ export default async function BecasPage({
           </aside>
 
           <section className="min-w-0 flex-1">
+            <Suspense
+              fallback={
+                <div className="bg-secondary mb-6 h-16 animate-pulse rounded-xl" />
+              }
+            >
+              <DestinationSelector />
+            </Suspense>
+
             {data.length === 0 ? (
               <div className="border-border bg-card flex flex-col items-center gap-3 rounded-2xl border px-6 py-20 text-center shadow-sm">
                 <span className="bg-secondary text-highlight flex size-12 items-center justify-center rounded-full">
                   <SearchX className="size-6" aria-hidden />
                 </span>
                 <h2 className="text-foreground text-base font-bold">
-                  Sin resultados
+                  {selectedDestinationName
+                    ? `No hay becas disponibles para ${selectedDestinationName}`
+                    : "Sin resultados"}
                 </h2>
                 <p className="text-muted-foreground max-w-xs text-sm">
-                  Intenta con otros filtros o usa palabras distintas.
+                  {selectedDestinationName
+                    ? "Intenta seleccionar otro destino o revisa más tarde."
+                    : "Intenta con otros filtros o usa palabras distintas."}
                 </p>
               </div>
             ) : (
               <>
+                {selectedDestinationName && (
+                  <h2 className="text-foreground mb-4 text-xl font-bold">
+                    Becas para {selectedDestinationName}
+                    <span className="text-muted-foreground ml-2 text-base font-normal">
+                      ({pagination.total})
+                    </span>
+                  </h2>
+                )}
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                   {data.map((scholarship) => (
                     <ScholarshipCard

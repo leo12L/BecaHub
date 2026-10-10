@@ -163,14 +163,34 @@ Después de configurar las variables de entorno y ejecutar las migraciones (paso
 ## Scripts disponibles
 
 ```powershell
-npm run dev           # Inicia el servidor de desarrollo
-npm run build         # Compila la aplicación para producción
-npm start             # Inicia el servidor de producción
-npm run lint          # Ejecuta el linter
-npm test              # Ejecuta las pruebas
-npm run scrape        # Ejecuta el scraper manual (requiere sourceId)
-npm run discover      # Ejecuta el descubrimiento automático con Tavily
+npm run dev                # Inicia el servidor de desarrollo
+npm run build              # Compila la aplicación para producción
+npm start                  # Inicia el servidor de producción
+npm run lint               # Ejecuta el linter
+npm test                   # Ejecuta las pruebas
+npm run ingesta            # Ejecuta la ingesta automática de becas
+npm run limpiar-becas      # Vista previa: muestra qué becas de ingesta no aprobadas borraría
+npm run limpiar-becas -- --yes  # Ejecuta el borrado
 ```
+
+### Después de fusionar PR #8 (migración destinationCountries)
+
+Prisma lee `C:\Proyectos\BecaHub\.env` (`prisma.config.ts` no carga `.env.local`).
+
+Antes del reset, abre `.env` y confirma que `DATABASE_URL` y `DIRECT_URL` apuntan al proyecto de Supabase correcto. `migrate reset --force` borra el esquema público de esa base.
+
+```powershell
+npx prisma migrate reset --force
+npx prisma db seed
+```
+
+Inicia sesión una vez (eso recrea tu fila en `User`). Sustituye el correo:
+
+```powershell
+'UPDATE "User" SET role = ''ADMIN'' WHERE email = ''TU_CORREO@dominio.com'';' | npx prisma db execute --stdin
+```
+
+`limpiar-becas` solo borra DRAFT/PENDING_REVIEW de ingesta sin favoritos ni postulaciones.
 
 ## Estructura del proyecto
 

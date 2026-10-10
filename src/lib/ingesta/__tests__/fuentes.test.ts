@@ -41,7 +41,7 @@ describe("SECIHTI Lector", () => {
     expect(becas[0]?.applyUrl).toBe("https://secihti.mx/convocatoria/test");
     expect(becas[0]?.deadline).toBe("2026-12-31 23:59:00");
     expect(becas[0]?.convocante).toBe("SECIHTI");
-    expect(becas[0]?.countryDestination).toBe("México");
+    expect(becas[0]?.countryDestination).toBeNull();
   });
 
   it("debe omitir items sin título", () => {

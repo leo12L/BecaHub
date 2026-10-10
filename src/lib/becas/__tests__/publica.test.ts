@@ -43,8 +43,8 @@ const PENDING_SLUG = "test-beca-vis-pending";
 const CLOSED_SLUG = "test-beca-vis-closed";
 const VENCIDA_SLUG = "test-beca-vis-vencida";
 
-const PAIS_PENDING = "PaisIneditoVisibilidadXYZ";
-const PAIS_FEATURED_PENDING = "PaisFeaturedPendienteXYZ";
+const PAIS_PENDING = "XZ";
+const PAIS_FEATURED_PENDING = "ZY";
 
 describe("Visibilidad pública de becas", () => {
   beforeAll(async () => {
@@ -71,7 +71,7 @@ describe("Visibilidad pública de becas", () => {
         description: "Solo esta debe salir en listados",
         status: "ACTIVE",
         coverageType: "MONETARY",
-        countryDestination: "México",
+        destinationCountries: ["MX"],
         academicLevel: "UNDERGRAD",
         applyUrl: "https://example.com/active-vis",
         sourceId: SOURCE_ID,
@@ -81,7 +81,7 @@ describe("Visibilidad pública de becas", () => {
       update: {
         status: "ACTIVE",
         deadline: futureDate,
-        countryDestination: "México",
+        destinationCountries: ["MX"],
       },
     });
 
@@ -94,7 +94,7 @@ describe("Visibilidad pública de becas", () => {
         description: "No debe verse",
         status: "DRAFT",
         coverageType: "MONETARY",
-        countryDestination: "México",
+        destinationCountries: ["MX"],
         academicLevel: "UNDERGRAD",
         applyUrl: "https://example.com/draft-vis",
         sourceId: SOURCE_ID,
@@ -112,7 +112,7 @@ describe("Visibilidad pública de becas", () => {
         description: "No debe verse",
         status: "PENDING_REVIEW",
         coverageType: "MONETARY",
-        countryDestination: PAIS_PENDING,
+        destinationCountries: [PAIS_PENDING],
         academicLevel: "UNDERGRAD",
         applyUrl: "https://example.com/pending-vis",
         sourceId: SOURCE_ID,
@@ -121,7 +121,7 @@ describe("Visibilidad pública de becas", () => {
       update: {
         status: "PENDING_REVIEW",
         deadline: futureDate,
-        countryDestination: PAIS_PENDING,
+        destinationCountries: [PAIS_PENDING],
       },
     });
 
@@ -134,7 +134,7 @@ describe("Visibilidad pública de becas", () => {
         description: "Cerrada, detalle con aviso",
         status: "CLOSED",
         coverageType: "MONETARY",
-        countryDestination: "México",
+        destinationCountries: ["MX"],
         academicLevel: "UNDERGRAD",
         applyUrl: "https://example.com/closed-vis",
         sourceId: SOURCE_ID,
@@ -152,7 +152,7 @@ describe("Visibilidad pública de becas", () => {
         description: "ACTIVE pero vencida",
         status: "ACTIVE",
         coverageType: "MONETARY",
-        countryDestination: "México",
+        destinationCountries: ["MX"],
         academicLevel: "UNDERGRAD",
         applyUrl: "https://example.com/vencida-vis",
         sourceId: SOURCE_ID,
@@ -170,7 +170,7 @@ describe("Visibilidad pública de becas", () => {
         description: "Destacada pública",
         status: "ACTIVE",
         coverageType: "MONETARY",
-        countryDestination: "México",
+        destinationCountries: ["MX"],
         academicLevel: "UNDERGRAD",
         applyUrl: "https://example.com/featured-active",
         sourceId: SOURCE_ID,
@@ -189,7 +189,7 @@ describe("Visibilidad pública de becas", () => {
         description: "Destacada no pública",
         status: "PENDING_REVIEW",
         coverageType: "MONETARY",
-        countryDestination: PAIS_FEATURED_PENDING,
+        destinationCountries: [PAIS_FEATURED_PENDING],
         academicLevel: "UNDERGRAD",
         applyUrl: "https://example.com/featured-pending",
         sourceId: SOURCE_ID,
@@ -200,7 +200,7 @@ describe("Visibilidad pública de becas", () => {
         status: "PENDING_REVIEW",
         deadline: futureDate,
         isFeatured: true,
-        countryDestination: PAIS_FEATURED_PENDING,
+        destinationCountries: [PAIS_FEATURED_PENDING],
       },
     });
   });
@@ -304,13 +304,13 @@ describe("Visibilidad pública de becas", () => {
       const stats = await getLandingStats();
       const publicas = await db.scholarship.findMany({
         where: filtroBecaPublica(),
-        select: { id: true, countryDestination: true },
+        select: { id: true, destinationCountries: true },
       });
 
       expect(publicas.map((b) => b.id)).not.toContain(PENDING_ID);
-      expect(publicas.map((b) => b.countryDestination)).not.toContain(
-        PAIS_PENDING,
-      );
+      expect(
+        publicas.flatMap((b) => b.destinationCountries),
+      ).not.toContain(PAIS_PENDING);
       expect(stats.countryDestinations).not.toContain(PAIS_PENDING);
       expect(stats.countryDestinations).not.toContain(PAIS_FEATURED_PENDING);
     });
@@ -328,7 +328,7 @@ describe("Visibilidad pública de becas", () => {
 
       expect(countries).not.toContain(PAIS_PENDING);
       expect(countries).not.toContain(PAIS_FEATURED_PENDING);
-      expect(countries).toContain("México");
+      expect(countries).toContain("MX");
     });
   });
 

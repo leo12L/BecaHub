@@ -63,13 +63,26 @@ describe.skipIf(!process.env.DATABASE_URL)(
     });
 
     afterEach(async () => {
-      // Limpiar registry
       delete LECTORES_REGISTRY["test-db-1"];
       delete LECTORES_REGISTRY["test-db-2"];
-
-      // Restaurar mocks
       vi.restoreAllMocks();
       global.fetch = originalFetch;
+
+      await db.scholarship.deleteMany({
+        where: {
+          OR: [
+            { title: "Beca HEAD 405" },
+            {
+              sourceId: { in: [testSourceId1, testSourceId2].filter(Boolean) },
+            },
+          ],
+        },
+      });
+      await db.scraperLog.deleteMany({
+        where: {
+          sourceId: { in: [testSourceId1, testSourceId2].filter(Boolean) },
+        },
+      });
     });
 
     // Test 1: Deduplicación - dos corridas con mismo fixture
@@ -157,7 +170,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           amountMin: 15000,
           amountMax: 20000,
           currency: "MXN",
-          countryDestination: "España",
+          destinationCountries: ["ES"],
           academicLevel: "PHD",
           deadline: new Date("2026-12-31"),
           applyUrl: "https://example.com/original-editada",
@@ -211,7 +224,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(updated?.coverageType).toBe("RESEARCH");
       expect(updated?.academicLevel).toBe("PHD");
       expect(updated?.amountMin?.toString()).toBe("15000");
-      expect(updated?.countryDestination).toBe("España");
+      expect(updated?.destinationCountries).toEqual(["ES"]);
 
       // Sí debe actualizar rawPayload y scrapedAt
       expect(updated?.rawPayload).toEqual({ year: 2026, version: 2 });

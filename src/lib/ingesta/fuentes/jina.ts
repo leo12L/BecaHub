@@ -202,7 +202,7 @@ export class JinaLector implements FuenteLector {
       amount,
       coverageType: null,
       academicLevel,
-      countryDestination: "México",
+      countryDestination: null,
       language: "Español",
       convocante,
       rawData: {

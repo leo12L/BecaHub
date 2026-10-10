@@ -158,7 +158,7 @@ export default async function BecaDetailPage({ params }: { params: Params }) {
                 <DetailItem
                   icon={MapPin}
                   label="País destino"
-                  value={beca.countryDestination}
+                  value={beca.destinationCountries.join(", ") || "Sin destino"}
                 />
                 <DetailItem
                   icon={Landmark}

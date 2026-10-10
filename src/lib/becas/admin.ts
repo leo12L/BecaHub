@@ -1,6 +1,8 @@
 import { checkUrlHealth } from "@/lib/validation/url-health";
-import { MEXICO_PATTERN } from "@/lib/geo";
 import { getTodayInMexicoCity } from "@/lib/fechas";
+
+export const MENSAJE_BECA_CON_POSTULACIONES =
+  "Esta beca tiene postulaciones, ciérrala en vez de borrarla";
 
 export interface PublishCheckResult {
   ok: boolean;
@@ -9,23 +11,15 @@ export interface PublishCheckResult {
 
 /**
  * Invariante de publicación del panel de admin: una beca solo puede pasar a
- * `ACTIVE` si es de México, su `deadline` es hoy o futuro, y `applyUrl`
- * responde como una convocatoria viva (`checkUrlHealth`). Llamado desde los
- * route handlers de creación/edición/re-verificación — nunca confía en lo
- * que mande el cliente.
+ * `ACTIVE` si su `deadline` es hoy o futuro, y `applyUrl` responde como una
+ * convocatoria viva (`checkUrlHealth`). Llamado desde los route handlers de
+ * creación/edición/re-verificación — nunca confía en lo que mande el cliente.
  */
 export async function assertCanPublish(input: {
-  countryDestination: string;
+  destinationCountries: string[];
   deadline: Date | null;
   applyUrl: string;
 }): Promise<PublishCheckResult> {
-  if (!MEXICO_PATTERN.test(input.countryDestination)) {
-    return {
-      ok: false,
-      error: "Solo se pueden publicar becas para México",
-    };
-  }
-
   if (!input.deadline) {
     return {
       ok: false,

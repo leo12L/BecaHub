@@ -17,8 +17,8 @@ export const validarUrlSchema = z.object({
  *
  * `status` solo admite `DRAFT`/`ACTIVE` desde el panel de admin — las becas
  * scrapeadas usan `PENDING_REVIEW` y `CLOSED` se decide al re-verificar.
- * El enforcement de "México + vigente + link vivo para ACTIVE" se hace en
- * el route handler (necesita I/O: `checkUrlHealth`).
+ * El enforcement de "vigente + link vivo para ACTIVE" se hace en el route
+ * handler (necesita I/O: `checkUrlHealth`).
  */
 export const adminBecaInputSchema = z.object({
   title: z.string().trim().min(3).max(200),
@@ -29,7 +29,10 @@ export const adminBecaInputSchema = z.object({
   amountMax: z.number().nonnegative().nullable().optional(),
   currency: z.string().trim().min(1).max(10).default("MXN"),
   countryOrigin: z.string().trim().min(1).max(100).nullable().optional(),
-  countryDestination: z.string().trim().min(1).max(100).default("México"),
+  destinationCountries: z
+    .array(z.string().trim().length(2).toUpperCase())
+    .min(1, "Debe especificar al menos un país de destino")
+    .default(["MX"]),
   academicLevel: z.enum(academicLevelValues),
   language: z.string().trim().min(1).max(50).nullable().optional(),
   deadline: z.string().trim().min(1).nullable().optional(),

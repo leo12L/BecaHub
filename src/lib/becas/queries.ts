@@ -8,6 +8,7 @@ import {
   filtroBecaPublica,
   puedePedirEstadoNoPublico,
 } from "@/lib/becas/publica";
+import { resolveDestinationCodes } from "@/lib/geo";
 
 const LIST_INCLUDE = {
   source: { select: { id: true, name: true, type: true } },
@@ -61,11 +62,14 @@ export async function getBecas(query: BecasQuery, options?: GetBecasOptions) {
       ? { status: query.status }
       : { ...filtroBecaPublica() };
 
-  if (query.country) {
-    where.countryDestination = {
-      contains: query.country,
-      mode: "insensitive",
-    };
+  const destinationValue = query.destination ?? query.country;
+  if (destinationValue) {
+    const codes = resolveDestinationCodes(destinationValue);
+    if (codes && codes.length > 0) {
+      where.destinationCountries = { hasSome: codes };
+    } else {
+      where.id = { in: [] };
+    }
   }
 
   if (query.level) {
@@ -188,18 +192,17 @@ export const getFilterCategories = unstable_cache(
   { revalidate: 3600 },
 );
 
-/** Paises de destino distintos entre las becas públicas (sin caché). */
+/** Países de destino distintos entre las becas públicas (sin caché). */
 export async function fetchPublicCountries(): Promise<string[]> {
   const rows = await db.scholarship.findMany({
     where: filtroBecaPublica(),
-    select: { countryDestination: true },
-    distinct: ["countryDestination"],
-    orderBy: { countryDestination: "asc" },
+    select: { destinationCountries: true },
   });
-  return rows.map((r) => r.countryDestination).filter(Boolean);
+  const allCountries = rows.flatMap((r) => r.destinationCountries);
+  return [...new Set(allCountries)].sort();
 }
 
-/** Paises de destino para el filtro de pais. En tests no se cachea. */
+/** Países de destino para el filtro de país. En tests no se cachea. */
 export const getFilterCountries =
   process.env.VITEST || process.env.NODE_ENV === "test"
     ? fetchPublicCountries
@@ -207,7 +210,7 @@ export const getFilterCountries =
         revalidate: 600,
       });
 
-/** Metricas reales para los chips de la landing y el dashboard. */
+/** Métricas reales para los chips de la landing y el dashboard. */
 export async function getLandingStats() {
   const filtroPublico = filtroBecaPublica();
 

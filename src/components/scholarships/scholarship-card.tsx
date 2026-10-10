@@ -9,6 +9,7 @@ import {
 } from "@/lib/becas/format";
 import type { BecaListItem } from "@/lib/becas/queries";
 import type { ScholarshipStatus } from "@/generated/prisma/enums";
+import { countryCodeToName } from "@/lib/geo";
 
 const STATUS_PILL: Record<ScholarshipStatus, string> = {
   ACTIVE: "bg-[#DFF5EA] text-[#146C43]",
@@ -79,7 +80,9 @@ export function ScholarshipCard({
           <div className="flex items-center gap-2 text-[#4A665E]">
             <MapPin className="text-highlight size-4 shrink-0" aria-hidden />
             <span className="truncate font-semibold text-[#18352F]">
-              {scholarship.countryDestination}
+              {scholarship.destinationCountries
+                .map((code) => countryCodeToName(code))
+                .join(", ") || "Sin destino"}
             </span>
             <span className="text-[#8AA59B]">/</span>
             <span className="truncate">

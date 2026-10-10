@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { CoverageType, AcademicLevel } from "@/generated/prisma/enums";
 import { coverageLabels, academicLevelLabels } from "@/lib/becas/format";
+import { COUNTRY_CODE_TO_NAME } from "@/lib/geo";
 
 interface SourceOption {
   id: string;
@@ -38,7 +39,7 @@ export interface BecaFormValues {
   amountMax: string;
   currency: string;
   countryOrigin: string;
-  countryDestination: string;
+  destinationCountries: string[];
   deadline: string;
   applyUrl: string;
   sourceId: string;
@@ -63,7 +64,7 @@ const EMPTY_VALUES: BecaFormValues = {
   amountMax: "",
   currency: "MXN",
   countryOrigin: "",
-  countryDestination: "México",
+  destinationCountries: ["MX"],
   deadline: "",
   applyUrl: "",
   sourceId: "",
@@ -152,7 +153,7 @@ export function BecaForm({
       amountMax: values.amountMax ? Number(values.amountMax) : null,
       currency: values.currency,
       countryOrigin: values.countryOrigin || null,
-      countryDestination: values.countryDestination,
+      destinationCountries: values.destinationCountries,
       academicLevel: values.academicLevel,
       language: values.language || null,
       deadline: values.deadline || null,
@@ -187,8 +188,8 @@ export function BecaForm({
         );
         return;
       }
-      if (!/m[eé]xic/i.test(values.countryDestination)) {
-        setFormError("Solo se pueden publicar becas para México.");
+      if (values.destinationCountries.length === 0) {
+        setFormError("Debe especificar al menos un país de destino.");
         return;
       }
     }
@@ -326,15 +327,27 @@ export function BecaForm({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="countryDestination">País destino</Label>
-              <Input
-                id="countryDestination"
-                value={values.countryDestination}
-                onChange={(e) => update("countryDestination", e.target.value)}
-              />
+              <Label htmlFor="destinationCountries">Países de destino</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(COUNTRY_CODE_TO_NAME).map(([code, name]) => (
+                  <label key={code} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={values.destinationCountries.includes(code)}
+                      onChange={(e) => {
+                        const newCountries = e.target.checked
+                          ? [...values.destinationCountries, code]
+                          : values.destinationCountries.filter((c) => c !== code);
+                        update("destinationCountries", newCountries);
+                      }}
+                      className="rounded"
+                    />
+                    <span className="text-sm">{name}</span>
+                  </label>
+                ))}
+              </div>
               <p className="text-muted-foreground text-xs">
-                Solo becas para &quot;México&quot; pueden publicarse como
-                activas.
+                Selecciona uno o más países de destino.
               </p>
             </div>
             <div className="space-y-1.5">
