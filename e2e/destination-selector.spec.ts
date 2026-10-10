@@ -57,10 +57,11 @@ test.describe("Destination Selector", () => {
   }) => {
     await page.goto("/becas");
 
-    await page.getByRole("button", { name: "China" }).click();
+    // Japón no se siembra en fixtures/CI; si hubiera datos, el mensaje no aplica.
+    await page.getByRole("button", { name: "Japón" }).click();
 
     await expect(
-      page.getByText(/No hay becas disponibles para China/i),
+      page.getByText(/No hay becas disponibles para Japón/i),
     ).toBeVisible({ timeout: 5000 });
   });
 

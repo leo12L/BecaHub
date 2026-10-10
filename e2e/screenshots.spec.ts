@@ -88,9 +88,9 @@ test.describe("Visual Screenshots", () => {
     await page.goto("/becas");
     await page.waitForLoadState("networkidle");
 
-    const chinaButton = page.getByRole("button", { name: "China", exact: true });
-    await expect(chinaButton).toBeVisible();
-    await chinaButton.click();
+    const japanButton = page.getByRole("button", { name: "Japón", exact: true });
+    await expect(japanButton).toBeVisible();
+    await japanButton.click();
     await page.waitForTimeout(1500);
 
     await page.screenshot({
