@@ -7,6 +7,7 @@ import { adminBecaInputSchema } from "@/validators/admin-becas.validator";
 import type { CoverageType, AcademicLevel } from "@/generated/prisma/enums";
 import { generateFingerprint } from "@/lib/ingesta/utils";
 import type { BecaCandidata } from "@/lib/ingesta/types";
+import { dateToMexicoMidnight } from "@/lib/fechas";
 
 /** Resuelve colisiones de slug agregando un sufijo numérico. */
 async function resolveSlug(base: string): Promise<string> {
