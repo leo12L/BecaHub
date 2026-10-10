@@ -54,7 +54,9 @@ function toRecommendedCard(scholarship: BecaListItem) {
     tags: getScholarshipTags(scholarship),
     deadlineLabel: deadline.label,
     applyUrl: scholarship.applyUrl,
-    country: scholarship.countryDestination,
+    country: scholarship.destinationCountries
+      .map((code) => code)
+      .join(", ") || "Sin destino",
     description: scholarship.description,
     startLabel: formatDate(scholarship.createdAt),
     amount: formatAmount(

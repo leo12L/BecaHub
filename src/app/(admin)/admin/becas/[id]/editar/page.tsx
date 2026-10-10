@@ -49,7 +49,7 @@ export default async function EditarBecaPage({ params }: PageProps) {
           amountMax: scholarship.amountMax?.toString() ?? "",
           currency: scholarship.currency,
           countryOrigin: scholarship.countryOrigin ?? "",
-          countryDestination: scholarship.countryDestination,
+          destinationCountries: scholarship.destinationCountries,
           deadline: scholarship.deadline
             ? scholarship.deadline.toISOString().slice(0, 10)
             : "",

@@ -110,7 +110,7 @@ export default async function GestionarBecasPage({ searchParams }: PageProps) {
           status: s.status,
           deadline: s.deadline ? s.deadline.toISOString() : null,
           applyUrl: s.applyUrl,
-          countryDestination: s.countryDestination,
+          destinationCountries: s.destinationCountries,
           source: s.source.name,
         }))}
       />

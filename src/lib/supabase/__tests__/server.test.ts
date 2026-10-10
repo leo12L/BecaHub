@@ -87,7 +87,7 @@ describe.skipIf(shouldSkip)("getCurrentUser - legacy user linking", () => {
         description: "Test",
         status: "ACTIVE",
         coverageType: "MONETARY",
-        countryDestination: "México",
+        destinationCountries: ["MX"],
         academicLevel: "UNDERGRAD",
         applyUrl: "https://example.com/apply",
         sourceId: source.id,

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { statusLabels, getDeadlineInfo } from "@/lib/becas/format";
+import { countryCodeToName } from "@/lib/geo";
 import type { ScholarshipStatus } from "@/generated/prisma/enums";
 
 export interface BecaRow {
@@ -13,7 +14,7 @@ export interface BecaRow {
   status: ScholarshipStatus;
   deadline: string | null;
   applyUrl: string;
-  countryDestination: string;
+  destinationCountries: string[];
   source: string;
 }
 
@@ -111,7 +112,9 @@ export function BecasTable({ scholarships }: BecasTableProps) {
                 <td className="p-2.5">
                   <div className="font-medium">{s.title}</div>
                   <div className="text-muted-foreground text-xs">
-                    {s.countryDestination}
+                    {s.destinationCountries
+                      .map((code) => countryCodeToName(code))
+                      .join(", ") || "Sin destino"}
                   </div>
                 </td>
                 <td className="p-2.5">{statusLabels[s.status]}</td>

@@ -64,7 +64,7 @@ const CATEGORIES: Category[] = [
     name: "Idiomas e intercambio",
     description: "Programas de idiomas y cultura",
     icon: Languages,
-    filter: (s) => s.language && s.language.toLowerCase() !== "español",
+    filter: (s) => Boolean(s.language && s.language.toLowerCase() !== "español"),
   },
 ];
 

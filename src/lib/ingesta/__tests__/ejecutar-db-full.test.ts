@@ -157,7 +157,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
           amountMin: 15000,
           amountMax: 20000,
           currency: "MXN",
-          countryDestination: "España",
+          destinationCountries: ["ES"],
           academicLevel: "PHD",
           deadline: new Date("2026-12-31"),
           applyUrl: "https://example.com/original-editada",
@@ -211,7 +211,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
       expect(updated?.coverageType).toBe("RESEARCH");
       expect(updated?.academicLevel).toBe("PHD");
       expect(updated?.amountMin?.toString()).toBe("15000");
-      expect(updated?.countryDestination).toBe("España");
+      expect(updated?.destinationCountries).toEqual(["ES"]);
 
       // Sí debe actualizar rawPayload y scrapedAt
       expect(updated?.rawPayload).toEqual({ year: 2026, version: 2 });

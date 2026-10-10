@@ -62,9 +62,8 @@ export async function getBecas(query: BecasQuery, options?: GetBecasOptions) {
       : { ...filtroBecaPublica() };
 
   if (query.country) {
-    where.countryDestination = {
-      contains: query.country,
-      mode: "insensitive",
+    where.destinationCountries = {
+      has: query.country,
     };
   }
 
@@ -188,18 +187,17 @@ export const getFilterCategories = unstable_cache(
   { revalidate: 3600 },
 );
 
-/** Paises de destino distintos entre las becas públicas (sin caché). */
+/** Países de destino distintos entre las becas públicas (sin caché). */
 export async function fetchPublicCountries(): Promise<string[]> {
   const rows = await db.scholarship.findMany({
     where: filtroBecaPublica(),
-    select: { countryDestination: true },
-    distinct: ["countryDestination"],
-    orderBy: { countryDestination: "asc" },
+    select: { destinationCountries: true },
   });
-  return rows.map((r) => r.countryDestination).filter(Boolean);
+  const allCountries = rows.flatMap((r) => r.destinationCountries);
+  return [...new Set(allCountries)].sort();
 }
 
-/** Paises de destino para el filtro de pais. En tests no se cachea. */
+/** Países de destino para el filtro de país. En tests no se cachea. */
 export const getFilterCountries =
   process.env.VITEST || process.env.NODE_ENV === "test"
     ? fetchPublicCountries
@@ -207,7 +205,7 @@ export const getFilterCountries =
         revalidate: 600,
       });
 
-/** Metricas reales para los chips de la landing y el dashboard. */
+/** Métricas reales para los chips de la landing y el dashboard. */
 export async function getLandingStats() {
   const filtroPublico = filtroBecaPublica();
 

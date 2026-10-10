@@ -84,7 +84,7 @@ export function InteractiveGlobe({
     window.addEventListener("resize", onResize);
     onResize();
 
-    const opts: COBEOptions = {
+    const opts = {
       devicePixelRatio: 2,
       width: width * 2,
       height: width * 2,
@@ -101,7 +101,7 @@ export function InteractiveGlobe({
         location: m.location,
         size: m.size,
       })),
-      onRender: (state) => {
+      onRender: (state: any) => {
         if (!focusLocation) {
           state.phi = phi.current;
           phi.current += 0.002;
@@ -113,7 +113,7 @@ export function InteractiveGlobe({
         state.width = width * 2;
         state.height = width * 2;
       },
-    };
+    } as COBEOptions;
 
     globeRef.current = createGlobe(canvasRef.current, opts);
     onLoad?.();
