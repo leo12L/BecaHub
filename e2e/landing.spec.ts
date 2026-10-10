@@ -89,10 +89,14 @@ test.describe("Portada BecaHub", () => {
     await client.connect();
 
     const pendingTitle = "Beca PENDING_REVIEW no debe salir en tiras XYZ";
-    const source = await client.query<{ id: string }>(
-      `SELECT id FROM "Source" LIMIT 1`,
+    const sourceId = "e2e-source-landing";
+
+    await client.query(
+      `INSERT INTO "Source" (id, name, url, type, "isActive", "createdAt")
+       VALUES ($1, $2, $3, 'MANUAL', true, NOW())
+       ON CONFLICT (id) DO NOTHING`,
+      [sourceId, "Fuente e2e portada", "https://example.com/e2e-landing"],
     );
-    expect(source.rows[0]?.id).toBeTruthy();
 
     await client.query(
       `INSERT INTO "Scholarship" (
@@ -103,14 +107,15 @@ test.describe("Portada BecaHub", () => {
         $1, $2, $3, $4, 'PENDING_REVIEW', 'MONETARY',
         'México', 'UNDERGRAD', $5, $6,
         $7, NOW(), NOW()
-      )`,
+      )
+      ON CONFLICT (id) DO UPDATE SET status = 'PENDING_REVIEW', title = EXCLUDED.title`,
       [
         "e2e-pending-landing",
         pendingTitle,
         "e2e-pending-landing",
         "No debe verse en la portada",
         "https://example.com/pending-landing",
-        source.rows[0].id,
+        sourceId,
         "2027-12-31T00:00:00.000Z",
       ],
     );
@@ -124,6 +129,7 @@ test.describe("Portada BecaHub", () => {
       await client.query(`DELETE FROM "Scholarship" WHERE id = $1`, [
         "e2e-pending-landing",
       ]);
+      await client.query(`DELETE FROM "Source" WHERE id = $1`, [sourceId]);
       await client.end();
     }
   });
