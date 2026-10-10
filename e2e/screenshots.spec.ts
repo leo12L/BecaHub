@@ -65,29 +65,10 @@ test.describe("Visual Screenshots", () => {
     }
   }
 
-  // Special screenshots for new features (light mode only)
-  test("Globe with Spain selected - desktop light", async ({ page }) => {
+  test("Destination filter Spain - desktop light", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ colorScheme: "light" });
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-
-    // Click on Spain destination chip
-    const spainButton = page.getByRole("button", { name: "España", exact: true });
-    await expect(spainButton).toBeVisible();
-    await spainButton.click();
-    await page.waitForTimeout(1500);
-
-    await page.screenshot({
-      path: "screenshots/05-globe-spain-desktop-light.png",
-      fullPage: true,
-    });
-  });
-
-  test("Globe with Spain selected - mobile light", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.emulateMedia({ colorScheme: "light" });
-    await page.goto("/");
+    await page.goto("/becas");
     await page.waitForLoadState("networkidle");
 
     const spainButton = page.getByRole("button", { name: "España", exact: true });
@@ -96,55 +77,24 @@ test.describe("Visual Screenshots", () => {
     await page.waitForTimeout(1500);
 
     await page.screenshot({
-      path: "screenshots/05-globe-spain-mobile-light.png",
+      path: "screenshots/05-destination-spain-desktop-light.png",
       fullPage: true,
     });
   });
 
-  test("Empty state - desktop light", async ({ page }) => {
+  test("Empty destination state - desktop light", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ colorScheme: "light" });
-    await page.goto("/");
+    await page.goto("/becas");
     await page.waitForLoadState("networkidle");
 
-    // Try to find a destination button that should have no scholarships (Japan)
-    const japanButton = page.getByRole("button", { name: /jap[óo]n/i });
-    if (await japanButton.count() > 0) {
-      await japanButton.click();
-      await page.waitForTimeout(1500);
-    } else {
-      // If Japan button doesn't exist, just screenshot home with no filter
-      await page.waitForTimeout(1000);
-    }
+    const chinaButton = page.getByRole("button", { name: "China", exact: true });
+    await expect(chinaButton).toBeVisible();
+    await chinaButton.click();
+    await page.waitForTimeout(1500);
 
     await page.screenshot({
       path: "screenshots/06-empty-state-desktop-light.png",
-      fullPage: true,
-    });
-  });
-
-  test("Carousel visible - desktop light", async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.emulateMedia({ colorScheme: "light" });
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1000);
-
-    await page.screenshot({
-      path: "screenshots/07-carousel-desktop-light.png",
-      fullPage: true,
-    });
-  });
-
-  test("Carousel visible - mobile light", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.emulateMedia({ colorScheme: "light" });
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1000);
-
-    await page.screenshot({
-      path: "screenshots/07-carousel-mobile-light.png",
       fullPage: true,
     });
   });

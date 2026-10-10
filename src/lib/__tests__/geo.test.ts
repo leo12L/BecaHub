@@ -5,6 +5,8 @@ import {
   parseCountryDestination,
   countryCodeToName,
   REGIONS,
+  resolveDestinationCodes,
+  destinationLabel,
 } from "../geo";
 
 describe("MEXICO_PATTERN", () => {
@@ -177,5 +179,32 @@ describe("REGIONS", () => {
     expect(REGIONS.asia).toContain("CN");
     expect(REGIONS.asia).toContain("JP");
     expect(REGIONS.asia).toContain("KR");
+  });
+});
+
+describe("resolveDestinationCodes", () => {
+  it("maps ISO country codes", () => {
+    expect(resolveDestinationCodes("ES")).toEqual(["ES"]);
+    expect(resolveDestinationCodes("mx")).toEqual(["MX"]);
+  });
+
+  it("maps region slugs to country codes", () => {
+    expect(resolveDestinationCodes("europa")).toEqual(REGIONS.europa);
+    expect(resolveDestinationCodes("latinoamerica")).toEqual(
+      REGIONS.latinoamérica,
+    );
+  });
+
+  it("returns null for unrecognized destinations", () => {
+    expect(resolveDestinationCodes("Narnia")).toBeNull();
+    expect(resolveDestinationCodes("")).toBeNull();
+  });
+});
+
+describe("destinationLabel", () => {
+  it("returns Spanish names for countries and regions", () => {
+    expect(destinationLabel("ES")).toBe("España");
+    expect(destinationLabel("europa")).toBe("Europa");
+    expect(destinationLabel("CN")).toBe("China");
   });
 });

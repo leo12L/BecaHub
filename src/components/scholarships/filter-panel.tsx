@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { academicLevelLabels } from "@/lib/becas/format";
+import { countryCodeToName, DESTINATION_OPTIONS } from "@/lib/geo";
 
 export type FilterOption = { slug: string; name: string };
 
@@ -29,6 +30,7 @@ const FILTER_KEYS = [
   "type",
   "area",
   "country",
+  "destination",
   "level",
   "sort",
   "deadlineBefore",
@@ -66,6 +68,21 @@ export function FilterPanel({
     const params = new URLSearchParams(searchParams);
     if (!value || value === ALL) params.delete(key);
     else params.set(key, value);
+    params.delete("page");
+
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
+  function updateDestination(value: string) {
+    const params = new URLSearchParams(searchParams);
+    if (!value || value === ALL) {
+      params.delete("destination");
+      params.delete("country");
+    } else {
+      params.set("destination", value);
+      params.delete("country");
+    }
     params.delete("page");
 
     const query = params.toString();
@@ -169,27 +186,36 @@ export function FilterPanel({
         </Select>
       </div>
 
-      {countryOptions.length > 0 && (
-        <div>
-          <Label>País destino</Label>
-          <Select
-            value={valueFor("country")}
-            onValueChange={(value) => updateParam("country", value)}
-          >
-            <SelectTrigger className={selectClass}>
-              <SelectValue placeholder="Todos los países" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todos los países</SelectItem>
-              {countryOptions.map((country) => (
-                <SelectItem key={country} value={country}>
-                  {country}
+      <div>
+        <Label>Destino</Label>
+        <Select
+          value={
+            valueFor("destination") !== ALL
+              ? valueFor("destination")
+              : valueFor("country")
+          }
+          onValueChange={updateDestination}
+        >
+          <SelectTrigger className={selectClass}>
+            <SelectValue placeholder="Todos los destinos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>Todos los destinos</SelectItem>
+            {DESTINATION_OPTIONS.filter((option) => option.type === "region").map(
+              (option) => (
+                <SelectItem key={option.id} value={option.id}>
+                  {option.name}
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+              ),
+            )}
+            {countryOptions.map((country) => (
+              <SelectItem key={country} value={country}>
+                {countryCodeToName(country)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <div>
         <Label>Cierra antes del</Label>

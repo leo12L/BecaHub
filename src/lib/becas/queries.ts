@@ -8,6 +8,7 @@ import {
   filtroBecaPublica,
   puedePedirEstadoNoPublico,
 } from "@/lib/becas/publica";
+import { resolveDestinationCodes } from "@/lib/geo";
 
 const LIST_INCLUDE = {
   source: { select: { id: true, name: true, type: true } },
@@ -61,10 +62,14 @@ export async function getBecas(query: BecasQuery, options?: GetBecasOptions) {
       ? { status: query.status }
       : { ...filtroBecaPublica() };
 
-  if (query.country) {
-    where.destinationCountries = {
-      has: query.country,
-    };
+  const destinationValue = query.destination ?? query.country;
+  if (destinationValue) {
+    const codes = resolveDestinationCodes(destinationValue);
+    if (codes && codes.length > 0) {
+      where.destinationCountries = { hasSome: codes };
+    } else {
+      where.id = { in: [] };
+    }
   }
 
   if (query.level) {

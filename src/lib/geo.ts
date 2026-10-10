@@ -224,3 +224,65 @@ export const COUNTRY_CODE_TO_NAME: Record<string, string> = {
 export function countryCodeToName(code: string): string {
   return COUNTRY_CODE_TO_NAME[code] ?? code;
 }
+
+/** Alias de regiones usados en query params (`?destination=latinoamerica`). */
+const REGION_ALIASES: Record<string, string> = {
+  latinoamerica: "latinoamérica",
+  "america latina": "américa latina",
+  "america del norte": "américa del norte",
+  norteamericana: "norteamérica",
+  oceania: "oceanía",
+};
+
+export type DestinationOption = {
+  id: string;
+  name: string;
+  type: "country" | "region";
+};
+
+/** Países y regiones que el selector de `/becas` ofrece de forma fija. */
+export const DESTINATION_OPTIONS: DestinationOption[] = [
+  { id: "MX", name: "México", type: "country" },
+  { id: "US", name: "Estados Unidos", type: "country" },
+  { id: "CA", name: "Canadá", type: "country" },
+  { id: "ES", name: "España", type: "country" },
+  { id: "europa", name: "Europa", type: "region" },
+  { id: "GB", name: "Reino Unido", type: "country" },
+  { id: "DE", name: "Alemania", type: "country" },
+  { id: "CN", name: "China", type: "country" },
+  { id: "JP", name: "Japón", type: "country" },
+  { id: "latinoamerica", name: "Latinoamérica", type: "region" },
+];
+
+/**
+ * Convierte un valor de destino (código ISO o slug de región) a códigos ISO-3166.
+ * Retorna `null` si el valor no se reconoce.
+ */
+export function resolveDestinationCodes(value: string): string[] | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const lower = trimmed.toLowerCase();
+  const regionKey = REGION_ALIASES[lower] ?? lower;
+  if (REGIONS[regionKey]) return REGIONS[regionKey];
+
+  if (/^[a-z]{2}$/i.test(trimmed)) {
+    return [trimmed.toUpperCase()];
+  }
+
+  return null;
+}
+
+/** Nombre visible de un destino (país o región) para UI y estados vacíos. */
+export function destinationLabel(value: string): string {
+  const option = DESTINATION_OPTIONS.find(
+    (item) => item.id.toLowerCase() === value.toLowerCase(),
+  );
+  if (option) return option.name;
+
+  if (/^[a-z]{2}$/i.test(value.trim())) {
+    return countryCodeToName(value.trim().toUpperCase());
+  }
+
+  return value;
+}

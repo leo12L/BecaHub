@@ -1,15 +1,13 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("Destination Selector and Globe", () => {
-  test("should display destination chips on home page", async ({ page }) => {
-    await page.goto("/");
+test.describe("Destination Selector", () => {
+  test("should display destination chips on the catalog page", async ({
+    page,
+  }) => {
+    await page.goto("/becas");
 
-    // Check for heading
-    await expect(
-      page.getByRole("heading", { name: /¿A dónde quieres ir\?/i }),
-    ).toBeVisible();
+    await expect(page.getByText(/Filtrar por destino/i)).toBeVisible();
 
-    // Check for destination chips (use exact match to avoid conflicts with category buttons)
     await expect(
       page.getByRole("button", { name: "México", exact: true }),
     ).toBeVisible();
@@ -24,44 +22,30 @@ test.describe("Destination Selector and Globe", () => {
     ).toBeVisible();
   });
 
-  test("should show initial message when no destination selected", async ({
-    page,
-  }) => {
-    await page.goto("/");
-
-    // Should show the initial state message
-    await expect(
-      page.getByText(/Selecciona un destino para ver becas disponibles/i),
-    ).toBeVisible();
-  });
-
   test("should filter scholarships when destination is selected", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/becas");
 
-    // Click on España
     await page.getByRole("button", { name: "España" }).click();
 
-    // Wait for the chip to be pressed
     await expect(page.getByRole("button", { name: "España" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
 
-    // Should either show scholarships or empty state
+    await expect(page).toHaveURL(/destination=ES/);
+
     const hasScholarships = await page
       .getByRole("heading", { name: /Becas para España/i })
       .isVisible()
       .catch(() => false);
 
     if (hasScholarships) {
-      // If there are scholarships, check the heading
       await expect(
         page.getByRole("heading", { name: /Becas para España/i }),
       ).toBeVisible();
     } else {
-      // If no scholarships, check empty state
       await expect(
         page.getByText(/No hay becas disponibles para España/i),
       ).toBeVisible();
@@ -71,84 +55,26 @@ test.describe("Destination Selector and Globe", () => {
   test("should show empty state message for destination without scholarships", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/becas");
 
-    // Click on China (likely no scholarships)
     await page.getByRole("button", { name: "China" }).click();
 
-    // Should show empty state (either immediately or after short delay)
-    const emptyMessage = page.getByText(
-      /No hay becas disponibles para China|Selecciona un destino/i,
-    );
-    await expect(emptyMessage).toBeVisible({ timeout: 3000 });
+    await expect(
+      page.getByText(/No hay becas disponibles para China/i),
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test("should respect keyboard navigation for destination chips", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/becas");
 
-    // Tab to first destination chip
-    await page.keyboard.press("Tab");
-
-    // Keep pressing tab until we reach a destination button
-    for (let i = 0; i < 20; i++) {
-      const focused = await page.evaluate(() => document.activeElement?.tagName);
-      if (focused === "BUTTON") {
-        const text = await page.evaluate(
-          () => document.activeElement?.textContent,
-        );
-        if (text && text.includes("México")) break;
-      }
-      await page.keyboard.press("Tab");
-    }
-
-    // Press Enter to select
+    await page.getByRole("button", { name: "México", exact: true }).focus();
     await page.keyboard.press("Enter");
 
-    // Wait for content to load and verify a destination was selected
-    await page.waitForSelector('text=/Becas para|No hay becas disponibles/i', {
-      timeout: 5000,
-    });
-  });
-
-  test("should render interactive globe canvas or fallback", async ({
-    page,
-  }) => {
-    await page.goto("/");
-
-    // Wait for the globe section to be visible and loaded
-    const globeSection = page.locator('text="¿A dónde quieres ir?"').locator("..");
-    await expect(globeSection).toBeVisible();
-
-    // Wait for dynamic component to load (it uses next/dynamic with ssr: false)
-    await page.waitForTimeout(2000);
-
-    // Check for canvas (WebGL globe) or fallback (if WebGL not supported)
-    // The canvas/fallback should be near the destination chips
-    const hasCanvas = await page.locator("canvas").count();
-    const hasFallback = await page
-      .locator('[role="img"][aria-label*="Globo terráqueo"]')
-      .count();
-
-    // Must have either canvas or fallback
-    expect(hasCanvas + hasFallback).toBeGreaterThan(0);
-
-    // If canvas exists, verify it has dimensions
-    if (hasCanvas > 0) {
-      const canvas = page.locator("canvas").first();
-      await canvas.waitFor({ state: "visible", timeout: 5000 });
-      const box = await canvas.boundingBox();
-      expect(box).toBeTruthy();
-      expect(box!.width).toBeGreaterThan(0);
-      expect(box!.height).toBeGreaterThan(0);
-    }
-
-    // If fallback exists, verify it's visible
-    if (hasFallback > 0) {
-      await expect(
-        page.locator('[role="img"][aria-label*="Globo terráqueo"]').first(),
-      ).toBeVisible();
-    }
+    await page.waitForSelector(
+      "text=/Becas para México|No hay becas disponibles para México/i",
+      { timeout: 5000 },
+    );
   });
 });

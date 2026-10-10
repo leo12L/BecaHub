@@ -27,6 +27,7 @@ export const becasQuerySchema = z.object({
   type: z.string().min(1).optional(),
   area: z.string().min(1).optional(),
   country: z.string().min(1).optional(),
+  destination: z.string().min(1).optional(),
   level: z.enum(academicLevelValues).optional(),
   deadlineBefore: z.coerce.date().optional(),
   search: z.string().min(1).max(200).optional(),

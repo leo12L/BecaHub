@@ -169,8 +169,8 @@ npm start                  # Inicia el servidor de producción
 npm run lint               # Ejecuta el linter
 npm test                   # Ejecuta las pruebas
 npm run ingesta            # Ejecuta la ingesta automática de becas
-npm run limpiar-becas      # Limpia becas de prueba (pide confirmación)
-npm run limpiar-becas -- --yes  # Limpia sin pedir confirmación
+npm run limpiar-becas      # Vista previa: muestra qué becas de ingesta no aprobadas borraría
+npm run limpiar-becas -- --yes  # Ejecuta el borrado
 ```
 
 ### Después de fusionar PR #8 (migración destinationCountries)
@@ -178,16 +178,14 @@ npm run limpiar-becas -- --yes  # Limpia sin pedir confirmación
 Si ya tenías becas en tu base de datos antes del PR #8, algunas pueden haber quedado con datos obsoletos. Para limpiarlas y cargar becas reales:
 
 ```powershell
-npm run limpiar-becas -- --yes
+npm run limpiar-becas          # dry-run: no borra nada
+npm run limpiar-becas -- --yes # borra solo becas de ingesta no aprobadas
 npm run ingesta
 ```
 
-El script `limpiar-becas` borra:
-- Becas de prueba (URLs con "ejemplo", slugs con "test" o "screenshot")
-- Becas borradores sin destino definido
-- Favoritos y postulaciones asociados (CASCADE automático)
+El script `limpiar-becas` solo borra becas de ingesta (`source.type != MANUAL`) que siguen sin publicar (`status != ACTIVE`). Por defecto corre en dry-run. Los favoritos y postulaciones asociados se eliminan por CASCADE.
 
-**No toca:** usuarios ni fuentes.
+**No toca:** becas creadas o publicadas a mano, usuarios ni fuentes.
 
 ## Estructura del proyecto
 
