@@ -1,34 +1,26 @@
 import { LandingNavbar } from "@/components/landing/landing-navbar";
 import { HeroSection } from "@/components/landing/hero-section";
-import { AuthOptionsCard } from "@/components/landing/auth-options-card";
-import { SocialProof } from "@/components/landing/social-proof";
-import { getBecas, getLandingStats } from "@/lib/becas/queries";
-import { becasQuerySchema } from "@/validators/becas.validator";
+import { GreenBand } from "@/components/landing/green-band";
+import { DiscoverSection } from "@/components/landing/discover-section";
+import { PrepareSection } from "@/components/landing/prepare-section";
+import { StepsSection } from "@/components/landing/steps-section";
+import { LandingFooter } from "@/components/landing/landing-footer";
+import "@/components/landing/landing-ref.css";
 
-export const dynamic = "force-dynamic";
-
-export default async function LandingPage() {
-  const [{ data: scholarships }, stats] = await Promise.all([
-    getBecas(becasQuerySchema.parse({ limit: 50 }), { sort: "deadline" }),
-    getLandingStats(),
-  ]);
-
+export default function LandingPage() {
   return (
-    <div className="bg-background min-h-screen">
-      <LandingNavbar />
-
+    <div className="landing-ref min-h-screen">
+      <div className="relative">
+        <LandingNavbar />
+        <HeroSection />
+      </div>
       <main>
-        <HeroSection scholarships={scholarships} stats={stats} />
-
-        {/* Auth options */}
-        <section className="border-border bg-background border-t px-4 py-16">
-          <div className="mx-auto flex max-w-screen-lg justify-center">
-            <AuthOptionsCard />
-          </div>
-        </section>
-
-        <SocialProof />
+        <GreenBand />
+        <DiscoverSection />
+        <PrepareSection />
+        <StepsSection />
       </main>
+      <LandingFooter />
     </div>
   );
 }
