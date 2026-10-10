@@ -106,11 +106,9 @@ test.describe("Destination Selector and Globe", () => {
     // Press Enter to select
     await page.keyboard.press("Enter");
 
-    // Verify a destination was selected (either scholarships or empty state visible)
-    const hasContent = await page
-      .getByText(/Becas para|No hay becas disponibles/i)
-      .isVisible()
-      .catch(() => false);
-    expect(hasContent).toBe(true);
+    // Wait for content to load and verify a destination was selected
+    await page.waitForSelector('text=/Becas para|No hay becas disponibles/i', {
+      timeout: 5000,
+    });
   });
 });
