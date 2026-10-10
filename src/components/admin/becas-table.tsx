@@ -32,6 +32,8 @@ export function BecasTable({ scholarships }: BecasTableProps) {
   const router = useRouter();
   const [health, setHealth] = useState<Record<string, LinkHealth>>({});
   const [archiving, setArchiving] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<Record<string, string>>({});
 
   async function handleReverify(id: string) {
     setHealth((prev) => ({ ...prev, [id]: { state: "checking" } }));
@@ -65,6 +67,36 @@ export function BecasTable({ scholarships }: BecasTableProps) {
         ...prev,
         [id]: { state: "invalid", reason: "Error de red", archived: false },
       }));
+    }
+  }
+
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    setDeleteError((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    try {
+      const res = await fetch(`/api/admin/becas/${id}`, { method: "DELETE" });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setDeleteError((prev) => ({
+          ...prev,
+          [id]:
+            json.error ??
+            "Esta beca tiene postulaciones, ciérrala en vez de borrarla",
+        }));
+        return;
+      }
+      router.refresh();
+    } catch {
+      setDeleteError((prev) => ({
+        ...prev,
+        [id]: "No se pudo borrar la beca",
+      }));
+    } finally {
+      setDeleting(null);
     }
   }
 
@@ -160,6 +192,19 @@ export function BecasTable({ scholarships }: BecasTableProps) {
                         {archiving === s.id ? "Archivando..." : "Archivar"}
                       </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(s.id)}
+                      disabled={deleting === s.id}
+                    >
+                      {deleting === s.id ? "Borrando..." : "Borrar"}
+                    </Button>
+                    {deleteError[s.id] ? (
+                      <p className="text-destructive w-full text-xs">
+                        {deleteError[s.id]}
+                      </p>
+                    ) : null}
                   </div>
                 </td>
               </tr>

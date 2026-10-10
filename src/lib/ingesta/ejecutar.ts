@@ -10,7 +10,10 @@ import {
   normalizeForFingerprint,
 } from "./utils";
 import { parseSpanishDate } from "@/scrapers/normalize";
-import { parseCountryDestination } from "@/lib/geo";
+import {
+  parseCountryDestination,
+  unrecognizedDestinationTokens,
+} from "@/lib/geo";
 import { SECIHTILector } from "./fuentes/secihti";
 import { JinaLector } from "./fuentes/jina";
 
@@ -251,9 +254,6 @@ async function procesarBeca(
   if (!beca.coverageType) {
     validationErrors.push("Suposición: cobertura MONETARY (no especificada)");
   }
-  if (!beca.countryDestination) {
-    validationErrors.push("Suposición: país México (no especificado)");
-  }
 
   // Extraer año de la fuente si existe (SECIHTI conv_year)
   const yearFromSource = beca.rawData?.year as number | undefined;
@@ -352,13 +352,19 @@ async function procesarBeca(
     ? parseCountryDestination(beca.countryDestination)
     : [];
 
-  // If no countries could be parsed, add validation error
   if (destinationCountries.length === 0) {
     validationErrors.push(
-      beca.countryDestination
+      beca.countryDestination?.trim()
         ? `No se pudo mapear el país de destino: "${beca.countryDestination}"`
-        : "País de destino no especificado en la fuente",
+        : "No se pudo mapear el país de destino",
     );
+  } else {
+    const desconocidos = unrecognizedDestinationTokens(
+      beca.countryDestination ?? "",
+    );
+    for (const token of desconocidos) {
+      validationErrors.push(`No se pudo mapear el país de destino: "${token}"`);
+    }
   }
 
   await db.scholarship.create({

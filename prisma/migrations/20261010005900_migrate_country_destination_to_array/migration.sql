@@ -1,10 +1,10 @@
 -- countryDestination (texto libre) → destinationCountries (ISO-3166 alpha-2[])
--- La conversión replica parseCountryDestination() de src/lib/geo.ts:
---   1. Parte por coma, punto y coma, barra, " y " / " o " (palabra completa).
---   2. Normaliza cada parte (minúsculas, sin acentos, ñ→n).
---   3. Busca coincidencia exacta en el mapa de nombres/códigos.
---   4. Vacío o no reconocido → {} (nunca México por defecto).
--- Los anclajes ^…$ NO se usan: SIMILAR TO '%(^mx$)%' no ancla, busca el literal.
+-- Replica parseCountryDestination() de src/lib/geo.ts:
+--   1. Recorta whitespace JS (espacios, tabs, saltos, NBSP U+00A0) del valor y de cada token.
+--   2. Parte por coma, ;, /, y/o/e/u como palabra completa.
+--   3. Normaliza (minúsculas, sin acentos, ñ→n) y busca el mapa exacto.
+--   4. Dedup con GROUP BY conservando el primer orden (MIN ord).
+--   5. Vacío o no reconocido → {} (nunca México).
 
 -- 1. Nueva columna
 ALTER TABLE "Scholarship" ADD COLUMN "destinationCountries" TEXT[] NOT NULL DEFAULT '{}';
@@ -91,12 +91,20 @@ converted AS (
     ARRAY(
       SELECT m.code
       FROM regexp_split_to_table(
-        COALESCE(sch."countryDestination", ''),
-        '[,;/]|\y[yYoO]\y'
+        regexp_replace(
+          COALESCE(sch."countryDestination", ''),
+          E'^[\\s\\u00A0]+|[\\s\\u00A0]+$',
+          '',
+          'g'
+        ),
+        '[,;/]|\y[yYoOeEuU]\y'
       ) WITH ORDINALITY AS t(part, ord)
       JOIN name_to_code m
-        ON m.name = lower(trim(unaccent(replace(replace(trim(t.part), 'ñ', 'n'), 'Ñ', 'n'))))
-      WHERE trim(t.part) <> ''
+        ON m.name = lower(unaccent(replace(replace(
+          regexp_replace(t.part, E'^[\\s\\u00A0]+|[\\s\\u00A0]+$', '', 'g'),
+          'ñ', 'n'
+        ), 'Ñ', 'n')))
+      WHERE regexp_replace(t.part, E'^[\\s\\u00A0]+|[\\s\\u00A0]+$', '', 'g') <> ''
       GROUP BY m.code
       ORDER BY MIN(t.ord)
     ) AS codes
@@ -126,7 +134,7 @@ SET "validationErrors" =
   END
 WHERE "destinationCountries" = '{}'
   AND "countryDestination" IS NOT NULL
-  AND btrim("countryDestination") <> '';
+  AND regexp_replace("countryDestination", E'^[\\s\\u00A0]+|[\\s\\u00A0]+$', '', 'g') <> '';
 
 -- 4. Quitar la columna e índice viejos
 ALTER TABLE "Scholarship" DROP COLUMN "countryDestination";

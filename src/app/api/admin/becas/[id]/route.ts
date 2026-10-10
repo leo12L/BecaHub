@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { assertCanPublish } from "@/lib/becas/admin";
+import {
+  assertCanPublish,
+  MENSAJE_BECA_CON_POSTULACIONES,
+} from "@/lib/becas/admin";
 import {
   adminBecaInputSchema,
   adminBecaPatchSchema,
@@ -151,4 +155,29 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   });
 
   return NextResponse.json({ data: scholarship });
+}
+
+export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
+
+  const existing = await db.scholarship.findUnique({ where: { id } });
+  if (!existing) {
+    return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+  }
+
+  try {
+    await db.scholarship.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2003" || error.code === "P2014")
+    ) {
+      return NextResponse.json(
+        { error: MENSAJE_BECA_CON_POSTULACIONES },
+        { status: 409 },
+      );
+    }
+    throw error;
+  }
 }

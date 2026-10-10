@@ -1,6 +1,9 @@
 import { checkUrlHealth } from "@/lib/validation/url-health";
 import { getTodayInMexicoCity } from "@/lib/fechas";
 
+export const MENSAJE_BECA_CON_POSTULACIONES =
+  "Esta beca tiene postulaciones, ciérrala en vez de borrarla";
+
 export interface PublishCheckResult {
   ok: boolean;
   error?: string;

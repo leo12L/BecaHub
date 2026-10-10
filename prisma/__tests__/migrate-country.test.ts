@@ -17,6 +17,10 @@ const OLD_VALUES = [
   "México y España",
   "Europa",
   "",
+  "\tCanadá\n",
+  "\u00A0México\u00A0",
+  "España, México, España",
+  "Holanda e Italia",
 ] as const;
 
 const connectionString =
@@ -178,6 +182,22 @@ describe.skipIf(shouldSkip)(
         expect(row.destinationCountries).toEqual([]);
         expect(row.destinationCountries).not.toContain("MX");
       }
+    });
+
+    it("recorta tabs, saltos y NBSP igual que JS trim()", () => {
+      expect(parseCountryDestination("\tCanadá\n")).toEqual(["CA"]);
+      expect(parseCountryDestination("\u00A0México\u00A0")).toEqual(["MX"]);
+    });
+
+    it("deduplica 'España, México, España' (falla si se quita el GROUP BY)", () => {
+      expect(parseCountryDestination("España, México, España")).toEqual([
+        "ES",
+        "MX",
+      ]);
+    });
+
+    it("parte 'Holanda e Italia' igual que JS", () => {
+      expect(parseCountryDestination("Holanda e Italia")).toEqual(["NL", "IT"]);
     });
 
     it("crea el índice GIN sobre destinationCountries", async () => {

@@ -1,270 +1,199 @@
 /**
- * Test de BD para el script de limpieza de becas de ingesta.
- * Verifica que:
- * 1. Solo borra becas de ingesta (source.type != 'MANUAL') no aprobadas (status != 'ACTIVE')
- * 2. No borra becas manuales ni becas activas
- * 3. El borrado en cascada funciona correctamente (no deja favoritos/aplicaciones huérfanos)
+ * Ejercita las funciones exportadas de scripts/limpiar-becas.ts contra la BD.
+ * Si se copia el filtro aquí en vez de importarlo, estos casos dejan de
+ * fallar cuando el script cambia.
  */
-
-import { describe, it, expect, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import type { Source, User } from "@/generated/prisma/client";
+import {
+  clasificarBecasParaLimpieza,
+  filtroBecasLimpiables,
+  limpiarBecas,
+  shouldExecuteDelete,
+} from "../../../../scripts/limpiar-becas";
 
-describe("limpiar-becas script logic", () => {
+const PREFIX = "limpiar-beca-qa-";
+
+describe("limpiar-becas (funciones del script)", () => {
   let testUser: User;
   let manualSource: Source;
   let discoverySource: Source;
 
   beforeEach(async () => {
-    // Crear usuario de prueba
     testUser = await db.user.create({
       data: {
-        id: `test-user-${Date.now()}`,
-        email: `test-${Date.now()}@example.com`,
+        id: `${PREFIX}user-${Date.now()}`,
+        email: `${PREFIX}${Date.now()}@example.com`,
         role: "USER",
       },
     });
-
-    // Crear fuentes de prueba
     manualSource = await db.source.create({
       data: {
-        name: "Manual Test Source",
-        url: "https://example.com/manual",
+        name: `${PREFIX}manual`,
+        url: `https://example.com/${PREFIX}manual-${Date.now()}`,
         type: "MANUAL",
       },
     });
-
     discoverySource = await db.source.create({
       data: {
-        name: "Discovery Test Source",
-        url: "https://example.com/discovery",
+        name: `${PREFIX}discovery`,
+        url: `https://example.com/${PREFIX}discovery-${Date.now()}`,
         type: "DISCOVERY",
       },
     });
   });
 
-  it("should only find ingested unapproved scholarships", async () => {
-    // Crear becas de prueba
-    const manualActive = await db.scholarship.create({
-      data: {
-        title: "Manual Active Scholarship",
-        slug: `manual-active-${Date.now()}`,
-        description: "Should NOT be deleted",
-        applyUrl: "https://example.com/manual-active",
-        deadline: new Date("2030-12-31"),
-        status: "ACTIVE",
-        coverageType: "MONETARY",
-        academicLevel: "UNDERGRAD",
-        sourceId: manualSource.id,
-        destinationCountries: ["MX"],
-      },
+  afterEach(async () => {
+    await db.application.deleteMany({
+      where: { userId: { startsWith: PREFIX } },
     });
-
-    const manualPending = await db.scholarship.create({
-      data: {
-        title: "Manual Pending Scholarship",
-        slug: `manual-pending-${Date.now()}`,
-        description: "Should NOT be deleted (manual source)",
-        applyUrl: "https://example.com/manual-pending",
-        deadline: new Date("2030-12-31"),
-        status: "PENDING_REVIEW",
-        coverageType: "MONETARY",
-        academicLevel: "UNDERGRAD",
-        sourceId: manualSource.id,
-        destinationCountries: ["MX"],
-      },
+    await db.favorite.deleteMany({
+      where: { userId: { startsWith: PREFIX } },
     });
-
-    const discoveryActive = await db.scholarship.create({
-      data: {
-        title: "Discovery Active Scholarship",
-        slug: `discovery-active-${Date.now()}`,
-        description: "Should NOT be deleted (active status)",
-        applyUrl: "https://example.com/discovery-active",
-        deadline: new Date("2030-12-31"),
-        status: "ACTIVE",
-        coverageType: "MONETARY",
-        academicLevel: "UNDERGRAD",
-        sourceId: discoverySource.id,
-        destinationCountries: ["US"],
-      },
-    });
-
-    const discoveryPending = await db.scholarship.create({
-      data: {
-        title: "Discovery Pending Scholarship",
-        slug: `discovery-pending-${Date.now()}`,
-        description: "SHOULD be deleted",
-        applyUrl: "https://example.com/discovery-pending",
-        deadline: new Date("2030-12-31"),
-        status: "PENDING_REVIEW",
-        coverageType: "MONETARY",
-        academicLevel: "UNDERGRAD",
-        sourceId: discoverySource.id,
-        destinationCountries: ["ES"],
-      },
-    });
-
-    const discoveryDraft = await db.scholarship.create({
-      data: {
-        title: "Discovery Draft Scholarship",
-        slug: `discovery-draft-${Date.now()}`,
-        description: "SHOULD be deleted",
-        applyUrl: "https://example.com/discovery-draft",
-        deadline: new Date("2030-12-31"),
-        status: "DRAFT",
-        coverageType: "MONETARY",
-        academicLevel: "UNDERGRAD",
-        sourceId: discoverySource.id,
-        destinationCountries: ["DE"],
-      },
-    });
-
-    // Aplicar el filtro del script (lógica de limpiar-becas.ts)
-    const scholarshipsToDelete = await db.scholarship.findMany({
-      where: {
-        source: {
-          type: {
-            not: "MANUAL",
-          },
-        },
-        status: {
-          not: "ACTIVE",
-        },
-      },
-      select: {
-        id: true,
-        title: true,
-      },
-    });
-
-    // Verificar que encuentra las becas de ingesta no aprobadas
-    const foundIds = scholarshipsToDelete.map((s) => s.id);
-    expect(foundIds).toContain(discoveryPending.id);
-    expect(foundIds).toContain(discoveryDraft.id);
-    
-    // Verificar que NO encuentra las becas manuales ni las activas
-    expect(foundIds).not.toContain(manualActive.id);
-    expect(foundIds).not.toContain(manualPending.id);
-    expect(foundIds).not.toContain(discoveryActive.id);
-
-    // Limpiar
     await db.scholarship.deleteMany({
-      where: {
-        id: {
-          in: [
-            manualActive.id,
-            manualPending.id,
-            discoveryActive.id,
-            discoveryPending.id,
-            discoveryDraft.id,
-          ],
-        },
-      },
+      where: { slug: { startsWith: PREFIX } },
+    });
+    await db.source.deleteMany({
+      where: { name: { startsWith: PREFIX } },
+    });
+    await db.user.deleteMany({
+      where: { id: { startsWith: PREFIX } },
     });
   });
 
-  it("should cascade delete favorites and applications without leaving orphans", async () => {
-    // Crear beca de ingesta pendiente
-    const pendingScholarship = await db.scholarship.create({
+  async function crearBeca(opts: {
+    slug: string;
+    status: "ACTIVE" | "CLOSED" | "DRAFT" | "PENDING_REVIEW";
+    sourceId: string;
+  }) {
+    return db.scholarship.create({
       data: {
-        title: "Pending Scholarship with Relations",
-        slug: `pending-relations-${Date.now()}`,
-        description: "Has favorites and applications",
-        applyUrl: "https://example.com/pending-relations",
+        title: opts.slug,
+        slug: `${PREFIX}${opts.slug}`,
+        description: "test limpiar",
+        applyUrl: `https://example.com/${opts.slug}`,
         deadline: new Date("2030-12-31"),
-        status: "PENDING_REVIEW",
+        status: opts.status,
         coverageType: "MONETARY",
         academicLevel: "UNDERGRAD",
-        sourceId: discoverySource.id,
+        sourceId: opts.sourceId,
         destinationCountries: ["MX"],
       },
     });
+  }
 
-    // Crear favorito y aplicación
-    const favorite = await db.favorite.create({
-      data: {
-        userId: testUser.id,
-        scholarshipId: pendingScholarship.id,
-      },
+  it("shouldExecuteDelete solo es true con --yes", () => {
+    expect(shouldExecuteDelete(["node", "limpiar-becas.ts"])).toBe(false);
+    expect(shouldExecuteDelete(["node", "limpiar-becas.ts", "--yes"])).toBe(
+      true,
+    );
+  });
+
+  it("CLOSED con favorito sobrevive y se reporta como omitida", async () => {
+    const closed = await crearBeca({
+      slug: "closed-fav",
+      status: "CLOSED",
+      sourceId: discoverySource.id,
+    });
+    await db.favorite.create({
+      data: { userId: testUser.id, scholarshipId: closed.id },
     });
 
-    const application = await db.application.create({
+    const result = await limpiarBecas({ yes: true });
+
+    expect(
+      await db.scholarship.findUnique({ where: { id: closed.id } }),
+    ).not.toBeNull();
+    expect(result.toDelete.map((b) => b.id)).not.toContain(closed.id);
+    expect(
+      await db.scholarship.findMany({ where: filtroBecasLimpiables() }),
+    ).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: closed.id })]),
+    );
+  });
+
+  it("PENDING_REVIEW con postulación sobrevive y se reporta en skipped", async () => {
+    const pending = await crearBeca({
+      slug: "pending-app",
+      status: "PENDING_REVIEW",
+      sourceId: discoverySource.id,
+    });
+    await db.application.create({
       data: {
         userId: testUser.id,
-        scholarshipId: pendingScholarship.id,
+        scholarshipId: pending.id,
         status: "INTERESTED",
       },
     });
 
-    // Verificar que existen
-    expect(
-      await db.favorite.findUnique({ where: { id: favorite.id } })
-    ).toBeTruthy();
-    expect(
-      await db.application.findUnique({ where: { id: application.id } })
-    ).toBeTruthy();
+    const classified = await clasificarBecasParaLimpieza();
+    expect(classified.toDelete.map((b) => b.id)).not.toContain(pending.id);
+    const omitida = classified.skipped.find((b) => b.id === pending.id);
+    expect(omitida?.reason).toMatch(/postulacion/i);
 
-    // Borrar la beca (simula el script)
-    await db.scholarship.delete({
-      where: { id: pendingScholarship.id },
-    });
-
-    // Verificar que el favorito y la aplicación fueron borrados en cascada
+    const result = await limpiarBecas({ yes: true });
+    expect(result.skipped.some((b) => b.id === pending.id)).toBe(true);
     expect(
-      await db.favorite.findUnique({ where: { id: favorite.id } })
-    ).toBeNull();
+      await db.scholarship.findUnique({ where: { id: pending.id } }),
+    ).not.toBeNull();
     expect(
-      await db.application.findUnique({ where: { id: application.id } })
-    ).toBeNull();
-
-    // Verificar que el usuario sigue existiendo
-    expect(
-      await db.user.findUnique({ where: { id: testUser.id } })
-    ).toBeTruthy();
+      await db.application.findFirst({ where: { scholarshipId: pending.id } }),
+    ).not.toBeNull();
   });
 
-  it("should not delete anything when no unapproved ingested scholarships exist", async () => {
-    // Solo crear becas que NO deben borrarse
-    const safeScholarship = await db.scholarship.create({
-      data: {
-        title: "Manual Active Only",
-        slug: `manual-only-${Date.now()}`,
-        description: "Safe scholarship",
-        applyUrl: "https://example.com/manual-only",
-        deadline: new Date("2030-12-31"),
-        status: "ACTIVE",
-        coverageType: "MONETARY",
-        academicLevel: "UNDERGRAD",
-        sourceId: manualSource.id,
-        destinationCountries: ["MX"],
-      },
+  it("DRAFT de ingesta sin relaciones se borra con --yes", async () => {
+    const draft = await crearBeca({
+      slug: "draft-free",
+      status: "DRAFT",
+      sourceId: discoverySource.id,
     });
 
-    // Aplicar el filtro
-    const scholarshipsToDelete = await db.scholarship.findMany({
-      where: {
-        source: {
-          type: {
-            not: "MANUAL",
-          },
-        },
-        status: {
-          not: "ACTIVE",
-        },
-      },
-      select: {
-        id: true,
-      },
+    const result = await limpiarBecas({ yes: true });
+    expect(result.deletedCount).toBeGreaterThanOrEqual(1);
+    expect(result.toDelete.map((b) => b.id)).toContain(draft.id);
+    expect(
+      await db.scholarship.findUnique({ where: { id: draft.id } }),
+    ).toBeNull();
+  });
+
+  it("ACTIVE sobrevive", async () => {
+    const active = await crearBeca({
+      slug: "active-ok",
+      status: "ACTIVE",
+      sourceId: discoverySource.id,
     });
 
-    // No debe encontrar la beca manual activa
-    const safeScholarshipIds = scholarshipsToDelete.map((s) => s.id);
-    expect(safeScholarshipIds).not.toContain(safeScholarship.id);
+    await limpiarBecas({ yes: true });
+    expect(
+      await db.scholarship.findUnique({ where: { id: active.id } }),
+    ).not.toBeNull();
+  });
 
-    // Limpiar
-    await db.scholarship.delete({
-      where: { id: safeScholarship.id },
+  it("sin --yes no borra nada (dry-run)", async () => {
+    const draft = await crearBeca({
+      slug: "draft-dry",
+      status: "DRAFT",
+      sourceId: discoverySource.id,
     });
+
+    const result = await limpiarBecas({ yes: false });
+    expect(result.deletedCount).toBe(0);
+    expect(result.toDelete.map((b) => b.id)).toContain(draft.id);
+    expect(
+      await db.scholarship.findUnique({ where: { id: draft.id } }),
+    ).not.toBeNull();
+  });
+
+  it("DRAFT manual no se borra", async () => {
+    const manualDraft = await crearBeca({
+      slug: "manual-draft",
+      status: "DRAFT",
+      sourceId: manualSource.id,
+    });
+    await limpiarBecas({ yes: true });
+    expect(
+      await db.scholarship.findUnique({ where: { id: manualDraft.id } }),
+    ).not.toBeNull();
   });
 });

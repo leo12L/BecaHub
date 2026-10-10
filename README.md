@@ -175,20 +175,22 @@ npm run limpiar-becas -- --yes  # Ejecuta el borrado
 
 ### Después de fusionar PR #8 (migración destinationCountries)
 
-Los datos actuales de la Supabase del dueño son de prueba. Hay que resetear y volver a sembrar (no se añade una migración de parche):
+Prisma lee `C:\Proyectos\BecaHub\.env` (`prisma.config.ts` no carga `.env.local`).
+
+Antes del reset, abre `.env` y confirma que `DATABASE_URL` y `DIRECT_URL` apuntan al proyecto de Supabase correcto. `migrate reset --force` borra el esquema público de esa base.
 
 ```powershell
 npx prisma migrate reset --force
 npx prisma db seed
 ```
 
-Luego inicia sesión una vez (eso recrea tu fila en `User`). Sustituye el correo y ejecuta:
+Inicia sesión una vez (eso recrea tu fila en `User`). Sustituye el correo:
 
 ```powershell
 'UPDATE "User" SET role = ''ADMIN'' WHERE email = ''TU_CORREO@dominio.com'';' | npx prisma db execute --stdin
 ```
 
-El script `limpiar-becas` sigue disponible para borrar solo ingesta no publicada (`npm run limpiar-becas` / `--yes`).
+`limpiar-becas` solo borra DRAFT/PENDING_REVIEW de ingesta sin favoritos ni postulaciones.
 
 ## Estructura del proyecto
 

@@ -3,6 +3,7 @@ import {
   MEXICO_PATTERN,
   countryNameToCode,
   parseCountryDestination,
+  unrecognizedDestinationTokens,
   countryCodeToName,
   REGIONS,
   resolveDestinationCodes,
@@ -15,7 +16,9 @@ describe("MEXICO_PATTERN", () => {
   });
 
   it("matches 'Mexico' without accent", () => {
-    expect(MEXICO_PATTERN.test("Scholarship for students in Mexico")).toBe(true);
+    expect(MEXICO_PATTERN.test("Scholarship for students in Mexico")).toBe(
+      true,
+    );
   });
 
   it("matches 'mexicano'", () => {
@@ -23,7 +26,9 @@ describe("MEXICO_PATTERN", () => {
   });
 
   it("matches 'mexicana'", () => {
-    expect(MEXICO_PATTERN.test("Convocatoria de la Universidad mexicana")).toBe(true);
+    expect(MEXICO_PATTERN.test("Convocatoria de la Universidad mexicana")).toBe(
+      true,
+    );
   });
 
   it("matches standalone 'mx'", () => {
@@ -36,7 +41,9 @@ describe("MEXICO_PATTERN", () => {
   });
 
   it("does not match unrelated text", () => {
-    expect(MEXICO_PATTERN.test("Scholarship for students in Canada and USA")).toBe(false);
+    expect(
+      MEXICO_PATTERN.test("Scholarship for students in Canada and USA"),
+    ).toBe(false);
   });
 
   it("matches case-insensitively", () => {
@@ -141,6 +148,28 @@ describe("parseCountryDestination", () => {
       "MX",
       "ES",
     ]);
+  });
+
+  it("recorta tabs, saltos y NBSP", () => {
+    expect(parseCountryDestination("\tCanadá\n")).toEqual(["CA"]);
+    expect(parseCountryDestination("\u00A0México\u00A0")).toEqual(["MX"]);
+  });
+
+  it("deduplica España repetida (falla si se quita el Set)", () => {
+    expect(parseCountryDestination("España, México, España")).toEqual([
+      "ES",
+      "MX",
+    ]);
+  });
+
+  it("parte 'Holanda e Italia' y 'México u Honduras' no aplica a Honduras", () => {
+    expect(parseCountryDestination("Holanda e Italia")).toEqual(["NL", "IT"]);
+  });
+});
+
+describe("unrecognizedDestinationTokens", () => {
+  it("avisa el país no reconocido dentro de una lista", () => {
+    expect(unrecognizedDestinationTokens("México, Narnia")).toEqual(["Narnia"]);
   });
 });
 

@@ -10,25 +10,25 @@ export const COUNTRY_NAME_TO_CODE: Record<string, string> = {
   méxico: "MX",
   mexico: "MX",
   mx: "MX",
-  
+
   // Estados Unidos
   "estados unidos": "US",
   "united states": "US",
-  "usa": "US",
-  "us": "US",
+  usa: "US",
+  us: "US",
   eeuu: "US",
-  
+
   // Canadá
   canadá: "CA",
   canada: "CA",
   ca: "CA",
-  
+
   // España
   espana: "ES",
   españa: "ES",
   spain: "ES",
   es: "ES",
-  
+
   // Reino Unido
   "reino unido": "GB",
   "united kingdom": "GB",
@@ -36,63 +36,63 @@ export const COUNTRY_NAME_TO_CODE: Record<string, string> = {
   gb: "GB",
   inglaterra: "GB",
   england: "GB",
-  
+
   // Alemania
   alemania: "DE",
   germany: "DE",
   de: "DE",
-  
+
   // Francia
   francia: "FR",
   france: "FR",
   fr: "FR",
-  
+
   // Italia
   italia: "IT",
   italy: "IT",
   it: "IT",
-  
+
   // China
   china: "CN",
   cn: "CN",
-  
+
   // Japón
   japón: "JP",
   japon: "JP",
   japan: "JP",
   jp: "JP",
-  
+
   // Argentina
   argentina: "AR",
   ar: "AR",
-  
+
   // Brasil
   brasil: "BR",
   brazil: "BR",
   br: "BR",
-  
+
   // Chile
   chile: "CL",
   cl: "CL",
-  
+
   // Colombia
   colombia: "CO",
   co: "CO",
-  
+
   // Perú
   perú: "PE",
   peru: "PE",
   pe: "PE",
-  
+
   // Australia
   australia: "AU",
   au: "AU",
-  
+
   // Nueva Zelanda
   "nueva zelanda": "NZ",
   "new zealand": "NZ",
   nz: "NZ",
-  
+
   // Países Bajos
   "países bajos": "NL",
   "paises bajos": "NL",
@@ -100,32 +100,32 @@ export const COUNTRY_NAME_TO_CODE: Record<string, string> = {
   holanda: "NL",
   holland: "NL",
   nl: "NL",
-  
+
   // Bélgica
   bélgica: "BE",
   belgica: "BE",
   belgium: "BE",
   be: "BE",
-  
+
   // Suiza
   suiza: "CH",
   switzerland: "CH",
   ch: "CH",
-  
+
   // Suecia
   suecia: "SE",
   sweden: "SE",
   se: "SE",
-  
+
   // Noruega
   noruega: "NO",
   norway: "NO",
   no: "NO",
-  
+
   // Portugal
   portugal: "PT",
   pt: "PT",
-  
+
   // Corea del Sur
   "corea del sur": "KR",
   "south korea": "KR",
@@ -140,8 +140,8 @@ export const COUNTRY_NAME_TO_CODE: Record<string, string> = {
 export const REGIONS: Record<string, string[]> = {
   europa: ["ES", "GB", "DE", "FR", "IT", "NL", "BE", "CH", "SE", "NO", "PT"],
   "américa del norte": ["US", "CA"],
-  "norteamérica": ["US", "CA"],
-  "latinoamérica": ["MX", "AR", "BR", "CL", "CO", "PE"],
+  norteamérica: ["US", "CA"],
+  latinoamérica: ["MX", "AR", "BR", "CL", "CO", "PE"],
   "américa latina": ["MX", "AR", "BR", "CL", "CO", "PE"],
   asia: ["CN", "JP", "KR"],
   oceanía: ["AU", "NZ"],
@@ -169,22 +169,33 @@ export function countryNameToCode(name: string): string | null {
   return COUNTRY_NAME_TO_CODE[normalized] ?? null;
 }
 
+/** Parte un texto de destinos por coma, `;`, `/`, y/o/e/u como palabra. */
+export function splitDestinationTokens(text: string): string[] {
+  return text
+    .split(/[,;/]|\by\b|\bo\b|\be\b|\bu\b/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+/** Tokens que no se pudieron mapear a un código ISO. */
+export function unrecognizedDestinationTokens(text: string): string[] {
+  if (!text || text.trim() === "") return [];
+  return splitDestinationTokens(text).filter(
+    (part) => countryNameToCode(part) === null,
+  );
+}
+
 /**
- * Convierte múltiples nombres de países (separados por comas, "y", "o") a códigos.
- * Retorna un arreglo de códigos únicos.
+ * Convierte múltiples nombres de países (separados por comas, "y", "o", "e", "u")
+ * a códigos ISO únicos, en el orden de primera aparición.
  */
 export function parseCountryDestination(text: string): string[] {
   if (!text || text.trim() === "") return [];
-  
-  const parts = text
-    .split(/[,;\/]|\by\b|\bo\b/i)
-    .map((p) => p.trim())
-    .filter(Boolean);
-  
-  const codes = parts
+
+  const codes = splitDestinationTokens(text)
     .map((part) => countryNameToCode(part))
     .filter((code): code is string => code !== null);
-  
+
   return [...new Set(codes)];
 }
 
