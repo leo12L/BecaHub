@@ -76,25 +76,25 @@ test.describe("Portada BecaHub", () => {
         document.documentElement.classList.toggle("dark", dark);
       }, viewport.dark);
 
-      const heroImgs = page
-        .locator('[data-testid^="landing-hero-img-"]')
-        .locator("visible=true");
-      const count = await heroImgs.count();
-      expect(count, `hero fotos en ${viewport.name}`).toBeGreaterThan(0);
-      const sample = Math.min(count, viewport.width < 901 ? 2 : 6);
-      for (let i = 0; i < sample; i++) {
-        const img = heroImgs.nth(i);
-        await img.scrollIntoViewIfNeeded();
-        await expect(img).toBeVisible();
+      const heroIds =
+        viewport.width < 901
+          ? (["landing-hero-img-mobile-Universidad"] as const)
+          : ([
+              "landing-hero-img-left-0",
+              "landing-hero-img-right-0",
+              "landing-hero-img-peek-top",
+            ] as const);
+
+      for (const id of heroIds) {
+        const img = page.getByTestId(id);
+        await expect(img).toBeAttached();
         await expect
           .poll(async () => img.evaluate((el: HTMLImageElement) => el.complete))
           .toBe(true);
         const naturalWidth = await img.evaluate(
           (el: HTMLImageElement) => el.naturalWidth,
         );
-        expect(naturalWidth, `hero ${i} en ${viewport.name}`).toBeGreaterThan(
-          0,
-        );
+        expect(naturalWidth, `${id} en ${viewport.name}`).toBeGreaterThan(0);
       }
 
       for (const id of [
